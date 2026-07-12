@@ -1,0 +1,10 @@
+-- AlterTable
+ALTER TABLE "LinkedInActivity" ADD COLUMN     "qualityFlags" JSONB;
+
+-- AlterTable
+ALTER TABLE "SenderDomain" ADD COLUMN     "lastResetAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "timezone" TEXT NOT NULL DEFAULT 'UTC';
+
+-- AlterTable
+ALTER TABLE "SenderMailbox" ADD COLUMN     "lastResetAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "timezone" TEXT NOT NULL DEFAULT 'UTC';

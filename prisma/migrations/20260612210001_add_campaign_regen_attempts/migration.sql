@@ -1,0 +1,1 @@
+ALTER TABLE "Campaign" ADD COLUMN "regenAttempts" INTEGER NOT NULL DEFAULT 0;

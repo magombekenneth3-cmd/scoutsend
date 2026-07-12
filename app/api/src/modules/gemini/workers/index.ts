@@ -1,0 +1,12 @@
+import "./orchestrator.worker";
+import "./research.worker";
+import "./scoring.worker";
+import "./emailEnrichment.worker";
+import "./emailGeneration.worker";
+import "./send.worker";
+import "./linkedin.worker";
+import "./realtime.worker";
+import "./mailPoll.worker";
+import "./maintenance.worker";
+import "./learning.worker";
+import "./leadSignal.worker";

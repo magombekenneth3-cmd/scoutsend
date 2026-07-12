@@ -1,0 +1,1293 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  REVIEWER
+}
+
+enum EmailStatus {
+  NOT_ATTEMPTED
+  PENDING
+  FOUND
+  NOT_FOUND
+  INVALID
+  BOUNCED
+  SUPPRESSED
+  PENDING_VERIFICATION
+}
+
+enum SignalType {
+  HIRING_SIGNAL
+  FUNDING_SIGNAL
+  GROWTH_SIGNAL
+  TECH_SIGNAL
+  INTENT_SIGNAL
+  RISK_SIGNAL
+  WEBSITE_COPY
+  UNKNOWN
+}
+
+enum CampaignStatus {
+  DRAFT
+  RESEARCHING
+  GENERATING
+  REVIEW
+  QUEUED
+  SENDING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DeliveryState {
+  DRAFT
+  QUEUED
+  SENT
+  DELIVERED
+  OPENED
+  REPLIED
+  BOUNCED
+  FAILED
+  SUPPRESSED
+  SENDING
+  SPAM
+}
+
+enum ReplyIntent {
+  POSITIVE
+  NEGATIVE
+  NOT_INTERESTED
+  OUT_OF_OFFICE
+  MEETING_REQUEST
+  QUESTION
+  UNKNOWN
+}
+
+enum PipelineStage {
+  PROSPECT
+  ENGAGED
+  HOT
+  MEETING_BOOKED
+  DISQUALIFIED
+}
+
+enum QueueJobStatus {
+  WAITING
+  ACTIVE
+  COMPLETED
+  FAILED
+  DELAYED
+  PAUSED
+}
+
+enum DomainHealth {
+  HEALTHY
+  WARNING
+  DEGRADED
+  BLOCKED
+}
+
+enum MailProviderType {
+  GMAIL
+  OUTLOOK
+  SMTP
+}
+
+enum DeliverabilityEventType {
+  BOUNCE
+  SOFT_BOUNCE
+  HARD_BOUNCE
+  SPAM_COMPLAINT
+  UNSUBSCRIBE
+  DELIVERY_FAILURE
+  DOMAIN_BLOCKED
+  MAILBOX_BLOCKED
+  MAILBOX_ROTATED
+  SUBJECT_LINE_EXHAUSTION
+  CONFIG_ERROR
+  HEALTH_WARNING
+  HEALTH_DEGRADED
+  HEALTH_BLOCKED
+}
+
+enum DeliverabilityEventSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum LearningEventType {
+  REVIEW_FLAGGED
+  HUMAN_EDITED
+  HUMAN_APPROVED
+  HUMAN_REJECTED
+  AUTO_APPROVED
+}
+
+enum LearningOutcome {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  EDITED_AND_APPROVED
+  DISMISSED
+}
+
+enum Channel {
+  EMAIL
+  LINKEDIN_VISIT
+  LINKEDIN_CONNECT
+  LINKEDIN_MESSAGE
+  LINKEDIN_INMAIL
+  LINKEDIN_POST_CONNECT
+}
+
+enum StepTrigger {
+  AFTER_DELAY
+  ON_NO_REPLY
+  ON_OPEN
+  ON_CONNECT_ACCEPT
+  ON_NO_ACCEPT
+}
+
+enum StepExecutionStatus {
+  PENDING
+  SCHEDULED
+  EXECUTING
+  DONE
+  FAILED
+  SKIPPED
+}
+
+enum LinkedInStatus {
+  PENDING
+  SENT
+  ACCEPTED
+  REPLIED
+  FAILED
+  WITHDRAWN
+}
+
+enum LeadJourneyEventType {
+  EMAIL_SENT
+  EMAIL_DELIVERED
+  EMAIL_OPENED
+  EMAIL_BOUNCED
+  LINKEDIN_VISITED
+  LINKEDIN_CONNECT_SENT
+  LINKEDIN_CONNECT_ACCEPTED
+  LINKEDIN_MESSAGED
+  REPLY_RECEIVED
+  SEQUENCE_STEP_EXECUTED
+  PIPELINE_STAGE_CHANGED
+  MEETING_BOOKED
+  SIGNAL_DETECTED
+  SCORE_UPDATED
+  SUPPRESSED
+}
+
+enum DiscoverySourceType {
+  APOLLO_SEARCH
+  SERPER_SEARCH
+  BUILTWITH_TECH
+  JOB_INTEL
+  COMMUNITY_INTENT
+  ENRICHMENT_REFRESH
+  LOOKALIKE
+  CSV_IMPORT
+  LINKEDIN_SEARCH
+}
+
+enum DiscoveryRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum CatchAllPolicy {
+  SKIP
+  SEND
+  HOLD
+}
+
+enum TemplateStyle {
+  BRANDED
+  PLAIN
+}
+
+enum ResearchStatus {
+  PENDING
+  RUNNING
+  COMPLETE
+  FAILED
+  STALE
+  CANCELLED
+}
+
+enum AgentRunStatus {
+  PENDING
+  RUNNING
+  COMPLETE
+  FAILED
+  STALE
+}
+
+enum AgentOutputType {
+  TEXT
+  BOOLEAN
+  NUMBER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole @default(OPERATOR)
+  tokenVersion Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaigns          Campaign[]
+  brandSettings      BrandSettings?
+  auditLogs          AuditLog[]
+  approvals          OutreachMessage[]
+  senderDomains      SenderDomain[]
+  senderMailboxes    SenderMailbox[]
+  draftReplies       Reply[]              @relation("ReplyDraftSentBy")
+  suppressions       Suppression[]
+  linkedInAccounts   LinkedInAccount[]
+  triggeredResearch  LeadResearchReport[]
+  agentColumns       LeadAgentColumn[]
+  triggeredAgentRuns LeadAgentRun[]
+}
+
+model Campaign {
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  status         CampaignStatus  @default(DRAFT)
+  previousStatus CampaignStatus?
+
+  icpDescription String
+  targetIndustry String?
+  targetRegion   String?
+  enrichmentData Json?
+
+  dailySendLimit         Int   @default(25)
+  qualificationThreshold Float @default(0.5)
+
+  sendWindowStart Int?
+  sendWindowEnd   Int?
+  sendWindowDays  Int[]
+  timezone        String?
+
+  followUpDelayDays      Int     @default(3)
+  followUpMaxSteps       Int     @default(2)
+  regenAttempts          Int     @default(0)
+  autoSendRepliesEnabled Boolean @default(false)
+
+  catchAllPolicy CatchAllPolicy @default(SKIP)
+  templateStyle  TemplateStyle  @default(BRANDED)
+
+  startedAt   DateTime?
+  pausedAt    DateTime?
+  completedAt DateTime?
+
+  linkedInAccountId String?
+  linkedInAccount   LinkedInAccount? @relation(fields: [linkedInAccountId], references: [accountId])
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  senderDomainId String?
+  senderDomain   SenderDomain? @relation(fields: [senderDomainId], references: [id])
+
+  senderMailboxId String?
+  senderMailbox   SenderMailbox? @relation("CampaignMailbox", fields: [senderMailboxId], references: [id])
+
+  leads                Lead[]
+  queueJobs            QueueJob[]
+  deliverabilityEvents DeliverabilityEvent[]
+  aiTraces             AITrace[]
+  winRecords           WinRecord[]
+  lossRecords          LossRecord[]
+  sequenceSteps        SequenceStep[]
+  stateStore           CampaignStateStore?
+  discoveryRuns        DiscoveryRun[]
+  qualityThreshold     CampaignQualityThreshold?
+  scoringWeights       CampaignScoringWeights?
+  agentColumns         LeadAgentColumn[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([createdById])
+  @@index([status])
+  @@index([status, deletedAt])
+  @@index([senderDomainId])
+  @@index([senderMailboxId])
+  @@index([linkedInAccountId])
+}
+
+model LinkedInAccount {
+  id         String @id @default(cuid())
+  accountId  String @unique
+  name       String
+  avatarUrl  String?
+  profileUrl String?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  campaigns Campaign[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdById])
+}
+
+model Lead {
+  id String @id @default(cuid())
+
+  companyName String
+  website     String?
+  domain      String?
+  linkedinUrl String?
+  breakdownScores   Json?
+  recommendedAction String?
+
+  firstName     String?
+  lastName      String?
+  email         String?
+  emailStatus   EmailStatus @default(NOT_ATTEMPTED)
+  emailSource   String?
+  emailVerified Boolean     @default(false)
+  emailCatchAll Boolean     @default(false)
+  title         String?
+  seniority     String?
+  department    String?
+  lastEnrichedAt      DateTime?
+  qualificationScore  Float?
+  qualificationReason String?
+  sequenceInitError   String?
+  decisionMakerScore  Float?
+
+  competitorSignal Boolean  @default(false)
+  competitorTech   String[] @default([])
+
+  enrichmentData Json?
+  embedding      Unsupported("vector(768)")?
+
+  source     String?
+  externalId String?
+
+  lastContactedAt DateTime?
+
+  pipelineStage          PipelineStage @default(PROSPECT)
+  pipelineStageUpdatedAt DateTime?
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  signals            LeadSignal[]
+  outreachMessages   OutreachMessage[]
+  replies            Reply[]
+  stepStatuses       LeadStepStatus[]
+  linkedInActivities LinkedInActivity[]
+  scoreSnapshots     LeadScoreSnapshot[]
+  journeyEvents      LeadJourneyEvent[]
+  winRecords         WinRecord[]
+  lossRecords        LossRecord[]
+  aiTraces           AITrace[]
+  researchReports    LeadResearchReport[]
+  agentRuns          LeadAgentRun[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([campaignId])
+  @@index([campaignId, deletedAt])
+  @@index([campaignId, externalId])
+  @@unique([campaignId, externalId])
+  @@index([companyId])
+  @@index([pipelineStage])
+  @@unique([campaignId, email])
+  @@unique([campaignId, domain])
+  @@index([campaignId, pipelineStage])
+  @@index([seniority])
+  @@index([department])
+  @@index([decisionMakerScore])
+  @@index([emailStatus])
+  @@index([lastEnrichedAt])
+  @@index([qualificationScore])
+  @@index([lastContactedAt])
+}
+
+model LeadSignal {
+  id String @id @default(cuid())
+
+  signalType  SignalType
+  value       String
+  confidence  Float
+  source      String?
+  explanation String?
+
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([leadId, signalType, value])
+  @@index([leadId, isActive])
+  @@index([signalType])
+  @@index([expiresAt])
+}
+
+model OutreachMessage {
+  id String @id @default(cuid())
+
+  subject         String
+  body            String
+  originalSubject String?
+  originalBody    String?
+  diffVector      Json?
+  subjectVariant  String?
+  approvalStatus ApprovalStatus @default(PENDING)
+  deliveryState  DeliveryState  @default(DRAFT)
+  spamRiskScore        Float?
+  personalizationScore Float?
+  leadingSignal        String?
+  claimToken           String?
+  channel              Channel @default(EMAIL)
+
+  externalMessageId String? @unique
+
+  isFollowUp   Boolean @default(false)
+  followUpStep Int?
+
+  retryCount  Int       @default(0)
+  lastError   String?
+  nextRetryAt DateTime?
+
+  approvedById String?
+  approvedBy   User?  @relation(fields: [approvedById], references: [id])
+
+  leadId String
+  lead   Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  replies        Reply[]
+  learningEvents LearningEvent[]
+  winRecords     WinRecord[]
+  lossRecords    LossRecord[]
+  journeyEvents  LeadJourneyEvent[]
+
+  sentAt               DateTime?
+  deliveredAt          DateTime?
+  openedAt             DateTime?
+  repliedAt            DateTime?
+  scheduledAt          DateTime?
+  generationConfidence Float?
+  enrichmentData       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([deliveryState])
+  @@index([approvalStatus])
+  @@index([externalMessageId])
+  @@index([isFollowUp])
+  @@index([leadId, isFollowUp])
+  @@index([deliveryState, updatedAt])
+  @@index([nextRetryAt])
+  @@index([scheduledAt])
+  @@index([sentAt])
+  @@unique([leadId, followUpStep], name: "outreach_message_lead_followup_step_unique", map: "outreach_message_lead_followup_step_unique")
+}
+
+model Reply {
+  id String @id @default(cuid())
+
+  body              String
+  providerMessageId String?     @unique
+  intent            ReplyIntent @default(UNKNOWN)
+
+  sentimentScore Float?
+  confidence     Float?
+
+  requiresHumanReview Boolean @default(false)
+  normalizedBody      String?
+
+  draftSubject        String?
+  draftBody           String?
+  objectionCategory   String?
+  meetingLinkInjected Boolean @default(false)
+
+  draftSentAt     DateTime?
+  draftSentBy     String?
+  draftSentByUser User?     @relation("ReplyDraftSentBy", fields: [draftSentBy], references: [id], onDelete: SetNull)
+  draftExternalId String?
+
+  buyingStage          String?
+  painPoints           Json?
+  competitorsMentioned Json?
+  budgetSignal         String?
+  timelineSignal       String?
+  embedding            Unsupported("vector(768)")?
+  oooReturnDate        DateTime? @db.Timestamptz
+
+  outreachMessageId String
+  outreachMessage   OutreachMessage @relation(fields: [outreachMessageId], references: [id])
+
+  leadId String
+  lead   Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  winRecords    WinRecord[]
+  lossRecords   LossRecord[]
+  classifiedAt  DateTime?
+  draftIntent   String?
+  oooRequeuedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([leadId])
+  @@index([outreachMessageId])
+  @@index([intent])
+  @@index([normalizedBody])
+  @@index([draftSentAt])
+  @@index([draftSentBy])
+  @@index([requiresHumanReview])
+  @@index([createdAt])
+  @@index([oooRequeuedAt])
+}
+
+model WinRecord {
+  id                 String    @id @default(cuid())
+  icpVertical        String?
+  targetIndustry     String?
+  targetRegion       String?
+  signalType         SignalType
+  signalValue        String
+  subjectPattern     String
+  bodyOpeningPattern String
+  tone               String?
+  replyIntent        String
+  sentimentScore     Float?
+  embedding          Unsupported("vector(768)")?
+
+  qualificationScoreAtCapture Float?
+  pipelineStageAtCapture      PipelineStage?
+
+  outreachMessageId String
+  outreachMessage   OutreachMessage @relation(fields: [outreachMessageId], references: [id], onDelete: Restrict)
+
+  replyId String
+  reply   Reply  @relation(fields: [replyId], references: [id], onDelete: Restrict)
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([icpVertical])
+  @@index([signalType])
+  @@index([campaignId])
+  @@index([outreachMessageId])
+  @@index([replyId])
+  @@index([leadId])
+}
+
+model LossRecord {
+  id                String  @id @default(cuid())
+  icpVertical       String?
+  targetIndustry    String?
+  targetRegion      String?
+  signalUsed        String?
+  inferredObjection String
+  bodyPattern       String?
+  tone              String?
+  replyIntent       String
+  sentimentScore    Float?
+  embedding         Unsupported("vector(768)")?
+
+  qualificationScoreAtCapture Float?
+  pipelineStageAtCapture      PipelineStage?
+
+  outreachMessageId String
+  outreachMessage   OutreachMessage @relation(fields: [outreachMessageId], references: [id], onDelete: Restrict)
+
+  replyId String
+  reply   Reply  @relation(fields: [replyId], references: [id], onDelete: Restrict)
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([icpVertical])
+  @@index([campaignId])
+  @@index([outreachMessageId])
+  @@index([replyId])
+  @@index([leadId])
+  @@index([inferredObjection])
+}
+
+model SenderDomain {
+  id String @id @default(cuid())
+
+  domain String @unique
+
+  dailyLimit  Int      @default(50)
+  currentSent Int      @default(0)
+  totalSent   Int      @default(0)
+  lastResetAt DateTime @default(now())
+  timezone    String   @default("UTC")
+
+  reputationScore Float        @default(100)
+  health          DomainHealth @default(HEALTHY)
+
+  bounceRate    Float @default(0)
+  complaintRate Float @default(0)
+
+  warmupEnabled Boolean @default(true)
+
+  spfValid      Boolean?
+  dkimValid     Boolean?
+  dmarcValid    Boolean?
+  dkimSelector  String?
+  dkimPublicKey String?
+  dnsCheckedAt  DateTime?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  campaigns            Campaign[]
+  deliverabilityEvents DeliverabilityEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdById])
+  @@index([health])
+  @@index([warmupEnabled])
+}
+
+model DeliverabilityEvent {
+  id String @id @default(cuid())
+
+  type     DeliverabilityEventType
+  severity DeliverabilityEventSeverity
+
+  metadata Json?
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+
+  senderDomainId String?
+  senderDomain   SenderDomain? @relation(fields: [senderDomainId], references: [id])
+
+  senderMailboxId String?
+  senderMailbox   SenderMailbox? @relation(fields: [senderMailboxId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId])
+  @@index([senderDomainId])
+  @@index([senderMailboxId])
+  @@index([type])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+model SenderMailbox {
+  id           String           @id @default(cuid())
+  label        String
+  providerType MailProviderType
+
+  credentials   Json
+  calendlyToken Json?
+
+  dailyLimit     Int      @default(50)
+  baseDailyLimit Int      @default(50)
+  currentSent    Int      @default(0)
+  totalSent      Int      @default(0)
+  lastResetAt    DateTime @default(now())
+  timezone       String   @default("UTC")
+  emailAddress   String
+
+  warmupEnabled   Boolean  @default(true)
+  warmupStartedAt DateTime?
+
+  health          DomainHealth @default(HEALTHY)
+  bounceRate      Float        @default(0)
+  complaintRate   Float        @default(0)
+  reputationScore Float        @default(100)
+
+  spfValid      Boolean?
+  dkimValid     Boolean?
+  dmarcValid    Boolean?
+  dkimSelector  String?   @default("default")
+  dnsCheckedAt  DateTime?
+
+  lastReplyCheckedAt    DateTime?
+  lastDeliveryCheckedAt DateTime?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  campaigns            Campaign[]            @relation("CampaignMailbox")
+  deliverabilityEvents DeliverabilityEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([createdById, emailAddress])
+  @@index([createdById])
+  @@index([health])
+  @@index([lastReplyCheckedAt])
+  @@index([lastDeliveryCheckedAt])
+}
+
+
+model Suppression {
+  id String @id @default(cuid())
+
+  email  String?
+  domain String?
+
+  reason String
+  source String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([email, userId], map: "Suppression_email_userId_key")
+  @@unique([domain, userId], map: "Suppression_domain_userId_key")
+  @@index([email])
+  @@index([domain])
+  @@index([createdAt])
+}
+
+model QueueJob {
+  id String @id @default(cuid())
+
+  bullJobId String? @unique
+
+  queueName String
+  jobType   String
+  status    QueueJobStatus @default(WAITING)
+
+  payload      Json
+  result       Json?
+  attempts     Int      @default(0)
+  errorMessage String?
+  startedAt    DateTime?
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([queueName, status])
+  @@index([campaignId])
+  @@index([jobType])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  action     String
+  entityType String
+  entityId   String
+
+  metadata Json?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model AITrace {
+  id String @id @default(cuid())
+
+  agentName     String
+  prompt        String
+  response      String
+  model         String
+  promptVersion String?
+
+  latencyMs  Int?
+  tokenUsage Int?
+  confidence Float?
+  costUsd    Float?
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+
+  leadId String?
+  lead   Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([agentName])
+  @@index([createdAt])
+  @@index([campaignId])
+  @@index([leadId])
+}
+
+model LearningEvent {
+  id String @id @default(cuid())
+
+  eventType      LearningEventType
+  originalOutput String
+  modifiedOutput String
+
+  diffVector Json?
+  outcome    LearningOutcome?
+
+  outreachMessageId String?
+  outreachMessage   OutreachMessage? @relation(fields: [outreachMessageId], references: [id], onDelete: SetNull)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([outreachMessageId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model BrandSettings {
+  id String @id @default(cuid())
+
+  companyName String
+  website     String?
+  tagline     String?
+  logoUrl     String?
+
+  primaryColour    String @default("#1a1a2e")
+  secondaryColour  String @default("#e94560")
+  accentColour     String?
+  textColour       String @default("#333333")
+  backgroundColour String @default("#ffffff")
+
+  fontFamily String @default("Arial, sans-serif")
+
+  senderName  String
+  senderTitle String?
+  senderPhone String?
+
+  companyAddress  String?
+  unsubscribeText String @default("You received this email because you match our ideal customer profile. To unsubscribe, reply with 'unsubscribe'.")
+  facebookUrl     String?
+  linkedinUrl     String?
+  twitterUrl      String?
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Company {
+  id     String  @id @default(cuid())
+  domain String? @unique
+  name   String
+
+  linkedinUrl String?
+
+  industry      String?
+  employeeCount Int?
+  country       String?
+  revenueBand   String?
+
+  enrichmentData Json?
+  embedding      Unsupported("vector(768)")?
+  lastEnrichedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads         Lead[]
+  signals       CompanySignal[]
+  winRecords    WinRecord[]
+  engagement    CompanyEngagement?
+  discoveryRuns DiscoveryRun[]
+
+  @@index([name])
+  @@index([industry])
+  @@index([employeeCount])
+  @@index([country])
+  @@index([lastEnrichedAt])
+}
+
+model CompanySignal {
+  id          String     @id @default(cuid())
+  signalType  SignalType
+  value       String
+  confidence  Float
+  source      String?
+  explanation String?
+
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, signalType, value])
+  @@index([companyId])
+  @@index([companyId, signalType])
+  @@index([companyId, isActive])
+}
+
+model SequenceStep {
+  id String @id @default(cuid())
+
+  stepIndex       Int
+  channel         Channel
+  trigger         StepTrigger @default(AFTER_DELAY)
+  delayDays       Int         @default(3)
+  messageTemplate String?
+  subjectTemplate String?
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  leadStepStatuses LeadStepStatus[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, stepIndex])
+  @@index([campaignId])
+}
+
+model LeadStepStatus {
+  id String @id @default(cuid())
+
+  status      StepExecutionStatus @default(PENDING)
+  scheduledAt DateTime?
+  executedAt  DateTime?
+  errorMsg    String?
+  retryCount  Int       @default(0)
+
+  stepId String
+  step   SequenceStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  leadId String
+  lead   Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  linkedInActivityId String?
+  linkedInActivity   LinkedInActivity? @relation(fields: [linkedInActivityId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([stepId, leadId])
+  @@index([stepId])
+  @@index([leadId])
+  @@index([status, scheduledAt])
+}
+
+model LinkedInActivity {
+  id String @id @default(cuid())
+
+  activityType   Channel
+  providerRef    String?
+  message        String?
+  connectionNote String?
+
+  status       LinkedInStatus @default(PENDING)
+  errorMessage String?
+  qualityFlags Json?
+
+  leadId String
+  lead   Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  sentAt     DateTime?
+  acceptedAt DateTime?
+  repliedAt  DateTime?
+
+  leadStepStatuses LeadStepStatus[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([status])
+  @@index([activityType])
+  @@index([createdAt])
+}
+
+model CampaignStateStore {
+  id                 String   @id @default(cuid())
+  campaignId         String   @unique
+  currentNode        String
+  regenAttemptsCount Int      @default(0)
+  approvalStatuses   Json
+  updatedAt          DateTime @updatedAt
+  campaign           Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+model LeadScoreSnapshot {
+  id String @id @default(cuid())
+
+  score             Float
+  previousScore     Float?
+  reason            String?
+  breakdownScores   Json?
+  evidenceTriggers  Json?
+  recommendedAction String?
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([leadId, createdAt])
+}
+
+model CompanyEngagement {
+  id String @id @default(cuid())
+
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  totalLeads     Int @default(0)
+  engagedLeads   Int @default(0)
+  repliedLeads   Int @default(0)
+  positiveLeads  Int @default(0)
+  meetingsBooked Int @default(0)
+  emailsSent     Int @default(0)
+  emailsOpened   Int @default(0)
+
+  bestPipelineStage PipelineStage @default(PROSPECT)
+  lastActivityAt    DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  @@index([bestPipelineStage])
+  @@index([lastActivityAt])
+}
+
+model LeadJourneyEvent {
+  id String @id @default(cuid())
+
+  eventType LeadJourneyEventType
+  channel   Channel?
+  metadata  Json?
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  outreachMessageId String?
+  outreachMessage   OutreachMessage? @relation(fields: [outreachMessageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([leadId, eventType])
+  @@index([eventType, createdAt])
+}
+
+model DiscoveryRun {
+  id String @id @default(cuid())
+
+  sourceType DiscoverySourceType
+  status     DiscoveryRunStatus  @default(RUNNING)
+
+  query String?
+
+  companiesFound Int @default(0)
+  leadsFound     Int @default(0)
+  signalsFound   Int @default(0)
+
+  errorMessage String?
+  metadata     Json?
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([sourceType])
+  @@index([status])
+  @@index([campaignId])
+  @@index([startedAt])
+}
+
+model CampaignQualityThreshold {
+  id         String   @id @default(cuid())
+  campaignId String   @unique
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  spamRiskMax        Float @default(0.3)
+  personalizationMin Float @default(0.7)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+}
+
+model CampaignScoringWeights {
+  id         String   @id @default(cuid())
+  campaignId String   @unique
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  icpMatch       Float @default(0.25)
+  intentStrength Float @default(0.30)
+  fundingSignals Float @default(0.15)
+  hiringVelocity Float @default(0.15)
+  techFit        Float @default(0.10)
+  recency        Float @default(0.05)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+}
+
+model LeadResearchReport {
+  id     String @id @default(cuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  status       ResearchStatus @default(PENDING)
+  errorMessage String?
+
+  companySnapshot    Json?
+  competitiveContext Json?
+  icpAlignment       Json?
+  outreachAngle      Json?
+  newSignalsFound    Json?
+  phaseDurationsMs   Json?
+
+  triggeredById String?
+  triggeredBy   User?   @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  expiresAt   DateTime?
+
+  @@index([leadId])
+  @@index([leadId, status])
+  @@index([expiresAt])
+}
+
+model LeadAgentColumn {
+  id         String          @id @default(cuid())
+  campaignId String
+  campaign   Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name       String
+  fieldKey   String
+  prompt     String
+  outputType AgentOutputType @default(TEXT)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  runs LeadAgentRun[]
+
+  @@unique([campaignId, fieldKey])
+  @@index([campaignId])
+  @@index([createdById])
+}
+
+model LeadAgentRun {
+  id       String @id @default(cuid())
+
+  leadId   String
+  lead     Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  columnId String
+  column   LeadAgentColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  status        AgentRunStatus @default(PENDING)
+  result        Json?
+  errorMessage  String?
+  toolCallCount Int            @default(0)
+
+  triggeredById String?
+  triggeredBy   User?   @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([leadId])
+  @@index([columnId])
+  @@index([leadId, columnId])
+  @@index([status])
+}

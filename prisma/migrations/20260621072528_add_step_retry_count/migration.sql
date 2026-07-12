@@ -1,0 +1,1 @@
+ALTER TABLE "LeadStepStatus" ADD COLUMN "retryCount" INTEGER NOT NULL DEFAULT 0;
