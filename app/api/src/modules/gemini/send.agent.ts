@@ -13,6 +13,8 @@ import { emitCampaignEvent } from "../../lib/campaign-events";
 import { effectiveCurrentSent, reserveDailyCapacity } from "../../lib/daily-quota";
 import { verifySenderDomainDns } from "../senderDomain/senderDomain.services";
 import { verifyMailboxDns } from "../senderMailbox/senderMailbox.services";
+import { CacheService } from "../../lib/cache";
+import { recalculateDomainHealth, recalculateMailboxHealth } from "../Deliverybilityevents/deliverbility.service";
 
 
 
@@ -1232,6 +1234,15 @@ export async function runSendAgent(campaignId: string): Promise<void> {
       where: { id: domain!.id },
       data: { totalSent: { increment: sent } },
     });
+  }
+
+  if (sent > 0) {
+    await Promise.all([
+      mailbox ? recalculateMailboxHealth(mailbox.id) : Promise.resolve(),
+      domain ? recalculateDomainHealth(domain.id) : Promise.resolve(),
+    ]).catch(() => null);
+
+    await CacheService.invalidateVersioned(`version:sender-mailboxes:${campaign.createdById}`).catch(() => null);
   }
 
   const [remainingQueued, remainingSending] = await Promise.all([

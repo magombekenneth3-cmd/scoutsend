@@ -81,7 +81,7 @@ function canTransition(from: string, to: string): boolean {
   return (VALID_TRANSITIONS[from] ?? []).includes(to);
 }
 
-async function recalculateDomainHealth(senderDomainId: string): Promise<void> {
+export async function recalculateDomainHealth(senderDomainId: string): Promise<void> {
   await coalesceRecalc(`domain:${senderDomainId}`, async () => {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -155,7 +155,7 @@ async function recalculateDomainHealth(senderDomainId: string): Promise<void> {
   });
 }
 
-async function recalculateMailboxHealth(senderMailboxId: string): Promise<void> {
+export async function recalculateMailboxHealth(senderMailboxId: string): Promise<void> {
   await coalesceRecalc(`mailbox:${senderMailboxId}`, async () => {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 

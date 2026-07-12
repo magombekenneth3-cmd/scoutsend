@@ -19,6 +19,7 @@ import { getBrandSettingsOrDefault } from "../brandSettings/brandsettings.servic
 import { reserveDailyCapacity } from "../../lib/daily-quota";
 import { redis } from "../../lib/ioredis";
 import { CacheService } from "../../lib/cache";
+import { recalculateDomainHealth, recalculateMailboxHealth } from "../Deliverybilityevents/deliverbility.service";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -664,8 +665,14 @@ export async function sendOutreachMessage(id: string, userId: string) {
     ]);
 
     await Promise.all([
+      recalculateMailboxHealth(mailbox.id),
+      campaign.senderDomainId ? recalculateDomainHealth(campaign.senderDomainId) : Promise.resolve(),
+    ]).catch(() => null);
+
+    await Promise.all([
       CacheService.invalidateVersioned(`version:campaigns:${userId}`),
       CacheService.invalidateVersioned(`version:campaign:${campaign.id}`),
+      CacheService.invalidateVersioned(`version:sender-mailboxes:${userId}`),
     ]).catch(() => null);
   } else {
     await prisma.outreachMessage.update({
