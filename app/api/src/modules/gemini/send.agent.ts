@@ -504,6 +504,48 @@ function classifyFailure(errorMsg: string): "permanent" | "retryable" {
   return "retryable";
 }
 
+async function verifyEmailAddress(email: string): Promise<"VALID" | "INVALID" | "UNKNOWN"> {
+  if (process.env.ZEROBOUNCE_API_KEY) {
+    try {
+      const res = await fetch(
+        `https://api.zerobounce.net/v2/validate?api_key=${process.env.ZEROBOUNCE_API_KEY}&email=${encodeURIComponent(email)}&ip_address=`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+      if (res.ok) {
+        const data = (await res.json()) as { status?: string };
+        const status = data.status?.toLowerCase();
+        if (status === "invalid" || status === "spamtrap" || status === "abuse" || status === "do_not_mail") {
+          return "INVALID";
+        }
+        return "VALID";
+      }
+    } catch (err) {
+      logger.warn({ err, email }, "[send.agent] ZeroBounce real-time verification failed");
+    }
+  }
+
+  if (process.env.NEVERBOUNCE_API_KEY) {
+    try {
+      const res = await fetch(
+        `https://api.neverbounce.com/v4/single/check?key=${process.env.NEVERBOUNCE_API_KEY}&email=${encodeURIComponent(email)}`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+      if (res.ok) {
+        const data = (await res.json()) as { result?: string };
+        const result = data.result?.toLowerCase();
+        if (result === "invalid" || result === "disposable") {
+          return "INVALID";
+        }
+        return "VALID";
+      }
+    } catch (err) {
+      logger.warn({ err, email }, "[send.agent] NeverBounce real-time verification failed");
+    }
+  }
+
+  return "UNKNOWN";
+}
+
 export async function runSendAgent(campaignId: string): Promise<void> {
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
@@ -1119,6 +1161,21 @@ export async function runSendAgent(campaignId: string): Promise<void> {
         { messageId: message.id, leadId: message.leadId },
         "[send.agent] Follow-up suppressed — lead replied since message was claimed"
       );
+      continue;
+    }
+
+    const verificationResult = await verifyEmailAddress(message.lead.email ?? "");
+    if (verificationResult === "INVALID") {
+      // Mark message as failed and skip delivery to protect domain reputation
+      await prisma.outreachMessage.update({
+        where: { id: message.id },
+        data: {
+          deliveryState: DeliveryState.FAILED,
+          lastError: "Email verification failed: INVALID",
+          claimToken: null,
+        },
+      });
+      failed++;
       continue;
     }
 
