@@ -86,6 +86,11 @@ function normalizeBody(text: string): string {
   return text.trim().replace(/\s+/g, " ").replace(/[^\w\s]/g, "").toLowerCase();
 }
 
+function extractDomain(email: string): string | null {
+  const parts = email.split("@");
+  return parts.length === 2 && parts[1] ? parts[1].toLowerCase() : null;
+}
+
 async function handleUnsubscribeIfNeeded(
   replyBody: string,
   leadEmail: string | null,
@@ -94,21 +99,32 @@ async function handleUnsubscribeIfNeeded(
   if (!leadEmail) return;
   if (!containsOptOutSignal(replyBody)) return;
 
-  await prisma.suppression.upsert({
-    where: {
-      email_userId: {
+  const domain = extractDomain(leadEmail);
+
+  await Promise.all([
+    prisma.suppression.upsert({
+      where: { email_userId: { email: leadEmail, userId } },
+      update: {},
+      create: {
         email: leadEmail,
         userId,
+        reason: "Unsubscribe request via reply",
+        source: "reply-auto",
       },
-    },
-    update: {},
-    create: {
-      email: leadEmail,
-      userId,
-      reason: "Unsubscribe request via reply",
-      source: "reply-auto",
-    },
-  });
+    }),
+    domain
+      ? prisma.suppression.upsert({
+          where: { domain_userId: { domain, userId } },
+          update: {},
+          create: {
+            domain,
+            userId,
+            reason: "Unsubscribe request via reply — domain suppressed",
+            source: "reply-auto",
+          },
+        })
+      : Promise.resolve(),
+  ]);
 }
 
 async function suppressPendingFollowUps(
@@ -141,16 +157,65 @@ async function handleIntentSuppression(
 ): Promise<void> {
   if (!SUPPRESSION_INTENTS.has(intent) || !leadEmail) return;
 
-  await prisma.suppression.upsert({
-    where: { email_userId: { email: leadEmail, userId } },
-    update: {},
-    create: {
-      email: leadEmail,
-      userId,
-      reason: `Lead replied with intent: ${intent}`,
-      source: "reply-auto",
-    },
-  });
+  const domain = extractDomain(leadEmail);
+
+  await Promise.all([
+    prisma.suppression.upsert({
+      where: { email_userId: { email: leadEmail, userId } },
+      update: {},
+      create: {
+        email: leadEmail,
+        userId,
+        reason: `Lead replied with intent: ${intent}`,
+        source: "reply-auto",
+      },
+    }),
+    domain
+      ? prisma.suppression.upsert({
+          where: { domain_userId: { domain, userId } },
+          update: {},
+          create: {
+            domain,
+            userId,
+            reason: `Lead replied with intent: ${intent} — domain suppressed`,
+            source: "reply-auto",
+          },
+        })
+      : Promise.resolve(),
+  ]);
+}
+
+async function notifyPositiveReply(params: {
+  intent: ReplyIntent;
+  leadEmail: string | null;
+  leadFirstName: string | null;
+  companyName: string;
+  replyBody: string;
+  campaignId: string;
+}): Promise<void> {
+  const webhookUrl = process.env.REPLY_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "positive_reply",
+        intent: params.intent,
+        lead: {
+          email: params.leadEmail,
+          firstName: params.leadFirstName,
+          companyName: params.companyName,
+        },
+        preview: params.replyBody.slice(0, 300),
+        campaignId: params.campaignId,
+        timestamp: new Date().toISOString(),
+      }),
+      signal: AbortSignal.timeout(5_000),
+    });
+  } catch (err) {
+    logger.warn({ err }, "[reply.service] positive reply webhook failed");
+  }
 }
 
 async function scheduleOOORequeue(
@@ -516,6 +581,19 @@ export async function processReplyAI(replyId: string): Promise<void> {
         scheduleOOORequeue(reply.leadId, reply.body, reply.outreachMessage.id).then(() =>
           prisma.reply.update({ where: { id: replyId }, data: { oooRequeuedAt: new Date() } })
         )
+      );
+    }
+
+    if (resolvedIntent === "POSITIVE" || resolvedIntent === "MEETING_REQUEST") {
+      postProcessingSteps.push(
+        notifyPositiveReply({
+          intent: resolvedIntent,
+          leadEmail: reply.lead.email,
+          leadFirstName: reply.lead.firstName,
+          companyName: reply.lead.companyName,
+          replyBody: reply.body,
+          campaignId: reply.lead.campaign.id,
+        })
       );
     }
 
