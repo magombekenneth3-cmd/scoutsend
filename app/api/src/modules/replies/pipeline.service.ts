@@ -4,10 +4,8 @@ import { logAudit } from "../audit/audit.service";
 import { AUDIT_EVENTS } from "../../lib/constants";
 import { logger } from "../../lib/logger";
 import type { ReplyIntent } from "../gemini/reply.agent";
-
-// ─── Stage priority ────────────────────────────────────────────────────────────
-// Higher number = won't be overwritten by a lower-priority advance.
-// DISQUALIFIED uses -1 so it can always override any forward stage.
+import { realtimeQueue } from "../gemini/campaign.queue";
+import { logLeadJourneyEvent } from "../../lib/leads/lead-journey.service";
 
 const STAGE_PRIORITY: Record<PipelineStage, number> = {
     PROSPECT: 0,
@@ -17,17 +15,13 @@ const STAGE_PRIORITY: Record<PipelineStage, number> = {
     DISQUALIFIED: -1,
 };
 
-// Map: reply intent → target pipeline stage
 const INTENT_TO_STAGE: Partial<Record<ReplyIntent, PipelineStage>> = {
     MEETING_REQUEST: "MEETING_BOOKED",
     POSITIVE: "HOT",
     QUESTION: "ENGAGED",
     NOT_INTERESTED: "DISQUALIFIED",
     NEGATIVE: "DISQUALIFIED",
-    // OUT_OF_OFFICE and UNKNOWN intentionally omitted — no stage change
 };
-
-// ─── Types ─────────────────────────────────────────────────────────────────────
 
 export interface PipelineAdvancement {
     advanced: boolean;
@@ -46,23 +40,63 @@ export interface PipelineFunnel {
 export interface PipelineStats {
     funnel: PipelineFunnel;
     totalLeads: number;
-    replyRate: number;       // (any stage beyond PROSPECT) / totalLeads
-    hotRate: number;         // (HOT + MEETING_BOOKED) / totalLeads
-    meetingBookedRate: number; // MEETING_BOOKED / totalLeads
-    disqualifyRate: number;  // DISQUALIFIED / totalLeads
+    replyRate: number;
+    hotRate: number;
+    meetingBookedRate: number;
+    disqualifyRate: number;
 }
 
-// ─── Core advancement ──────────────────────────────────────────────────────────
+function createFunnel(): PipelineFunnel {
+    return {
+        PROSPECT: 0,
+        ENGAGED: 0,
+        HOT: 0,
+        MEETING_BOOKED: 0,
+        DISQUALIFIED: 0,
+    };
+}
 
-/**
- * Advances a lead's pipeline stage based on a reply intent.
- *
- * Stages only move forward (by priority), except DISQUALIFIED which can
- * always be set. OUT_OF_OFFICE and UNKNOWN intents are no-ops.
- *
- * Called automatically during reply ingestion — auditUserId is optional
- * (system advances don't write an audit log, only a logger entry).
- */
+function calculateStats(funnel: PipelineFunnel): PipelineStats {
+    const totalLeads = Object.values(funnel).reduce((a, b) => a + b, 0);
+    const hotAndAbove = funnel.HOT + funnel.MEETING_BOOKED;
+    const anythingBeyondProspect =
+        funnel.ENGAGED +
+        funnel.HOT +
+        funnel.MEETING_BOOKED +
+        funnel.DISQUALIFIED;
+
+    const safe = (n: number) =>
+        totalLeads > 0 ? parseFloat((n / totalLeads).toFixed(4)) : 0;
+
+    return {
+        funnel,
+        totalLeads,
+        replyRate: safe(anythingBeyondProspect),
+        hotRate: safe(hotAndAbove),
+        meetingBookedRate: safe(funnel.MEETING_BOOKED),
+        disqualifyRate: safe(funnel.DISQUALIFIED),
+    };
+}
+
+async function enqueueDiscoveryScript(leadId: string): Promise<void> {
+    try {
+        await realtimeQueue.add(
+            "generate-discovery-script",
+            { leadId },
+            {
+                jobId: `discovery-script-${leadId}`,
+                removeOnComplete: { age: 3600 },
+                removeOnFail: { age: 86400 },
+            },
+        );
+    } catch (err) {
+        logger.error(
+            { err, leadId },
+            "[pipeline.service] Failed to enqueue discovery script",
+        );
+    }
+}
+
 export async function advanceLeadPipeline(params: {
     leadId: string;
     intent: ReplyIntent;
@@ -71,15 +105,14 @@ export async function advanceLeadPipeline(params: {
     auditUserId?: string;
 }): Promise<PipelineAdvancement> {
     const { leadId, intent, replyId, campaignId, auditUserId } = params;
-
     const targetStage = INTENT_TO_STAGE[intent];
 
     if (!targetStage) {
-        // Intent has no pipeline mapping — silent no-op
         const lead = await prisma.lead.findUnique({
             where: { id: leadId },
             select: { pipelineStage: true },
         });
+
         return {
             advanced: false,
             newStage: null,
@@ -93,40 +126,137 @@ export async function advanceLeadPipeline(params: {
     });
 
     if (!lead) {
-        logger.warn({ leadId }, "[pipeline.service] Lead not found — skipping advancement");
-        return { advanced: false, newStage: null, previousStage: "PROSPECT" };
+        logger.warn(
+            { leadId },
+            "[pipeline.service] Lead not found — skipping advancement",
+        );
+
+        return {
+            advanced: false,
+            newStage: null,
+            previousStage: "PROSPECT",
+        };
     }
 
     const previousStage = lead.pipelineStage;
     const currentPriority = STAGE_PRIORITY[previousStage];
     const targetPriority = STAGE_PRIORITY[targetStage];
 
-    // Only advance if:
-    //   (a) target is DISQUALIFIED — always allowed regardless of current stage, or
-    //   (b) target has strictly higher priority than current stage
-    const shouldAdvance =
-        targetStage === "DISQUALIFIED" || targetPriority > currentPriority;
-
-    if (!shouldAdvance) {
+    if (
+        targetStage !== "DISQUALIFIED" &&
+        targetPriority <= currentPriority
+    ) {
         logger.info(
             { leadId, previousStage, targetStage, intent },
-            "[pipeline.service] Stage unchanged — current stage is equal or higher priority"
+            "[pipeline.service] Stage unchanged — current stage is equal or higher priority",
         );
-        return { advanced: false, newStage: null, previousStage };
+
+        return {
+            advanced: false,
+            newStage: null,
+            previousStage,
+        };
     }
 
-    await prisma.lead.update({
-        where: { id: leadId },
-        data: {
-            pipelineStage: targetStage,
-            pipelineStageUpdatedAt: new Date(),
-        },
-    });
+    const now = new Date();
+
+    const updateResult =
+        targetStage === "DISQUALIFIED"
+            ? await prisma.lead.updateMany({
+                where: { id: leadId },
+                data: {
+                    pipelineStage: targetStage,
+                    pipelineStageUpdatedAt: now,
+                },
+            })
+            : await prisma.lead.updateMany({
+                where: {
+                    id: leadId,
+                    pipelineStage: {
+                        in: (
+                            Object.keys(STAGE_PRIORITY) as PipelineStage[]
+                        ).filter(
+                            (stage) =>
+                                STAGE_PRIORITY[stage] < targetPriority &&
+                                stage !== "DISQUALIFIED",
+                        ),
+                    },
+                },
+                data: {
+                    pipelineStage: targetStage,
+                    pipelineStageUpdatedAt: now,
+                },
+            });
+
+    if (updateResult.count === 0) {
+        const currentLead = await prisma.lead.findUnique({
+            where: { id: leadId },
+            select: { pipelineStage: true },
+        });
+
+        if (!currentLead) {
+            logger.warn(
+                { leadId },
+                "[pipeline.service] Lead disappeared during advancement",
+            );
+
+            return {
+                advanced: false,
+                newStage: null,
+                previousStage,
+            };
+        }
+
+        logger.info(
+            {
+                leadId,
+                previousStage: currentLead.pipelineStage,
+                targetStage,
+                intent,
+            },
+            "[pipeline.service] Concurrent stage update won — advancement skipped",
+        );
+
+        return {
+            advanced: false,
+            newStage: null,
+            previousStage: currentLead.pipelineStage,
+        };
+    }
 
     logger.info(
-        { leadId, previousStage, newStage: targetStage, intent, replyId, campaignId },
-        "[pipeline.service] Lead pipeline advanced"
+        {
+            leadId,
+            previousStage,
+            newStage: targetStage,
+            intent,
+            replyId,
+            campaignId,
+        },
+        "[pipeline.service] Lead pipeline advanced",
     );
+
+    try {
+        await logLeadJourneyEvent({
+            leadId,
+            eventType:
+                targetStage === "MEETING_BOOKED"
+                    ? "MEETING_BOOKED"
+                    : "PIPELINE_STAGE_CHANGED",
+            metadata: {
+                previousStage,
+                newStage: targetStage,
+                intent,
+                trigger: "reply",
+                replyId,
+            },
+        });
+    } catch (err) {
+        logger.error(
+            { err, leadId, targetStage, replyId },
+            "[pipeline.service] Lead journey event failed",
+        );
+    }
 
     if (auditUserId) {
         logAudit({
@@ -134,20 +264,32 @@ export async function advanceLeadPipeline(params: {
             action: AUDIT_EVENTS.LEAD_PIPELINE_ADVANCED,
             entityType: "Lead",
             entityId: leadId,
-            metadata: { previousStage, newStage: targetStage, intent, replyId, campaignId },
-        }).catch((err) => logger.error({ err }, "[pipeline.service] Audit log failed"));
+            metadata: {
+                previousStage,
+                newStage: targetStage,
+                intent,
+                replyId,
+                campaignId,
+            },
+        }).catch((err) =>
+            logger.error(
+                { err, leadId },
+                "[pipeline.service] Audit log failed",
+            ),
+        );
     }
 
-    return { advanced: true, newStage: targetStage, previousStage };
+    if (targetStage === "MEETING_BOOKED") {
+        void enqueueDiscoveryScript(leadId);
+    }
+
+    return {
+        advanced: true,
+        newStage: targetStage,
+        previousStage,
+    };
 }
 
-/**
- * Manually marks a lead as MEETING_BOOKED.
- *
- * Used when a meeting is confirmed through a channel outside the reply
- * pipeline (e.g. the rep took a call directly). Always requires a userId
- * for the audit trail.
- */
 export async function markLeadMeetingBooked(params: {
     leadId: string;
     replyId: string;
@@ -163,28 +305,87 @@ export async function markLeadMeetingBooked(params: {
     });
 
     if (!lead) {
-        throw Object.assign(new Error("Lead not found"), { statusCode: 404 });
+        throw Object.assign(new Error("Lead not found"), {
+            statusCode: 404,
+        });
     }
 
     const previousStage = lead.pipelineStage;
 
     if (previousStage === "MEETING_BOOKED") {
-        // Idempotent — already at target stage
-        return { advanced: false, newStage: "MEETING_BOOKED", previousStage };
+        return {
+            advanced: false,
+            newStage: "MEETING_BOOKED",
+            previousStage,
+        };
     }
 
-    await prisma.lead.update({
-        where: { id: leadId },
+    const updateResult = await prisma.lead.updateMany({
+        where: {
+            id: leadId,
+            pipelineStage: previousStage,
+        },
         data: {
             pipelineStage: "MEETING_BOOKED",
             pipelineStageUpdatedAt: new Date(),
         },
     });
 
+    if (updateResult.count === 0) {
+        const currentLead = await prisma.lead.findUnique({
+            where: { id: leadId },
+            select: { pipelineStage: true },
+        });
+
+        if (!currentLead) {
+            throw Object.assign(new Error("Lead not found"), {
+                statusCode: 404,
+            });
+        }
+
+        if (currentLead.pipelineStage === "MEETING_BOOKED") {
+            return {
+                advanced: false,
+                newStage: "MEETING_BOOKED",
+                previousStage: currentLead.pipelineStage,
+            };
+        }
+
+        return {
+            advanced: false,
+            newStage: null,
+            previousStage: currentLead.pipelineStage,
+        };
+    }
+
     logger.info(
-        { leadId, previousStage, replyId, campaignId, auditUserId },
-        "[pipeline.service] Lead manually marked MEETING_BOOKED"
+        {
+            leadId,
+            previousStage,
+            replyId,
+            campaignId,
+            auditUserId,
+        },
+        "[pipeline.service] Lead manually marked MEETING_BOOKED",
     );
+
+    try {
+        await logLeadJourneyEvent({
+            leadId,
+            eventType: "MEETING_BOOKED",
+            metadata: {
+                previousStage,
+                trigger: "manual",
+                replyId,
+                notes: notes ?? null,
+            },
+        });
+    } catch (err) {
+        logger.error(
+            { err, leadId, replyId },
+            "[pipeline.service] Lead journey event failed",
+        );
+    }
 
     logAudit({
         userId: auditUserId,
@@ -199,94 +400,66 @@ export async function markLeadMeetingBooked(params: {
             campaignId,
             notes: notes ?? null,
         },
-    }).catch((err) => logger.error({ err }, "[pipeline.service] Audit log failed"));
+    }).catch((err) =>
+        logger.error(
+            { err, leadId },
+            "[pipeline.service] Audit log failed",
+        ),
+    );
 
-    return { advanced: true, newStage: "MEETING_BOOKED", previousStage };
-}
-
-// ─── Stats ─────────────────────────────────────────────────────────────────────
-
-/**
- * Returns a full pipeline funnel for a campaign.
- * Used by the dashboard and the hackathon submission report.
- */
-export async function getPipelineStats(campaignId: string): Promise<PipelineStats> {
-    const rows = await prisma.lead.groupBy({
-        by: ["pipelineStage"],
-        where: { campaignId, deletedAt: null },
-        _count: { id: true },
-    });
-
-    const funnel: PipelineFunnel = {
-        PROSPECT: 0,
-        ENGAGED: 0,
-        HOT: 0,
-        MEETING_BOOKED: 0,
-        DISQUALIFIED: 0,
-    };
-
-    for (const row of rows) {
-        funnel[row.pipelineStage] = row._count.id;
-    }
-
-    const totalLeads = Object.values(funnel).reduce((a, b) => a + b, 0);
-    const hotAndAbove = funnel.HOT + funnel.MEETING_BOOKED;
-    const anythingBeyondProspect =
-        funnel.ENGAGED + funnel.HOT + funnel.MEETING_BOOKED + funnel.DISQUALIFIED;
-
-    const safe = (n: number) =>
-        totalLeads > 0 ? parseFloat((n / totalLeads).toFixed(4)) : 0;
+    void enqueueDiscoveryScript(leadId);
 
     return {
-        funnel,
-        totalLeads,
-        replyRate: safe(anythingBeyondProspect),
-        hotRate: safe(hotAndAbove),
-        meetingBookedRate: safe(funnel.MEETING_BOOKED),
-        disqualifyRate: safe(funnel.DISQUALIFIED),
+        advanced: true,
+        newStage: "MEETING_BOOKED",
+        previousStage,
     };
 }
 
-/**
- * Returns pipeline stats across all campaigns for a user.
- * Used by the top-level dashboard summary.
- */
-export async function getPipelineStatsForUser(userId: string): Promise<PipelineStats> {
+export async function getPipelineStats(
+    campaignId: string,
+): Promise<PipelineStats> {
     const rows = await prisma.lead.groupBy({
         by: ["pipelineStage"],
         where: {
-            campaign: { createdById: userId },
+            campaignId,
             deletedAt: null,
         },
-        _count: { id: true },
+        _count: {
+            id: true,
+        },
     });
 
-    const funnel: PipelineFunnel = {
-        PROSPECT: 0,
-        ENGAGED: 0,
-        HOT: 0,
-        MEETING_BOOKED: 0,
-        DISQUALIFIED: 0,
-    };
+    const funnel = createFunnel();
 
     for (const row of rows) {
         funnel[row.pipelineStage] = row._count.id;
     }
 
-    const totalLeads = Object.values(funnel).reduce((a, b) => a + b, 0);
-    const hotAndAbove = funnel.HOT + funnel.MEETING_BOOKED;
-    const anythingBeyondProspect =
-        funnel.ENGAGED + funnel.HOT + funnel.MEETING_BOOKED + funnel.DISQUALIFIED;
+    return calculateStats(funnel);
+}
 
-    const safe = (n: number) =>
-        totalLeads > 0 ? parseFloat((n / totalLeads).toFixed(4)) : 0;
+export async function getPipelineStatsForUser(
+    userId: string,
+): Promise<PipelineStats> {
+    const rows = await prisma.lead.groupBy({
+        by: ["pipelineStage"],
+        where: {
+            campaign: {
+                createdById: userId,
+            },
+            deletedAt: null,
+        },
+        _count: {
+            id: true,
+        },
+    });
 
-    return {
-        funnel,
-        totalLeads,
-        replyRate: safe(anythingBeyondProspect),
-        hotRate: safe(hotAndAbove),
-        meetingBookedRate: safe(funnel.MEETING_BOOKED),
-        disqualifyRate: safe(funnel.DISQUALIFIED),
-    };
+    const funnel = createFunnel();
+
+    for (const row of rows) {
+        funnel[row.pipelineStage] = row._count.id;
+    }
+
+    return calculateStats(funnel);
 }

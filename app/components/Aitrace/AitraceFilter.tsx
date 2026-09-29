@@ -94,7 +94,7 @@ export function AITraceFilters({ filters, agentNames, models, onChange, onReset 
             {hasFilters && (
                 <button
                     onClick={onReset}
-                    className="text-xs font-medium text-[var(--red)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] rounded px-1"
+                    className="text-xs font-medium text-[var(--red-text)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] rounded px-1"
                 >
                     Clear filters
                 </button>

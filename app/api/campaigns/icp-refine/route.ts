@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getServerSession } from "@/app/api/src/lib/session";
 
 function sanitizeAIError(err: unknown): string {
     if (!(err instanceof Error)) return "Failed to refine ICP. Try again.";
@@ -48,11 +49,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "ICP description required" }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY1;
+    const apiKey = process.env.GEMINI_API_KEY1 ?? process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        console.error("[icp-refine] GEMINI_API_KEY1 is not set");
+        console.error("[icp-refine] Neither GEMINI_API_KEY1 nor GEMINI_API_KEY is set");
         return NextResponse.json(
-            { error: "AI service is not configured. Set the GEMINI_API_KEY1 environment variable." },
+            { error: "AI service is not configured. Set the GEMINI_API_KEY environment variable." },
             { status: 503 }
         );
     }

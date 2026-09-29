@@ -30,7 +30,7 @@ function StatCard({
                 <p
                     className={[
                         "text-2xl font-bold font-display tabular-nums",
-                        accent ? "text-[var(--red)]" : "text-[var(--text-primary)]",
+                        accent ? "text-[var(--red-text)]" : "text-[var(--text-primary)]",
                     ].join(" ")}
                 >
                     {value}

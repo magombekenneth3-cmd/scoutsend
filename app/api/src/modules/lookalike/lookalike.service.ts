@@ -1,4 +1,4 @@
-import { assertCampaignOwner } from "../../lib/ownership";
+import { assertCampaignAccess } from "../../lib/ownership";
 import { assertPublicHttpUrl } from "../../lib/url-safety";
 import { realtimeQueue } from "../gemini/campaign.queue";
 import { prisma } from "../../lib/prisma";
@@ -6,9 +6,10 @@ import { prisma } from "../../lib/prisma";
 export async function queueLookalikeSearch(params: {
   campaignId: string;
   userId: string;
+  orgId?: string;
   clientUrls?: unknown;
 }): Promise<void> {
-  const { campaignId, userId, clientUrls } = params;
+  const { campaignId, userId, orgId, clientUrls } = params;
 
   if (!/^c[a-z0-9]{24}$/.test(campaignId)) {
     throw Object.assign(new Error("Invalid campaign id"), { statusCode: 400 });
@@ -31,7 +32,7 @@ export async function queueLookalikeSearch(params: {
     }
   }
 
-  await assertCampaignOwner(campaignId, userId);
+  await assertCampaignAccess(campaignId, userId, orgId);
 
   if (urls.length > 0) {
     const campaign = await prisma.campaign.findUnique({

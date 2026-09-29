@@ -3,6 +3,7 @@ import Jwt from "jsonwebtoken";
 import { AuthenticatedRequest, JwtPayload } from "./auth.types";
 import { isTokenBlacklisted } from "./auth.service";
 import { prisma } from "../../lib/prisma";
+import { forTenant } from "../../lib/prisma-tenant";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("[authMiddleware] JWT_SECRET environment variable is not set");
@@ -36,7 +37,7 @@ export const authMiddleware = async (
       isTokenBlacklisted(decoded.jti),
       prisma.user.findUnique({
         where: { id: decoded.userId },
-        select: { tokenVersion: true },
+        select: { tokenVersion: true, emailVerified: true },
       }),
     ]);
 
@@ -48,11 +49,40 @@ export const authMiddleware = async (
       return res.status(401).json({ error: "Session expired, please log in again" });
     }
 
-    req.user = decoded;
+    if (decoded.orgId) {
+      req.user = decoded;
+    } else {
+      const primaryMembership = await prisma.organizationMember.findFirst({
+        where: { userId: decoded.userId },
+        orderBy: { createdAt: "asc" },
+        select: { orgId: true, role: true },
+      });
+
+      if (!primaryMembership) {
+        return res.status(403).json({
+          error: "No organization membership found. Contact your administrator.",
+        });
+      }
+
+      req.user = {
+        ...decoded,
+        orgId: primaryMembership.orgId,
+        orgRole: primaryMembership.role,
+      };
+    }
+
+    if (user.emailVerified === false && req.path !== "/me" && req.path !== "/logout" && req.path !== "/resend-verification") {
+      return res.status(403).json({ error: "Email verification required", emailVerified: false });
+    }
+
+    if (req.user?.orgId) {
+      req.tenantDb = forTenant(req.user.orgId);
+    }
+
     next();
   } catch (error) {
     if (error instanceof Jwt.TokenExpiredError) {
-      return res.status(401).json({ error: "Token expired" });
+      return res.status(401).json({ error: "Token expired", code: "TOKEN_EXPIRED" });
     }
     return res.status(401).json({ error: "Invalid token" });
   }

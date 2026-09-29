@@ -8,17 +8,22 @@ export function SentimentBar({ score }: SentimentBarProps) {
     }
 
     const pct = Math.round(((score + 1) / 2) * 100);
-    const barColor =
-        score >= 0.3 ? "bg-emerald-400" : score <= -0.3 ? "bg-red-400" : "bg-amber-400";
+    const barBg =
+        score >= 0.3 ? "var(--success)" : score <= -0.3 ? "var(--danger)" : "var(--warning)";
     const textColor =
-        score >= 0.3 ? "text-emerald-400" : score <= -0.3 ? "text-red-400" : "text-amber-400";
+        score >= 0.3 ? "var(--success-text)" : score <= -0.3 ? "var(--danger-text)" : "var(--warning-text)";
 
     return (
         <div className="flex items-center gap-2">
-            <div className="w-16 h-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
+            <div className="w-16 h-1.5 rounded-full bg-[var(--surface-2)] border border-[var(--border)] overflow-hidden">
                 <div
-                    className={`h-full rounded-full ${barColor} transition-all duration-300`}
-                    style={{ width: `${pct}%` }}
+                    className="h-full rounded-full transition-all"
+                    style={{
+                        width: `${pct}%`,
+                        backgroundColor: barBg,
+                        transitionDuration: "250ms",
+                        transitionTimingFunction: "var(--ease-smooth)",
+                    }}
                     role="progressbar"
                     aria-valuenow={pct}
                     aria-valuemin={0}
@@ -26,7 +31,7 @@ export function SentimentBar({ score }: SentimentBarProps) {
                     aria-label={`Sentiment ${score > 0 ? "+" : ""}${score.toFixed(2)}`}
                 />
             </div>
-            <span className={`text-xs tabular-nums font-medium ${textColor}`}>
+            <span className="text-xs tabular-nums font-mono font-bold" style={{ color: textColor }}>
                 {score > 0 ? "+" : ""}
                 {score.toFixed(2)}
             </span>

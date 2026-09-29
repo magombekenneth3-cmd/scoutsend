@@ -1,6 +1,6 @@
 import { UserRole } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 
 export async function listUsers(query: {
     search?: string;

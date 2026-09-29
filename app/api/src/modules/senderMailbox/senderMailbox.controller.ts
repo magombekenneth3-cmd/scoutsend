@@ -15,7 +15,7 @@ export async function createSenderMailbox(
 ): Promise<void> {
     try {
         const data = createSenderMailboxSchema.parse(req.body);
-        const mailbox = await SenderMailboxService.createSenderMailbox(data, req.user!.userId);
+        const mailbox = await SenderMailboxService.createSenderMailbox(data, req.user!.userId, req.user?.orgId);
         await CacheService.invalidateVersioned(`version:sender-mailboxes:${req.user!.userId}`);
         res.status(201).json(mailbox);
     } catch (error) {
@@ -30,13 +30,14 @@ export async function getSenderMailboxes(
 ): Promise<void> {
     try {
         const userId = req.user!.userId;
+        const orgId = req.user?.orgId;
         const query = getSenderMailboxesQuerySchema.parse(req.query);
-        const baseKey = `cache:sender-mailboxes:${userId}:prov:${query.providerType ?? "any"}:h:${query.health ?? "any"}:p:${query.page}:l:${query.limit}`;
+        const baseKey = `cache:sender-mailboxes:${userId}:org:${orgId ?? "none"}:prov:${query.providerType ?? "any"}:h:${query.health ?? "any"}:p:${query.page}:l:${query.limit}`;
         const versionKey = `version:sender-mailboxes:${userId}`;
         const result = await CacheService.getOrSetVersioned(
             baseKey,
             versionKey,
-            () => SenderMailboxService.getSenderMailboxes(query, userId)
+            () => SenderMailboxService.getSenderMailboxes(query, userId, orgId)
         );
         res.status(200).json(result);
     } catch (error) {
@@ -57,7 +58,7 @@ export async function getSenderMailboxById(
         const mailbox = await CacheService.getOrSetVersioned(
             baseKey,
             versionKey,
-            () => SenderMailboxService.getSenderMailboxById(id, userId)
+            () => SenderMailboxService.getSenderMailboxById(id, userId, req.user?.orgId)
         );
         if (!mailbox) {
             res.status(404).json({ error: "Sender mailbox not found" });
@@ -77,7 +78,7 @@ export async function updateSenderMailbox(
     try {
         const { id } = req.params as { id: string };
         const data = updateSenderMailboxSchema.parse(req.body);
-        const mailbox = await SenderMailboxService.updateSenderMailbox(id, req.user!.userId, data);
+        const mailbox = await SenderMailboxService.updateSenderMailbox(id, req.user!.userId, data, req.user?.orgId);
         await Promise.all([
             CacheService.invalidateVersioned(`version:sender-mailboxes:${req.user!.userId}`),
             CacheService.invalidateVersioned(`version:sender-mailbox:${id}`)
@@ -95,7 +96,7 @@ export async function deleteSenderMailbox(
 ): Promise<void> {
     try {
         const { id } = req.params as { id: string };
-        await SenderMailboxService.deleteSenderMailbox(id, req.user!.userId);
+        await SenderMailboxService.deleteSenderMailbox(id, req.user!.userId, req.user?.orgId);
         await Promise.all([
             CacheService.invalidateVersioned(`version:sender-mailboxes:${req.user!.userId}`),
             CacheService.invalidateVersioned(`version:sender-mailbox:${id}`)
@@ -113,7 +114,7 @@ export async function verifyMailboxConnection(
 ): Promise<void> {
     try {
         const { id } = req.params as { id: string };
-        const result = await SenderMailboxService.verifyMailboxConnection(id, req.user!.userId);
+        const result = await SenderMailboxService.verifyMailboxConnection(id, req.user!.userId, req.user?.orgId);
         res.status(200).json(result);
     } catch (error) {
         next(error);
@@ -127,7 +128,7 @@ export async function resetMailboxDailyCount(
 ): Promise<void> {
     try {
         const { id } = req.params as { id: string };
-        const mailbox = await SenderMailboxService.resetMailboxDailyCount(id, req.user!.userId);
+        const mailbox = await SenderMailboxService.resetMailboxDailyCount(id, req.user!.userId, req.user?.orgId);
         await Promise.all([
             CacheService.invalidateVersioned(`version:sender-mailboxes:${req.user!.userId}`),
             CacheService.invalidateVersioned(`version:sender-mailbox:${id}`)
@@ -145,7 +146,7 @@ export async function verifyMailboxDns(
 ): Promise<void> {
     try {
         const { id } = req.params as { id: string };
-        const result = await SenderMailboxService.verifyMailboxDns(id, req.user!.userId);
+        const result = await SenderMailboxService.verifyMailboxDns(id, req.user!.userId, req.user?.orgId);
         await Promise.all([
             CacheService.invalidateVersioned(`version:sender-mailboxes:${req.user!.userId}`),
             CacheService.invalidateVersioned(`version:sender-mailbox:${id}`)

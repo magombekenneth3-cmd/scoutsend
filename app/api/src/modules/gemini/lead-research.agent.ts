@@ -142,6 +142,9 @@ function assertNoAbsentFieldMentions(text: string, promptContext: { company: Rec
     if (promptContext.company.employeeCount === "Unknown" && /employees|headcount|team size/.test(lower)) {
         throw new Error(`${path} references employee count despite no headcount data being available.`);
     }
+    if (promptContext.company.revenueBand === "Unknown" && /revenue|arr|mrr|annual recurring/.test(lower)) {
+        throw new Error(`${path} references revenue despite no revenue data being available.`);
+    }
 }
 
 function assertNoUnknownKeys(obj: Record<string, unknown>, allowed: readonly string[], path: string): void {
@@ -376,6 +379,44 @@ function validateCard(parsed: unknown, ctx: ResearchContext, promptContext: { co
     };
 }
 
+function validateQuantitativeFields(
+    card: LeadResearchCard,
+    promptContext: { company: Record<string, unknown> }
+): void {
+    const knownNumbers = new Set<string>();
+    if (typeof promptContext.company.employeeCount === "number") {
+        knownNumbers.add(String(promptContext.company.employeeCount));
+    }
+    if (typeof promptContext.company.fundingTotalUsd === "number") {
+        knownNumbers.add(String(promptContext.company.fundingTotalUsd));
+    }
+
+    const DOLLAR_AMOUNT_RE = /\$\s?\d[\d,\.]*[kmb]?/i;
+    const ARR_MRR_RE = /\b(arr|mrr|annual recurring revenue|revenue of|revenues of)\b/i;
+    const EMPLOYEE_COUNT_RE = /\b(\d{2,}[\s-]*(?:person|people|employee|staff|headcount|member)s?|(?:team|workforce)\s+of\s+\d+)\b/i;
+
+    const allText = [
+        card.companySummary,
+        ...card.painPoints.map((p) => `${p.problem} ${p.impact}`),
+        card.personalizationAngle,
+        card.suggestedOpeningLine,
+    ].join(" ");
+
+    if (DOLLAR_AMOUNT_RE.test(allText)) {
+        const match = allText.match(DOLLAR_AMOUNT_RE)?.[0] ?? "";
+        const digits = match.replace(/[^\d]/g, "");
+        if (digits && !knownNumbers.has(digits)) {
+            throw new Error(`Card contains a dollar amount ("${match}") not present in the provided company data.`);
+        }
+    }
+    if (ARR_MRR_RE.test(allText) && promptContext.company.fundingTotalUsd === "Unknown") {
+        throw new Error("Card references ARR/MRR/revenue figures but no revenue data was provided.");
+    }
+    if (EMPLOYEE_COUNT_RE.test(allText) && promptContext.company.employeeCount === "Unknown") {
+        throw new Error("Card references employee/headcount numbers but no employee data was provided.");
+    }
+}
+
 function isValidEvidenceSource(x: unknown): x is EvidenceSource {
     return typeof x === "string" && (EVIDENCE_SOURCE_ENUM as readonly string[]).includes(x);
 }
@@ -608,6 +649,75 @@ async function writeCache(key: string, card: LeadResearchCard): Promise<void> {
     }
 }
 
+export interface CompanyResearchCard {
+    companySummary: string;
+    painPoints: PainPoint[];
+    buyingSignals: BuyingSignal[];
+}
+
+function buildCompanyCacheKey(companyId: string | null | undefined, domain: string | null | undefined): string {
+    const identifier = (companyId || domain || "unknown").toLowerCase();
+    return `company-research:v${CARD_SCHEMA_VERSION}:${PROMPT_VERSION}:${identifier}`;
+}
+
+export async function getCompanyResearchCard(
+    companyId?: string | null,
+    domain?: string | null
+): Promise<CompanyResearchCard | null> {
+    if (!companyId && !domain) return null;
+    const key = buildCompanyCacheKey(companyId, domain);
+    try {
+        const raw = await withTimeout(redis.get(key), REDIS_TIMEOUT_MS, "redis.get");
+        if (raw) return JSON.parse(raw) as CompanyResearchCard;
+    } catch (err) {
+        logger.warn({ key, error: err instanceof Error ? err.message : String(err) }, "[lead-research] company research cache read failed");
+    }
+    if (companyId) {
+        try {
+            const company = await prisma.company.findUnique({
+                where: { id: companyId },
+                select: { enrichmentData: true },
+            });
+            const ed = (company?.enrichmentData ?? {}) as Record<string, unknown>;
+            if (ed.companyResearchCard) {
+                const card = ed.companyResearchCard as CompanyResearchCard;
+                void setCompanyResearchCard(companyId, domain, card);
+                return card;
+            }
+        } catch (dbErr) {
+            logger.warn({ error: dbErr instanceof Error ? dbErr.message : String(dbErr), companyId }, "[lead-research] company DB research read failed");
+        }
+    }
+    return null;
+}
+
+export async function setCompanyResearchCard(
+    companyId: string | null | undefined,
+    domain: string | null | undefined,
+    card: CompanyResearchCard
+): Promise<void> {
+    if (!companyId && !domain) return;
+    const key = buildCompanyCacheKey(companyId, domain);
+    try {
+        await withTimeout(redis.set(key, JSON.stringify(card), "EX", CACHE_TTL_SECONDS), REDIS_TIMEOUT_MS, "redis.set");
+    } catch (err) {
+        logger.warn({ key, error: err instanceof Error ? err.message : String(err) }, "[lead-research] company research cache write failed");
+    }
+    if (companyId) {
+        try {
+            const company = await prisma.company.findUnique({ where: { id: companyId }, select: { enrichmentData: true } });
+            const ed = (company?.enrichmentData ?? {}) as Record<string, unknown>;
+            await prisma.company.update({
+                where: { id: companyId },
+                data: { enrichmentData: { ...ed, companyResearchCard: card as any } },
+            });
+        } catch (dbErr) {
+            logger.warn({ error: dbErr instanceof Error ? dbErr.message : String(dbErr), companyId }, "[lead-research] company DB research write failed");
+        }
+    }
+}
+
+
 async function isCircuitOpen(): Promise<boolean> {
     try {
         const raw = await withTimeout(redis.get(CIRCUIT_BREAKER_KEY), REDIS_TIMEOUT_MS, "redis.get");
@@ -676,10 +786,25 @@ async function waitForPeerResult(cacheKey: string): Promise<LeadResearchCard | n
     return null;
 }
 
+async function writeDb(leadId: string, card: LeadResearchCard): Promise<void> {
+    try {
+        await prisma.lead.update({
+            where: { id: leadId },
+            data: {
+                researchCard: card as any,
+                researchCardGeneratedAt: new Date(),
+            },
+        });
+    } catch (err) {
+        logger.warn({ leadId, error: err instanceof Error ? err.message : String(err) }, "[lead-research] db write failed");
+    }
+}
+
 export async function generateLeadResearchCard(
     leadId: string,
     userId: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    forceRefresh = false
 ): Promise<LeadResearchCard> {
     const startedAt = Date.now();
 
@@ -696,6 +821,8 @@ export async function generateLeadResearchCard(
                 qualificationReason: true,
                 competitorTech: true,
                 enrichmentData: true,
+                researchCard: true,
+                researchCardGeneratedAt: true,
                 signals: {
                     where: { confidence: { gte: SIGNAL_CONFIDENCE_THRESHOLD } },
                     select: { id: true, signalType: true, value: true, confidence: true },
@@ -758,13 +885,26 @@ export async function generateLeadResearchCard(
     };
 
     const cacheKey = buildCacheKey(leadId, promptContext);
-    const cached = await readCache(cacheKey);
-    if (cached) {
-        logger.info(
-            { leadId, promptVersion: PROMPT_VERSION, cacheHit: true, latencyMs: Date.now() - startedAt },
-            "[lead-research] served from cache"
-        );
-        return cached;
+
+    if (!forceRefresh) {
+        const cached = await readCache(cacheKey);
+        if (cached) {
+            logger.info(
+                { leadId, promptVersion: PROMPT_VERSION, cacheHit: true, source: "redis", latencyMs: Date.now() - startedAt },
+                "[lead-research] served from cache"
+            );
+            return cached;
+        }
+
+        if (lead.researchCard && isValidCachedCard(lead.researchCard)) {
+            const dbCard = lead.researchCard as LeadResearchCard;
+            void writeCache(cacheKey, dbCard);
+            logger.info(
+                { leadId, promptVersion: PROMPT_VERSION, cacheHit: true, source: "db", latencyMs: Date.now() - startedAt },
+                "[lead-research] served from db"
+            );
+            return dbCard;
+        }
     }
 
     if (await isCircuitOpen()) {
@@ -785,6 +925,11 @@ export async function generateLeadResearchCard(
             );
             return peerResult;
         }
+    }
+
+    const existingCompanyCard = await getCompanyResearchCard(lead.companyId, lead.website);
+    if (existingCompanyCard) {
+        (promptContext as any).companyResearch = existingCompanyCard;
     }
 
     const systemPrompt = buildSystemPrompt();
@@ -831,8 +976,19 @@ export async function generateLeadResearchCard(
                 }
 
                 const card = validateCard(parsed, ctx, promptContext);
+                try {
+                    validateQuantitativeFields(card, promptContext);
+                } catch (qErr) {
+                    throw new GeminiCallError(qErr instanceof Error ? qErr.message : String(qErr));
+                }
 
                 void writeCache(cacheKey, card);
+                void writeDb(leadId, card);
+                void setCompanyResearchCard(lead.companyId, lead.website, {
+                    companySummary: card.companySummary,
+                    painPoints: card.painPoints,
+                    buyingSignals: card.buyingSignals,
+                });
 
                 logger.info(
                     {
@@ -850,6 +1006,7 @@ export async function generateLeadResearchCard(
                     "[lead-research] card generated"
                 );
                 return card;
+
             } catch (err) {
                 lastError = err;
                 const msg = err instanceof Error ? err.message : String(err);

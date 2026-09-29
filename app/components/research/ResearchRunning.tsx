@@ -46,7 +46,7 @@ export function ResearchRunning({ companyName, state, onCancel }: ResearchRunnin
       <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
         <div className="flex items-center gap-3">
           <div className="relative w-4 h-4">
-            <svg className="animate-spin w-4 h-4 text-[var(--red)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg className="animate-spin w-4 h-4 text-[var(--red-text)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
           </div>

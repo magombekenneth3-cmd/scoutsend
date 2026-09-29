@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryApolloOrgs } from "@/agents/lookAlike/apolloCompanies";
+import { getServerSession } from "@/app/api/src/lib/session";
 
 interface CompanySize {
     label: string;
@@ -14,6 +15,9 @@ interface ICPRefinement {
 }
 
 export async function POST(req: NextRequest) {
+    const session = await getServerSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { refinement } = (await req.json()) as { refinement: ICPRefinement };
 
     if (!refinement) {

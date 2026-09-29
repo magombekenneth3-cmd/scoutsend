@@ -1,0 +1,298 @@
+[
+  {
+    "modelName": "Lead",
+    "tableName": "Lead",
+    "fieldName": "sequenceInitError",
+    "colName": "sequenceInitError",
+    "fieldType": "String?",
+    "isScalar": true
+  },
+  {
+    "modelName": "Lead",
+    "tableName": "Lead",
+    "fieldName": "researchCard",
+    "colName": "researchCard",
+    "fieldType": "Json?",
+    "isScalar": true
+  },
+  {
+    "modelName": "Lead",
+    "tableName": "Lead",
+    "fieldName": "researchCardGeneratedAt",
+    "colName": "researchCardGeneratedAt",
+    "fieldType": "DateTime?",
+    "isScalar": true
+  },
+  {
+    "modelName": "OutreachMessage",
+    "tableName": "OutreachMessage",
+    "fieldName": "senderMailboxId",
+    "colName": "senderMailboxId",
+    "fieldType": "String?",
+    "isScalar": true
+  },
+  {
+    "modelName": "OutreachMessage",
+    "tableName": "OutreachMessage",
+    "fieldName": "regenerationNeeded",
+    "colName": "regenerationNeeded",
+    "fieldType": "Boolean",
+    "isScalar": true
+  },
+  {
+    "modelName": "OutreachMessage",
+    "tableName": "OutreachMessage",
+    "fieldName": "regenerationReason",
+    "colName": "regenerationReason",
+    "fieldType": "String?",
+    "isScalar": true
+  },
+  {
+    "modelName": "Reply",
+    "tableName": "Reply",
+    "fieldName": "isRead",
+    "colName": "isRead",
+    "fieldType": "Boolean",
+    "isScalar": true
+  },
+  {
+    "modelName": "Reply",
+    "tableName": "Reply",
+    "fieldName": "snoozedUntil",
+    "colName": "snoozedUntil",
+    "fieldType": "DateTime?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SenderMailbox",
+    "tableName": "SenderMailbox",
+    "fieldName": "spfValid",
+    "colName": "spfValid",
+    "fieldType": "Boolean?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SenderMailbox",
+    "tableName": "SenderMailbox",
+    "fieldName": "dkimValid",
+    "colName": "dkimValid",
+    "fieldType": "Boolean?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SenderMailbox",
+    "tableName": "SenderMailbox",
+    "fieldName": "dmarcValid",
+    "colName": "dmarcValid",
+    "fieldType": "Boolean?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SenderMailbox",
+    "tableName": "SenderMailbox",
+    "fieldName": "dkimSelector",
+    "colName": "dkimSelector",
+    "fieldType": "String?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SenderMailbox",
+    "tableName": "SenderMailbox",
+    "fieldName": "dnsCheckedAt",
+    "colName": "dnsCheckedAt",
+    "fieldType": "DateTime?",
+    "isScalar": true
+  },
+  {
+    "modelName": "BrandSettings",
+    "tableName": "BrandSettings",
+    "fieldName": "provenStats",
+    "colName": "provenStats",
+    "fieldType": "Json?",
+    "isScalar": true
+  },
+  {
+    "modelName": "Company",
+    "tableName": "Company",
+    "fieldName": "version",
+    "colName": "version",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "Operation",
+    "tableName": "Operation",
+    "fieldName": "leaseVersion",
+    "colName": "leaseVersion",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "traceId",
+    "colName": "traceId",
+    "fieldType": "String?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "provider",
+    "colName": "provider",
+    "fieldType": "String?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "payloadHash",
+    "colName": "payloadHash",
+    "fieldType": "String?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "lastAttemptAt",
+    "colName": "lastAttemptAt",
+    "fieldType": "DateTime?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "claimedBy",
+    "colName": "claimedBy",
+    "fieldType": "String?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "fencingEpoch",
+    "colName": "fencingEpoch",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "leaseVersion",
+    "colName": "leaseVersion",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "leaseExpiresAt",
+    "colName": "leaseExpiresAt",
+    "fieldType": "DateTime?",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "reconciliationAttempts",
+    "colName": "reconciliationAttempts",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "SendIntent",
+    "tableName": "SendIntent",
+    "fieldName": "version",
+    "colName": "version",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "QuotaReservation",
+    "tableName": "QuotaReservation",
+    "fieldName": "operationId",
+    "colName": "operationId",
+    "fieldType": "String",
+    "isScalar": true
+  },
+  {
+    "modelName": "QuotaReservation",
+    "tableName": "QuotaReservation",
+    "fieldName": "scopeId",
+    "colName": "scopeId",
+    "fieldType": "String",
+    "isScalar": true
+  },
+  {
+    "modelName": "QuotaReservation",
+    "tableName": "QuotaReservation",
+    "fieldName": "windowStart",
+    "colName": "windowStart",
+    "fieldType": "DateTime",
+    "isScalar": true
+  },
+  {
+    "modelName": "QuotaReservation",
+    "tableName": "QuotaReservation",
+    "fieldName": "version",
+    "colName": "version",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "CampaignRun",
+    "tableName": "CampaignRun",
+    "fieldName": "fencingEpoch",
+    "colName": "fencingEpoch",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "CampaignRun",
+    "tableName": "CampaignRun",
+    "fieldName": "version",
+    "colName": "version",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "CampaignRun",
+    "tableName": "CampaignRun",
+    "fieldName": "logicalVersion",
+    "colName": "logicalVersion",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "CampaignRunLease",
+    "tableName": "CampaignRunLease",
+    "fieldName": "workerId",
+    "colName": "workerId",
+    "fieldType": "String",
+    "isScalar": true
+  },
+  {
+    "modelName": "CampaignRunLease",
+    "tableName": "CampaignRunLease",
+    "fieldName": "fencingEpoch",
+    "colName": "fencingEpoch",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "CampaignRunLease",
+    "tableName": "CampaignRunLease",
+    "fieldName": "leaseVersion",
+    "colName": "leaseVersion",
+    "fieldType": "Int",
+    "isScalar": true
+  },
+  {
+    "modelName": "CampaignRunLease",
+    "tableName": "CampaignRunLease",
+    "fieldName": "leaseExpiresAt",
+    "colName": "leaseExpiresAt",
+    "fieldType": "DateTime",
+    "isScalar": true
+  }
+]

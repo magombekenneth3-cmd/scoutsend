@@ -53,16 +53,29 @@ export async function POST(
     }
 
     try {
+        const mappingsHeader = req.headers.get("x-csv-mappings");
+        const mappingsParam = req.nextUrl.searchParams.get("mappings");
+        const backendUrl = new URL(
+            `${API_BASE}/leads/import/csv`
+        );
+        backendUrl.searchParams.set("campaignId", campaignId);
+        if (mappingsParam) backendUrl.searchParams.set("mappings", mappingsParam);
+
         const res = await fetch(
-            `${API_BASE}/leads/import/csv?campaignId=${encodeURIComponent(campaignId)}`,
+            backendUrl.toString(),
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "text/csv",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    ...(mappingsHeader ? { "X-CSV-Mappings": mappingsHeader } : {}),
                 },
                 body: csvBody,
                 cache: "no-store",
+                // Give the API server up to 55s to process (website enrichment may
+                // take several seconds per unique domain). This prevents the
+                // browser from seeing a raw "Failed to fetch" network error.
+                signal: AbortSignal.timeout(55_000),
             }
         );
 

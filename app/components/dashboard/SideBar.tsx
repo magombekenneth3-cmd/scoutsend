@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useUser } from "../../context/UserContext";
 
 interface User {
     firstName: string;
     lastName: string;
     role: string;
+    emailVerified?: boolean;
 }
+
 
 interface NavItem {
     href: string;
@@ -18,245 +22,203 @@ interface NavItem {
     roles?: Array<"ADMIN" | "OPERATOR" | "REVIEWER">;
 }
 
-const NAV_ITEMS: NavItem[] = [
-    {
-        href: "/dashboard",
-        label: "Dashboard",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-        ),
-    },
-    {
-        href: "/dashboard/mailboxes",
-        label: "Mailboxes",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-            </svg>
-        ),
-    },
-    {
-        href: "/dashboard/research",
-        label: "Research",
-        icon: (
-            <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-            >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-            </svg>
-        ),
-    },
-    {
-        href: "/dashboard/linkedin-accounts",
-        label: "LinkedIn",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-                <rect x="2" y="9" width="4" height="12" />
-                <circle cx="4" cy="4" r="2" />
-            </svg>
-        ),
-        roles: ["ADMIN", "OPERATOR"],
-    },
-    {
-        href: "/dashboard/campaigns",
-        label: "Campaigns",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                <rect x="9" y="3" width="6" height="4" rx="1" />
-                <path d="M9 12h6M9 16h4" />
-            </svg>
-        ),
-        roles: ["ADMIN", "OPERATOR"],
-    },
-    {
-        href: "/dashboard/leads",
-        label: "Leads",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-        ),
-        roles: ["ADMIN", "OPERATOR"],
-    },
-    {
-        href: "/dashboard/messages",
-        label: "Messages",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-        ),
-    },
-    {
-        href: "/dashboard/replies",
-        label: "Replies",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="9 17 4 12 9 7" />
-                <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-            </svg>
-        ),
-    },
-    {
-        href: "/dashboard/domains",
-        label: "Sender Domains",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
-        ),
-        roles: ["ADMIN", "OPERATOR"],
-    },
-    {
-        href: "/dashboard/suppression",
-        label: "Suppression",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-            </svg>
-        ),
-        roles: ["ADMIN", "OPERATOR"],
-    },
-    {
-        href: "/dashboard/audit-logs",
-        label: "Audit Log",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-            </svg>
-        ),
-        roles: ["ADMIN"],
-    },
-    {
-        href: "/dashboard/memory",
-        label: "AI Memory",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1 0-6h1V6a4 4 0 0 1 4-4z" />
-                <circle cx="12" cy="12" r="1.5" />
-            </svg>
-        ),
-        roles: ["ADMIN"],
-    },
-    { href: "/dashboard/admin", label: "Admin", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>, roles: ["ADMIN"] }
-];
+interface NavSection {
+    label: string;
+    items: NavItem[];
+}
 
-const BOTTOM_ITEMS: NavItem[] = [
+const NAV_SECTIONS: NavSection[] = [
     {
-        href: "/dashboard/settings",
+        label: "Outreach",
+        items: [
+            {
+                href: "/dashboard/campaigns",
+                label: "Campaigns",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                        <rect x="9" y="3" width="6" height="4" rx="1" />
+                        <path d="M9 12h6M9 16h4" />
+                    </svg>
+                ),
+                roles: ["ADMIN", "OPERATOR"],
+            },
+            {
+                href: "/dashboard/leads",
+                label: "Leads",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                ),
+                roles: ["ADMIN", "OPERATOR"],
+            },
+            {
+                href: "/dashboard/messages",
+                label: "Messages",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                ),
+            },
+            {
+                href: "/dashboard/replies",
+                label: "Replies",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="9 17 4 12 9 7" />
+                        <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+                    </svg>
+                ),
+            },
+        ],
+    },
+    {
+        label: "Channels",
+        items: [
+            {
+                href: "/dashboard/mailboxes",
+                label: "Mailboxes",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                        <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                ),
+            },
+            {
+                href: "/dashboard/linkedin-accounts",
+                label: "LinkedIn",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                        <rect x="2" y="9" width="4" height="12" />
+                        <circle cx="4" cy="4" r="2" />
+                    </svg>
+                ),
+                roles: ["ADMIN", "OPERATOR"],
+            },
+            {
+                href: "/dashboard/domains",
+                label: "Domains",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="2" y1="12" x2="22" y2="12" />
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                ),
+                roles: ["ADMIN", "OPERATOR"],
+            },
+        ],
+    },
+    {
+        label: "Intelligence",
+        items: [
+            {
+                href: "/dashboard/find-leads",
+                label: "Find leads",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
+                        <path d="M11 8v6M8 11h6" />
+                    </svg>
+                ),
+                roles: ["ADMIN", "OPERATOR"],
+            },
+            {
+                href: "/dashboard/research",
+                label: "Research",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
+                    </svg>
+                ),
+            },
+            {
+                href: "/dashboard/competitors",
+                label: "Competitors",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                ),
+                roles: ["ADMIN", "OPERATOR"],
+            },
+            {
+                href: "/dashboard/memory",
+                label: "AI Memory",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1 0-6h1V6a4 4 0 0 1 4-4z" />
+                        <circle cx="12" cy="12" r="1.5" />
+                    </svg>
+                ),
+                roles: ["ADMIN"],
+            },
+        ],
+    },
+    {
         label: "Settings",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
-            </svg>
-        ),
-    },
-    {
-        href: "/dashboard/users",
-        label: "Users",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-        ),
-        roles: ["ADMIN"],
-    },
-    {
-        href: "/dashboard/ai-traces",
-        label: "AI Traces",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
-        ),
-        roles: ["ADMIN"],
-    },
-    {
-        href: "/dashboard/learning",
-        label: "Learning",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-            </svg>
-        ),
-        roles: ["ADMIN"],
-    },
-    {
-        href: "/dashboard/brand",
-        label: "Brand Settings",
-        icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="13.5" cy="6.5" r="0.5" fill="currentColor" />
-                <circle cx="17.5" cy="10.5" r="0.5" fill="currentColor" />
-                <circle cx="8.5" cy="7.5" r="0.5" fill="currentColor" />
-                <circle cx="6.5" cy="12.5" r="0.5" fill="currentColor" />
-                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-            </svg>
-        ),
+        items: [
+            {
+                href: "/dashboard/settings/profile",
+                label: "Settings",
+                icon: (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+                    </svg>
+                ),
+            },
+        ],
     },
 ];
 
 interface SidebarProps {
     collapsed?: boolean;
     onToggle?: () => void;
+    /** When provided, sidebar is in mobile drawer mode: nav clicks close the drawer, collapse toggle is hidden */
+    mobileClose?: () => void;
 }
 
 function NavLink({
     item,
     active,
     collapsed,
+    onNavClick,
 }: {
     item: NavItem;
     active: boolean;
     collapsed: boolean;
+    onNavClick?: () => void;
 }) {
     return (
         <Link
             href={item.href}
+            onClick={onNavClick}
             aria-current={active ? "page" : undefined}
             aria-label={collapsed ? `${item.label}${item.badge ? ` (${item.badge})` : ""}` : undefined}
             title={collapsed ? item.label : undefined}
             className={[
-                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-150",
+                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-150",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--navy-mid)]",
                 active
-                    ? "bg-[var(--red-glow)] text-[var(--red)] font-medium"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]",
+                    ? "text-[var(--red-text)] font-medium"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]",
             ].join(" ")}
         >
             {active && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[var(--red)] rounded-r-full" aria-hidden="true" />
+                <motion.div
+                    layoutId="sidebarActivePill"
+                    className="absolute inset-0 rounded-lg bg-[var(--red-glow)] border border-[var(--border-red)]/40 -z-10"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
             )}
 
             <span className="flex-shrink-0">{item.icon}</span>
@@ -266,7 +228,7 @@ function NavLink({
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.badge != null && item.badge > 0 && (
                         <span
-                            className="flex-shrink-0 text-xs font-semibold bg-[var(--red)] text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 tabular-nums"
+                            className="flex-shrink-0 text-xs font-semibold bg-[var(--red)] text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 tabular-nums animate-glow-throb"
                             aria-label={`${item.badge} pending`}
                         >
                             {item.badge > 99 ? "99+" : item.badge}
@@ -287,25 +249,35 @@ function NavLink({
     );
 }
 
-export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed = false, onToggle, mobileClose }: SidebarProps) {
+    const isMobile = !!mobileClose;
     const pathname = usePathname();
     const router = useRouter();
-    const [user, setUser] = useState<User | null>(null);
-    const [badges, setBadges] = useState<{ messages: number; replies: number }>({
-        messages: 0,
-        replies: 0,
-    });
+    const contextUser = useUser();
+    const [badges, setBadges] = useState<{ messages: number; replies: number }>({ messages: 0, replies: 0 });
+    const [isLight, setIsLight] = useState(false);
+
+    const user: User | null = contextUser;
 
     useEffect(() => {
-        fetch("/api/auth/me")
-            .then((r) => (r.ok ? r.json() : null))
-            .then((data) => { if (data) setUser(data); })
-            .catch(() => { });
+        setIsLight(document.documentElement.classList.contains("light"));
     }, []);
 
+    const toggleTheme = () => {
+        const nextTheme = !isLight;
+        setIsLight(nextTheme);
+        if (nextTheme) {
+            document.documentElement.classList.add("light");
+            localStorage.setItem("theme", "light");
+        } else {
+            document.documentElement.classList.remove("light");
+            localStorage.setItem("theme", "dark");
+        }
+    };
+
     useEffect(() => {
-        let retryDelay = 5_000;
         let timerId: ReturnType<typeof setTimeout>;
+        let cancelled = false;
 
         async function fetchBadges() {
             try {
@@ -317,21 +289,26 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                     msgRes.ok ? msgRes.json() : null,
                     repRes.ok ? repRes.json() : null,
                 ]);
-                setBadges({
-                    messages: msg?.meta?.total ?? 0,
-                    replies: rep?.meta?.total ?? 0,
-                });
-                retryDelay = 300_000;
-            } catch {
-                retryDelay = Math.min(retryDelay * 2, 60_000);
-            } finally {
-                timerId = setTimeout(fetchBadges, retryDelay);
-            }
+                if (!cancelled) {
+                    setBadges({
+                        messages: msg?.meta?.total ?? 0,
+                        replies: rep?.meta?.total ?? 0,
+                    });
+                }
+            } catch { }
+            if (!cancelled) timerId = setTimeout(fetchBadges, 300_000);
         }
 
-        fetchBadges();
-        return () => clearTimeout(timerId);
-    }, []);
+        if (user && user.emailVerified !== false) {
+            fetchBadges();
+        }
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timerId);
+        };
+    }, [user]);
+
 
     async function handleLogout() {
         try {
@@ -342,7 +319,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     }
 
     const initials = user
-        ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+        ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() || "··"
         : "··";
 
     const isActive = (href: string) =>
@@ -351,16 +328,16 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     return (
         <aside
             className={[
-                "flex flex-col h-full bg-[var(--navy-mid)] border-r border-[var(--border)]",
-                "transition-[width] duration-200 ease-in-out",
+                "flex flex-col h-full sidebar-glass border-r border-[var(--glass-border)]",
+                "transition-[width] duration-300 ease-in-out",
                 collapsed ? "w-[60px]" : "w-[220px]",
             ].join(" ")}
             aria-label="Sidebar"
         >
             <div
                 className={[
-                    "flex items-center h-16 border-b border-[var(--border)] flex-shrink-0",
-                    collapsed ? "justify-center px-0" : "gap-3 px-5",
+                    "flex items-center h-14 border-b border-[var(--border)] flex-shrink-0",
+                    collapsed ? "justify-center px-0" : "gap-3 px-4",
                 ].join(" ")}
                 aria-hidden="true"
             >
@@ -379,90 +356,160 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                                 width: "50%",
                                 height: "50%",
                                 transformOrigin: "0 0",
-                                background: "conic-gradient(from 0deg, transparent 0deg, rgba(233,69,96,0.4) 45deg, transparent 45deg)",
+                                background: "conic-gradient(from 0deg, transparent 0deg, var(--red-glow) 45deg, transparent 45deg)",
                             }}
                         />
                     </div>
                 </div>
 
                 {!collapsed && (
-                    <span className="font-display font-bold text-base text-[var(--text-primary)] tracking-tight">
-                        Scout<span className="text-[var(--red)]">Send</span>
+                    <span className="font-display font-bold text-base text-[var(--text-primary)] tracking-tight flex-1">
+                        Scout<span className="text-[var(--red-text)]">Send</span>
                     </span>
+                )}
+
+                {/* Close button — only shown in mobile drawer mode */}
+                {isMobile && (
+                    <button
+                        onClick={mobileClose}
+                        aria-label="Close navigation"
+                        className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] flex-shrink-0"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
                 )}
             </div>
 
-            <button
-                onClick={onToggle}
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                aria-expanded={!collapsed}
-                aria-controls="sidebar-nav"
-                className={[
-                    "flex items-center justify-center w-6 h-6 rounded-full",
-                    "bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-secondary)]",
-                    "hover:text-[var(--text-primary)] hover:border-[var(--border-red)]",
-                    "absolute -right-3 top-[52px] z-10 transition-colors duration-150",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
-                ].join(" ")}
-            >
-                <svg
-                    width="10" height="10" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" strokeWidth="2.5"
-                    strokeLinecap="round" strokeLinejoin="round"
-                    className={`transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
-                    aria-hidden="true"
+            {/* Collapse toggle — only shown on desktop, not in mobile drawer */}
+            {!isMobile && (
+                <button
+                    onClick={onToggle}
+                    aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    aria-expanded={!collapsed}
+                    aria-controls="sidebar-nav"
+                    className={[
+                        "interactive-spring flex items-center justify-center w-6 h-6 rounded-full",
+                        "bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--text-secondary)]",
+                        "hover:text-[var(--text-primary)] hover:border-[var(--border-red)] hover:bg-[var(--surface)]",
+                        "absolute -right-3 top-[52px] z-10",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
+                    ].join(" ")}
                 >
-                    <polyline points="15 18 9 12 15 6" />
-                </svg>
-            </button>
+                    <svg
+                        width="10" height="10" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" strokeWidth="2.5"
+                        strokeLinecap="round" strokeLinejoin="round"
+                        className={`transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
+                        aria-hidden="true"
+                    >
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                </button>
+            )}
 
             <nav
                 id="sidebar-nav"
-                className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-0.5"
+                className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-3"
                 aria-label="Main navigation"
             >
-                {NAV_ITEMS
-                    .filter((item) => !item.roles || !user || item.roles.includes(user.role as "ADMIN" | "OPERATOR" | "REVIEWER"))
-                    .map((item) => {
-                        const liveBadge =
-                            item.href === "/dashboard/messages" ? badges.messages :
-                                item.href === "/dashboard/replies" ? badges.replies :
-                                    item.badge;
-                        return (
-                            <NavLink
-                                key={item.href}
-                                item={{ ...item, badge: liveBadge }}
-                                active={isActive(item.href)}
-                                collapsed={collapsed}
-                            />
-                        );
-                    })}
+                <div className="space-y-0.5 mb-3">
+                    <NavLink
+                        item={{
+                            href: "/dashboard",
+                            label: "Dashboard",
+                            icon: (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                                </svg>
+                            ),
+                        }}
+                        active={isActive("/dashboard")}
+                        collapsed={collapsed}
+                        onNavClick={mobileClose}
+                    />
+                </div>
+
+                {!collapsed ? (
+                    <div className="px-3 mb-3">
+                        <Link
+                            href="/dashboard/campaigns?new=true"
+                            onClick={mobileClose}
+                            className="flex items-center justify-center gap-2 w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-white bg-[var(--red)] hover:bg-[var(--red-dim)] active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                        >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            New campaign
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="flex justify-center mb-3">
+                        <Link
+                            href="/dashboard/campaigns?new=true"
+                            onClick={mobileClose}
+                            title="New campaign"
+                            className="flex items-center justify-center w-9 h-9 rounded-lg bg-[var(--red)] text-white hover:bg-[var(--red-dim)] active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                        </Link>
+                    </div>
+                )}
+
+                {NAV_SECTIONS.map((section, index) => {
+                    const visibleItems = section.items.filter(
+                        (item) => !item.roles || !user || item.roles.includes(user.role as "ADMIN" | "OPERATOR" | "REVIEWER")
+                    );
+                    if (visibleItems.length === 0) return null;
+                    return (
+                        <div key={section.label} className="pt-3 border-t border-[var(--border)]/20">
+                            {!collapsed && (
+                                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)] px-3 mb-1 select-none">
+                                    {section.label}
+                                </p>
+                            )}
+                            <div className="space-y-0.5">
+                                {visibleItems.map((item) => {
+                                    const liveBadge =
+                                        item.href === "/dashboard/messages" ? badges.messages :
+                                        item.href === "/dashboard/replies" ? badges.replies :
+                                        item.badge;
+                                    return (
+                                        <NavLink
+                                            key={item.href}
+                                            item={{ ...item, badge: liveBadge }}
+                                            active={isActive(item.href)}
+                                            collapsed={collapsed}
+                                            onNavClick={mobileClose}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
             </nav>
 
-            <div className="mx-3 border-t border-[var(--border)]" aria-hidden="true" />
-
-            <nav className="px-3 py-4 space-y-0.5" aria-label="Settings">
-                {BOTTOM_ITEMS
-                    .filter((item) => !item.roles || !user || item.roles.includes(user.role as "ADMIN" | "OPERATOR" | "REVIEWER"))
-                    .map((item) => (
-                        <NavLink
-                            key={item.href}
-                            item={item}
-                            active={isActive(item.href)}
-                            collapsed={collapsed}
-                        />
-                    ))}
-            </nav>
 
             <div className={[
                 "flex items-center gap-3 px-3 py-4 border-t border-[var(--border)]",
                 collapsed ? "flex-col" : "",
             ].join(" ")}>
                 <Link
-                    href="/dashboard/settings"
+                    href="/dashboard/settings/profile"
+                    onClick={mobileClose}
                     aria-label={user ? `Account settings for ${user.firstName} ${user.lastName}` : "Account settings"}
                     title="Account settings"
-                    className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--red)] to-[var(--navy-deep)] flex items-center justify-center text-xs font-bold text-white flex-shrink-0 hover:ring-2 hover:ring-[var(--red)]/40 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                    className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--red)] to-[var(--red-dim)] flex items-center justify-center text-xs font-bold text-white flex-shrink-0 hover:ring-2 hover:ring-[var(--red)]/40 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
                 >
                     {initials}
                 </Link>
@@ -477,10 +524,34 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                     </div>
                 )}
                 <button
+                    onClick={toggleTheme}
+                    aria-label="Toggle theme"
+                    title={isLight ? "Use dark theme" : "Use light theme"}
+                    className="flex-shrink-0 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--red-text)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                >
+                    {isLight ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="5" />
+                            <line x1="12" y1="1" x2="12" y2="3" />
+                            <line x1="12" y1="21" x2="12" y2="23" />
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                            <line x1="1" y1="12" x2="3" y2="12" />
+                            <line x1="21" y1="12" x2="23" y2="12" />
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        </svg>
+                    ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                        </svg>
+                    )}
+                </button>
+                <button
                     onClick={handleLogout}
                     aria-label="Log out"
                     title="Log out"
-                    className="flex-shrink-0 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--red)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                    className="flex-shrink-0 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--red-text)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
                 >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

@@ -11,6 +11,7 @@ import {
 } from "@/app/api/src/modules/gemini/research.agent";
 import { ResearchStreamEvent } from "@/app/api/src/lib/research/research.types";
 import { prisma } from "@/app/api/src/lib/prisma";
+import { getServerSession } from "@/app/api/src/lib/session";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -20,7 +21,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: leadId } = await params;
-  const userId = req.headers.get("x-user-id");
+  const session = await getServerSession();
+  const userId = session?.userId;
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

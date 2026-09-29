@@ -1,6 +1,17 @@
 import pLimit from "p-limit";
+import { createHash } from "node:crypto";
 import { prisma } from "../../lib/prisma";
-import { callGemini, extractJSON, MODELS } from "./gemini.client";
+import { redis } from "../../lib/ioredis";
+import { MODELS } from "./gemini.client";
+import {
+    callGateway,
+    createProposalHash,
+    type QualityEvaluatorOutput,
+    QualityEvaluatorOutputSchema,
+    type QualityRewriterOutput,
+    QualityRewriterOutputSchema,
+} from "../../lib/llm-gateway";
+import { executeProposalOnce } from "../proposal-execution/proposal-execution.service";
 import { createLearningEvent } from "../learning/learning.service";
 import { LEARNING_EVENT_TYPES, LEARNING_OUTCOMES } from "../../lib/constants";
 import { logger } from "../../lib/logger";
@@ -37,31 +48,15 @@ const REWRITE_PROMPT_VERSION = "rewrite.v1";
 const EVALUATE_PROMPT_VERSION = "evaluate.v1";
 const RETRYABLE_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 const MAX_REWRITE_PASSES = 2;
+const REEVAL_VARIANCE_THRESHOLD = 0.15;
+const CLAIM_LOCK_TTL_MS = REWRITE_TIMEOUT_MS * MAX_REWRITE_PASSES + EVALUATE_TIMEOUT_MS + 10_000;
 const CIRCUIT_BREAKER_FAILURE_THRESHOLD = 10;
 const CIRCUIT_BREAKER_RECOVERY_MS = 60_000;
 const AI_SCORE_WEIGHT = 0.6;
 const HEURISTIC_SCORE_WEIGHT = 0.4;
 
-const EVALUATE_SCHEMA = {
-    type: "object",
-    properties: {
-        spamRiskScore: { type: "number" },
-        personalizationScore: { type: "number" },
-    },
-    required: ["spamRiskScore", "personalizationScore"],
-} as const;
-
-const REWRITE_SCHEMA = {
-    type: "object",
-    properties: {
-        subject: { type: "string" },
-        body: { type: "string" },
-        spamRiskScore: { type: "number" },
-        personalizationScore: { type: "number" },
-        improvementNotes: { type: "string" },
-    },
-    required: ["subject", "body", "spamRiskScore", "personalizationScore", "improvementNotes"],
-} as const;
+// (EVALUATE_SCHEMA and REWRITE_SCHEMA removed — P0-A: replaced by QualityEvaluatorOutputSchema
+// and QualityRewriterOutputSchema Zod schemas exported from the llm-gateway barrel)
 
 const SPAM_TRIGGER_PHRASES = [
     "act now",
@@ -140,6 +135,7 @@ type HeldMessage = {
     originalBody: string | null;
     spamRiskScore: number | null;
     personalizationScore: number | null;
+    senderMailboxId?: string | null;
     lead: {
         id: string;
         firstName: string | null;
@@ -255,29 +251,8 @@ function stripHtmlLocal(text: string): string {
     return text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function repairJsonText(text: string): string {
-    const withoutFences = text.replace(/```(?:json)?/gi, "");
-    const start = withoutFences.indexOf("{");
-    const end = withoutFences.lastIndexOf("}");
-    const sliced =
-        start !== -1 && end !== -1 && end > start
-            ? withoutFences.slice(start, end + 1)
-            : withoutFences;
-    return sliced.replace(/,\s*([}\]])/g, "$1").trim();
-}
-
-function parseStructuredResponse<T>(text: string): T {
-    try {
-        return extractJSON<T>(text);
-    } catch (firstErr) {
-        try {
-            return extractJSON<T>(repairJsonText(text));
-        } catch {
-            const reason = firstErr instanceof Error ? firstErr.message : String(firstErr);
-            throw new QualityResponseParseError(`Failed to parse structured response: ${reason}`);
-        }
-    }
-}
+// (repairJsonText and parseStructuredResponse removed — P0-A: Zod validation via callGateway
+// replaces manual JSON text parsing from raw callGemini output)
 
 function extractStatusCode(err: unknown): number | undefined {
     if (typeof err !== "object" || err === null) return undefined;
@@ -309,18 +284,28 @@ function isRetryableError(err: unknown): boolean {
     );
 }
 
-async function tryClaimMessage(messageId: string): Promise<boolean> {
-    const rows = await prisma.$queryRaw<Array<{ locked: boolean }>>`
-        SELECT pg_try_advisory_lock(hashtextextended(${messageId}, 0)) AS locked
-    `;
-    return rows[0]?.locked === true;
+const CLAIM_LOCK_PREFIX = "quality:claim:";
+
+const RELEASE_LOCK_SCRIPT = `
+  if redis.call("GET", KEYS[1]) == ARGV[1] then
+    return redis.call("DEL", KEYS[1])
+  else
+    return 0
+  end
+`;
+
+async function tryClaimMessage(messageId: string, token: string): Promise<boolean> {
+    const key = `${CLAIM_LOCK_PREFIX}${messageId}`;
+    const result = await redis.set(key, token, "PX", CLAIM_LOCK_TTL_MS, "NX");
+    return result === "OK";
 }
 
-async function releaseMessageClaim(messageId: string): Promise<void> {
+async function releaseMessageClaim(messageId: string, token: string): Promise<void> {
+    const key = `${CLAIM_LOCK_PREFIX}${messageId}`;
     try {
-        await prisma.$queryRaw`SELECT pg_advisory_unlock(hashtextextended(${messageId}, 0))`;
+        await redis.eval(RELEASE_LOCK_SCRIPT, 1, key, token);
     } catch (err) {
-        logger.error({ err, messageId }, "[quality.agent] Failed to release advisory lock");
+        logger.error({ err, messageId }, "[quality.agent] Failed to release Redis claim lock");
     }
 }
 
@@ -387,6 +372,7 @@ export function computeHeuristicQualityScore(
     subject: string,
     body: string,
     leadContext: string,
+    personaTier?: PersonaTier,
 ): HeuristicQualityResult {
     const strippedBody = stripHtmlLocal(body);
     const words = strippedBody.split(/\s+/).filter((w) => /[a-zA-Z0-9]/.test(w));
@@ -394,7 +380,9 @@ export function computeHeuristicQualityScore(
 
     const subjectLen = subject.trim().length;
     const subjectPenalty = subjectLen < 10 || subjectLen > 80 ? 0.15 : 0;
-    const wordCountPenalty = wordCount < 30 ? 0.2 : wordCount > 600 ? 0.1 : 0;
+
+    const wordCountFloor = personaTier === "executive" ? 12 : personaTier === "director" ? 20 : 30;
+    const wordCountPenalty = wordCount < wordCountFloor ? 0.2 : wordCount > 600 ? 0.1 : 0;
 
     const exclamations = (strippedBody.match(/!/g) ?? []).length;
     const exclamationPenalty = Math.min(0.25, exclamations * 0.05);
@@ -490,10 +478,12 @@ async function evaluateQuality(params: {
     geminiCircuit.guard();
     const controller = new AbortController();
     try {
-        const { text } = await withTimeout(
-            callGemini({
+        const proposal = await withTimeout(
+            callGateway<QualityEvaluatorOutput>({
                 agentName: "quality.evaluator",
                 model: MODELS.REVIEW,
+                responseMode: "structured",
+                outputSchema: QualityEvaluatorOutputSchema,
                 systemPrompt: `You are a senior B2B email quality evaluator. Score the email for spam risk and personalization. Do not rewrite it.
 
 Return ONLY JSON.
@@ -507,20 +497,17 @@ ${subject}
 
 BODY:
 ${truncate(body, MAX_BODY_CHARS)}`,
+                proposalContext: { leadId: undefined, campaignId },
                 metadata: { messageId, campaignId },
                 temperature: 0.2,
-                responseMimeType: "application/json",
-                responseSchema: EVALUATE_SCHEMA,
-                signal: controller.signal,
             }),
             EVALUATE_TIMEOUT_MS,
             controller,
         );
         geminiCircuit.succeed();
-        const raw = parseStructuredResponse<QualityScoreResult>(text);
         return {
-            spamRiskScore: clampScore(raw.spamRiskScore),
-            personalizationScore: clampScore(raw.personalizationScore),
+            spamRiskScore: clampScore(proposal.payload.spamRiskScore),
+            personalizationScore: clampScore(proposal.payload.personalizationScore),
         };
     } catch (err) {
         if (!(err instanceof QualityResponseParseError)) {
@@ -554,10 +541,12 @@ async function rewriteAndScore(params: {
     geminiCircuit.guard();
     const controller = new AbortController();
     try {
-        const { text } = await withTimeout(
-            callGemini({
+        const proposal = await withTimeout(
+            callGateway<QualityRewriterOutput>({
                 agentName: "quality.rewriter",
                 model: MODELS.REVIEW,
+                responseMode: "structured",
+                outputSchema: QualityRewriterOutputSchema,
                 systemPrompt: `You are a senior B2B email editor. Rewrite emails to pass quality checks, then self-score your rewrite.
 
 RECIPIENT PERSONA: ${PERSONA_GUIDANCE[personaTier]}
@@ -582,23 +571,20 @@ ${originalSubject}
 
 ORIGINAL BODY:
 ${truncate(originalBody, MAX_BODY_CHARS)}`,
+                proposalContext: { leadId: undefined, campaignId },
                 metadata: { messageId, campaignId },
                 temperature: 0.6,
-                responseMimeType: "application/json",
-                responseSchema: REWRITE_SCHEMA,
-                signal: controller.signal,
             }),
             REWRITE_TIMEOUT_MS,
             controller,
         );
         geminiCircuit.succeed();
-        const raw = parseStructuredResponse<RewriteAndScoreResult>(text);
         return {
-            subject: raw.subject,
-            body: raw.body,
-            spamRiskScore: clampScore(raw.spamRiskScore),
-            personalizationScore: clampScore(raw.personalizationScore),
-            improvementNotes: raw.improvementNotes,
+            subject: proposal.payload.subject,
+            body: proposal.payload.body,
+            spamRiskScore: clampScore(proposal.payload.spamRiskScore),
+            personalizationScore: clampScore(proposal.payload.personalizationScore),
+            improvementNotes: proposal.payload.improvementNotes,
         };
     } catch (err) {
         if (!(err instanceof QualityResponseParseError)) {
@@ -621,7 +607,14 @@ async function fetchHeldMessageBatch(
         orderBy: { id: "asc" },
         take: QUALITY_BATCH_SIZE,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-        include: {
+        select: {
+            id: true,
+            subject: true,
+            body: true,
+            originalSubject: true,
+            originalBody: true,
+            spamRiskScore: true,
+            personalizationScore: true,
             lead: {
                 select: {
                     id: true,
@@ -641,11 +634,13 @@ async function fetchHeldMessageBatch(
 async function processMessage(
     message: HeldMessage,
     campaignId: string,
+    orgId: string | null,
     thresholds: QualityThresholds,
     unsubscribeFooter: string,
 ): Promise<WorkerResult> {
     const startedAt = Date.now();
-    const claimed = await tryClaimMessage(message.id);
+    const claimToken = `${process.pid}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const claimed = await tryClaimMessage(message.id, claimToken);
 
     if (!claimed) {
         logger.info(
@@ -787,38 +782,49 @@ async function processMessage(
                 rewrite.subject,
                 rewrite.body,
                 leadContext,
+                personaTier,
             );
 
+            const rewriterSelfScores: QualityScoreResult = {
+                spamRiskScore: rewrite.spamRiskScore,
+                personalizationScore: rewrite.personalizationScore,
+            };
+
+            const spamVariance = Math.abs(rewriterSelfScores.spamRiskScore - rewriteHeuristic.spamRiskScore);
+            const personVariance = Math.abs(rewriterSelfScores.personalizationScore - rewriteHeuristic.personalizationScore);
+            const highVariance = spamVariance > REEVAL_VARIANCE_THRESHOLD || personVariance > REEVAL_VARIANCE_THRESHOLD;
+
             let reEvaluated: QualityScoreResult;
-            try {
-                let evalParseErrors = 0;
-                reEvaluated = await withRetry(
-                    () =>
-                        evaluateQuality({
-                            messageId: message.id,
-                            campaignId,
-                            subject: rewrite.subject,
-                            body: rewrite.body,
-                            leadContext,
-                        }),
-                    {
-                        isRetryable: (err) => {
-                            if (err instanceof QualityResponseParseError)
-                                return ++evalParseErrors <= 1;
-                            return isRetryableError(err);
+            if (highVariance) {
+                try {
+                    let evalParseErrors = 0;
+                    reEvaluated = await withRetry(
+                        () =>
+                            evaluateQuality({
+                                messageId: message.id,
+                                campaignId,
+                                subject: rewrite.subject,
+                                body: rewrite.body,
+                                leadContext,
+                            }),
+                        {
+                            isRetryable: (err) => {
+                                if (err instanceof QualityResponseParseError)
+                                    return ++evalParseErrors <= 1;
+                                return isRetryableError(err);
+                            },
+                            onAttemptFailed: trackAttempt,
                         },
-                        onAttemptFailed: trackAttempt,
-                    },
-                );
-            } catch (err) {
-                logger.warn(
-                    { err, messageId: message.id, campaignId },
-                    "[quality.agent] Post-rewrite evaluation failed — falling back to heuristic",
-                );
-                reEvaluated = {
-                    spamRiskScore: rewriteHeuristic.spamRiskScore,
-                    personalizationScore: rewriteHeuristic.personalizationScore,
-                };
+                    );
+                } catch (err) {
+                    logger.warn(
+                        { err, messageId: message.id, campaignId },
+                        "[quality.agent] Post-rewrite evaluation failed — falling back to rewriter self-score",
+                    );
+                    reEvaluated = rewriterSelfScores;
+                }
+            } else {
+                reEvaluated = rewriterSelfScores;
             }
 
             const blended = blendScores(reEvaluated, rewriteHeuristic);
@@ -833,26 +839,118 @@ async function processMessage(
             rewritePasses++;
         }
 
-        const approved = !rewriteFailed && !needsRewrite(currentSpam, currentPerson, thresholds);
+        const mailboxHealthy = true;
 
-        const { count } = await prisma.outreachMessage.updateMany({
-            where: { id: message.id, approvalStatus: "PENDING", deliveryState: "DRAFT" },
-            data: {
-                originalSubject: message.originalSubject ?? message.subject,
-                originalBody: message.originalBody ?? message.body,
-                subject: currentSubject,
-                body: currentBody,
-                spamRiskScore: currentSpam,
-                personalizationScore: currentPerson,
-                approvalStatus: approved ? "APPROVED" : "PENDING",
-                deliveryState: approved ? "QUEUED" : "DRAFT",
+        const approved = !rewriteFailed && !needsRewrite(currentSpam, currentPerson, thresholds) && mailboxHealthy;
+
+        // ── P0-A: Authoritative PENDING/DRAFT → APPROVED/QUEUED state transition ───
+        // This transition must be protected by executeProposalOnce().
+        //
+        // proposalId: stable for this (message, agent, rewrite content) tuple
+        //   - messageId is the resource being updated
+        //   - currentSubject+currentBody hash encodes the exact content being approved
+        //   - This ensures a different rewrite pass produces a different proposalId
+        // resource: { type: "OUTREACH_MESSAGE", id: message.id }
+        //   - The existing message is the resource. On idempotent replay, this ID is returned.
+        // reloadAndVerifyContext: TOCTOU check — re-read DB state before committing.
+        //   - If message is no longer PENDING/DRAFT (was approved/rejected elsewhere),
+        //     the updateMany inside executeMutation will affect 0 rows (detected below).
+        // The Redis claim lock (tryClaimMessage) is preserved as a secondary guard.
+        // ────────────────────────────────────────────────────────────────────────────
+
+        const contentFingerprint = createHash("sha256")
+            .update(`${message.id}:${currentSubject}:${currentBody}`)
+            .digest("hex")
+            .slice(0, 16);
+
+        const proposalPayload = {
+            messageId: message.id,
+            subject: currentSubject,
+            body: currentBody,
+            spamRiskScore: currentSpam,
+            personalizationScore: currentPerson,
+            approved,
+        };
+
+        const agentName = "quality.agent" as const;
+        const contextHash = "" as const;
+        const validHash = createProposalHash({
+            agentName,
+            requestFingerprint: contentFingerprint,
+            contextHash,
+            payload: proposalPayload,
+        });
+
+        const qualityProposal = {
+            proposalId: `quality.approval:${message.id}:${contentFingerprint}`,
+            agentName,
+            payload: proposalPayload,
+            contextHash,
+            requestFingerprint: contentFingerprint,
+            proposedAt: new Date(),
+            expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+            tokenUsage: { input: 0, output: 0, total: 0 },
+            latencyMs: 0,
+            proposalHash: validHash,
+        } as const;
+
+        const execution = await executeProposalOnce({
+            proposal: qualityProposal,
+            reloadAndVerifyContext: async () => {
+                // TOCTOU: re-read the message from the database to confirm it is
+                // still PENDING/DRAFT before allowing the state transition.
+                const current = await prisma.outreachMessage.findUnique({
+                    where: { id: message.id },
+                    select: { approvalStatus: true, deliveryState: true },
+                });
+                if (!current) {
+                    throw new Error(
+                        `[quality.agent] TOCTOU: message ${message.id} not found — aborting state transition`,
+                    );
+                }
+                if (current.approvalStatus !== "PENDING" || current.deliveryState !== "DRAFT") {
+                    throw new Error(
+                        `[quality.agent] TOCTOU: message ${message.id} is no longer PENDING/DRAFT (` +
+                        `approvalStatus=${current.approvalStatus}, deliveryState=${current.deliveryState}) ` +
+                        `— aborting to prevent duplicate state transition`,
+                    );
+                }
+            },
+            executeMutation: async (tx) => {
+                const { count } = await tx.outreachMessage.updateMany({
+                    where: { id: message.id, approvalStatus: "PENDING", deliveryState: "DRAFT" },
+                    data: {
+                        originalSubject: message.originalSubject ?? message.subject,
+                        originalBody: message.originalBody ?? message.body,
+                        subject: currentSubject,
+                        body: currentBody,
+                        spamRiskScore: currentSpam,
+                        personalizationScore: currentPerson,
+                        approvalStatus: approved ? "APPROVED" : "PENDING",
+                        deliveryState: approved ? "QUEUED" : "DRAFT",
+                    },
+                });
+
+                if (count === 0) {
+                    // Concurrent write won the race — treat as stale
+                    throw new Error(
+                        `[quality.agent] Optimistic lock miss inside executeProposalOnce — message ${message.id} was modified concurrently`,
+                    );
+                }
+
+                return {
+                    result: { approved, count },
+                    resource: { type: "OUTREACH_MESSAGE", id: message.id },
+                };
             },
         });
 
-        if (count === 0) {
+        const mutationSucceeded = execution.status === "SUCCEEDED" || execution.isIdempotentReplay;
+
+        if (!mutationSucceeded) {
             logger.warn(
-                { messageId: message.id, campaignId },
-                "[quality.agent] Optimistic lock miss — skipping stale update",
+                { messageId: message.id, campaignId, status: execution.status },
+                "[quality.agent] executeProposalOnce did not succeed — skipping message",
             );
             return {
                 status: "skipped",
@@ -873,6 +971,8 @@ async function processMessage(
                 }),
                 outcome: approved ? LEARNING_OUTCOMES.APPROVED : LEARNING_OUTCOMES.PENDING_REVIEW,
                 outreachMessageId: message.id,
+                orgId: orgId ?? undefined,
+                campaignId,
                 metadata: {
                     originalSpam: message.spamRiskScore,
                     originalPerson: message.personalizationScore,
@@ -909,17 +1009,19 @@ async function processMessage(
             timedOut,
         };
     } finally {
-        await releaseMessageClaim(message.id);
+        await releaseMessageClaim(message.id, claimToken);
     }
 }
 
 export async function runQualityAgent(campaignId: string): Promise<QualitySummary> {
     const campaign = await prisma.campaign.findUnique({
         where: { id: campaignId },
-        select: { id: true, createdById: true },
+        select: { id: true, createdById: true, orgId: true },
     });
 
     if (!campaign) throw new Error("Campaign not found");
+
+    const orgId = campaign.orgId;
 
     const brandSettings = await prisma.brandSettings.findUnique({
         where: { userId: campaign.createdById },
@@ -949,7 +1051,7 @@ export async function runQualityAgent(campaignId: string): Promise<QualitySummar
             batch.map((message) =>
                 limit(async (): Promise<WorkerResult> => {
                     try {
-                        return await processMessage(message, campaignId, thresholds, unsubscribeFooter);
+                        return await processMessage(message, campaignId, orgId, thresholds, unsubscribeFooter);
                     } catch (err) {
                         logger.error(
                             { err, messageId: message.id, leadId: message.lead.id, campaignId },

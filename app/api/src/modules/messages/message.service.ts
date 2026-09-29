@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { createOutboxEvent, buildEmailSendIdempotencyKey } from "../outbox/outbox.service";
 import {
   createOutreachMessageSchema,
   editOutreachMessageSchema,
@@ -13,20 +14,25 @@ import { createLearningEvent } from "../learning/learning.service";
 import { LEARNING_EVENT_TYPES, LEARNING_OUTCOMES } from "../../lib/constants";
 import { logger } from "../../lib/logger";
 import { createMailProvider, MailboxCredentials, SendResult, OutlookCredentials } from "../../lib/mail";
-import { decryptJson, isEncrypted, encryptJson } from "../../lib/mail/crypto";
+import { decryptMailboxCredentials, encryptJson } from "../../lib/mail/crypto";
 import { buildListUnsubscribeHeaders, renderEmailTemplate, TemplateStyle } from "../../lib/emailTemplate";
 import { getBrandSettingsOrDefault } from "../brandSettings/brandsettings.service";
 import { reserveDailyCapacity } from "../../lib/daily-quota";
 import { redis } from "../../lib/ioredis";
 import { CacheService } from "../../lib/cache";
+
+function campaignAccessFilter(
+  userId: string,
+  orgId?: string | null
+): Prisma.CampaignWhereInput {
+  if (orgId) return { OR: [{ createdById: userId }, { orgId }] };
+  return { createdById: userId };
+}
 import { recalculateDomainHealth, recalculateMailboxHealth } from "../Deliverybilityevents/deliverbility.service";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function decryptCredentials(raw: unknown): MailboxCredentials {
-  if (isEncrypted(raw)) return decryptJson<MailboxCredentials>(raw as string);
-  return raw as MailboxCredentials;
-}
+
 
 const GREETING_RE = /^(?:Hi|Hello|Hey|Dear)\b.{0,60}[,.]?\s*$/im;
 const CLOSING_RE = /^(?:Best|Regards|Sincerely|Cheers|Thanks|Thank you|Kind regards|Warm regards)[,.]?\s*$/im;
@@ -70,6 +76,48 @@ const outreachMessageInclude = {
   },
 } satisfies Prisma.OutreachMessageInclude;
 
+const outreachMessageSelect = {
+  id: true,
+  subject: true,
+  body: true,
+  originalSubject: true,
+  originalBody: true,
+  diffVector: true,
+  subjectVariant: true,
+  approvalStatus: true,
+  deliveryState: true,
+  version: true,
+  spamRiskScore: true,
+  personalizationScore: true,
+  leadingSignal: true,
+  claimToken: true,
+  claimVersion: true,
+  claimExpiresAt: true,
+  channel: true,
+  externalMessageId: true,
+  isFollowUp: true,
+  followUpStep: true,
+  parentMessageId: true,
+  clicks: true,
+  retryCount: true,
+  lastError: true,
+  nextRetryAt: true,
+  payloadHash: true,
+  complianceStatus: true,
+  approvedById: true,
+  leadId: true,
+  sentAt: true,
+  deliveredAt: true,
+  openedAt: true,
+  repliedAt: true,
+  scheduledAt: true,
+  generationConfidence: true,
+  enrichmentData: true,
+  createdAt: true,
+  updatedAt: true,
+  ...outreachMessageInclude,
+} satisfies Prisma.OutreachMessageSelect;
+
 export async function createOutreachMessage(
   data: z.infer<typeof createOutreachMessageSchema>
 ) {
@@ -82,13 +130,14 @@ export async function createOutreachMessage(
 
   return prisma.outreachMessage.create({
     data,
-    include: outreachMessageInclude,
+    select: outreachMessageSelect,
   });
 }
 
 export async function getOutreachMessages(
   query: z.infer<typeof getOutreachMessagesQuerySchema>,
-  userId: string
+  userId: string,
+  orgId?: string | null
 ) {
   const { leadId, campaignId, approvalStatus, deliveryState, page, limit } = query;
   const skip = (page - 1) * limit;
@@ -96,7 +145,7 @@ export async function getOutreachMessages(
 
   const where: Prisma.OutreachMessageWhereInput = {
     lead: {
-      campaign: { createdById: userId },
+      campaign: campaignAccessFilter(userId, orgId),
       deletedAt: null,
       ...(leadId && { id: leadId }),
       ...(campaignId && { campaignId }),
@@ -117,8 +166,8 @@ export async function getOutreachMessages(
   const messages = await prisma.outreachMessage.findMany({
     where: { id: { in: pageIds.map((m: { id: string }) => m.id) } },
     orderBy,
-    include: {
-      ...outreachMessageInclude,
+    select: {
+      ...outreachMessageSelect,
       _count: { select: { replies: true } },
     },
   });
@@ -129,11 +178,11 @@ export async function getOutreachMessages(
   };
 }
 
-export async function getOutreachMessageById(id: string, userId: string) {
+export async function getOutreachMessageById(id: string, userId: string, orgId?: string | null) {
   return prisma.outreachMessage.findFirst({
     where: {
       id,
-      lead: { campaign: { createdById: userId } },
+      lead: { campaign: campaignAccessFilter(userId, orgId) },
     },
     include: {
       ...outreachMessageInclude,
@@ -145,12 +194,13 @@ export async function getOutreachMessageById(id: string, userId: string) {
 export async function editOutreachMessage(
   id: string,
   data: z.infer<typeof editOutreachMessageSchema>,
-  userId: string
+  userId: string,
+  orgId?: string | null
 ) {
   const existing = await prisma.outreachMessage.findFirst({
     where: {
       id,
-      lead: { campaign: { createdById: userId } },
+      lead: { campaign: campaignAccessFilter(userId, orgId) },
     },
     select: {
       id: true,
@@ -171,7 +221,7 @@ export async function editOutreachMessage(
     where: {
       id,
       approvalStatus: { not: "APPROVED" },
-      lead: { campaign: { createdById: userId } },
+      lead: { campaign: campaignAccessFilter(userId, orgId) },
     },
     data: {
       ...(data.subject && { subject: data.subject }),
@@ -188,16 +238,16 @@ export async function editOutreachMessage(
 
   return prisma.outreachMessage.findUniqueOrThrow({
     where: { id },
-    include: outreachMessageInclude,
+    select: outreachMessageSelect,
   });
 }
 
-export async function approveOutreachMessage(id: string, approverId: string) {
+export async function approveOutreachMessage(id: string, approverId: string, orgId?: string | null) {
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.outreachMessage.findFirst({
       where: {
         id,
-        lead: { campaign: { createdById: approverId } },
+        lead: { campaign: campaignAccessFilter(approverId, orgId) },
       },
       select: {
         id: true,
@@ -212,7 +262,7 @@ export async function approveOutreachMessage(id: string, approverId: string) {
           select: {
             campaignId: true,
             campaign: {
-              select: { icpDescription: true, targetIndustry: true, targetRegion: true },
+              select: { icpDescription: true, targetIndustry: true, targetRegion: true, orgId: true },
             },
           },
         },
@@ -239,7 +289,7 @@ export async function approveOutreachMessage(id: string, approverId: string) {
 
     const message = await tx.outreachMessage.findUniqueOrThrow({
       where: { id },
-      include: outreachMessageInclude,
+      select: outreachMessageSelect,
     });
 
     const campaignId = existing.lead?.campaignId ?? message.lead.campaignId;
@@ -290,6 +340,9 @@ export async function approveOutreachMessage(id: string, approverId: string) {
       ? LEARNING_OUTCOMES.EDITED_AND_APPROVED
       : LEARNING_OUTCOMES.APPROVED,
     outreachMessageId: id,
+    orgId: result.existing.lead?.campaign?.orgId ?? undefined,
+    campaignId: result.existing.lead?.campaignId ?? undefined,
+    userId: approverId,
     metadata: {
       resolvedBy: approverId,
       wasEdited: result.wasEdited,
@@ -329,11 +382,11 @@ export async function approveOutreachMessage(id: string, approverId: string) {
   return result.message;
 }
 
-export async function rejectOutreachMessage(id: string, approverId: string) {
+export async function rejectOutreachMessage(id: string, approverId: string, orgId?: string | null) {
   const existing = await prisma.outreachMessage.findFirst({
     where: {
       id,
-      lead: { campaign: { createdById: approverId } },
+      lead: { campaign: campaignAccessFilter(approverId, orgId) },
     },
     select: {
       id: true,
@@ -367,6 +420,7 @@ export async function rejectOutreachMessage(id: string, approverId: string) {
     modifiedOutput: "",
     outcome: LEARNING_OUTCOMES.DISMISSED,
     outreachMessageId: id,
+    userId: approverId,
     metadata: { rejectedBy: approverId },
   }).catch((err) =>
     logger.warn({ err, messageId: id }, "[message.service] Non-fatal: LearningEvent capture failed")
@@ -374,7 +428,7 @@ export async function rejectOutreachMessage(id: string, approverId: string) {
 
   const message = await prisma.outreachMessage.findUniqueOrThrow({
     where: { id },
-    include: outreachMessageInclude,
+    select: outreachMessageSelect,
   });
 
   if (message.lead.campaignId) {
@@ -472,13 +526,14 @@ export interface BatchActionResult {
 export async function batchApproveMessages(
   campaignId: string,
   messageIds: string[],
-  approverId: string
+  approverId: string,
+  orgId?: string | null
 ): Promise<BatchActionResult> {
   const messages = await prisma.outreachMessage.findMany({
     where: {
       id: { in: messageIds },
       approvalStatus: "PENDING",
-      lead: { campaignId, campaign: { createdById: approverId } },
+      lead: { campaignId, campaign: campaignAccessFilter(approverId, orgId) },
     },
     select: { id: true },
   });
@@ -490,7 +545,7 @@ export async function batchApproveMessages(
       if (!ownedIds.has(id)) {
         return Promise.reject(new Error("Not found or not pending"));
       }
-      return approveOutreachMessage(id, approverId);
+      return approveOutreachMessage(id, approverId, orgId);
     })
   );
 
@@ -511,13 +566,13 @@ export async function batchApproveMessages(
   return { succeeded, failed };
 }
 
-export async function sendOutreachMessage(id: string, userId: string) {
+export async function sendOutreachMessage(id: string, userId: string, orgId?: string | null) {
   const message = await prisma.outreachMessage.findFirst({
     where: {
       id,
       approvalStatus: "APPROVED",
       deliveryState: { in: ["QUEUED", "FAILED"] },
-      lead: { campaign: { createdById: userId } },
+      lead: { campaign: campaignAccessFilter(userId, orgId) },
     },
     include: {
       lead: {
@@ -578,7 +633,7 @@ export async function sendOutreachMessage(id: string, userId: string) {
 
   let rawCreds: MailboxCredentials;
   try {
-    rawCreds = decryptCredentials(mailbox.credentials);
+    rawCreds = decryptMailboxCredentials<MailboxCredentials>(mailbox.credentials, `mailbox:${mailbox.id}`);
   } catch (err) {
     await prisma.outreachMessage.update({
       where: { id },
@@ -587,6 +642,7 @@ export async function sendOutreachMessage(id: string, userId: string) {
     await prisma.senderMailbox.update({
       where: { id: mailbox.id },
       data: { currentSent: { decrement: 1 } },
+      select: { id: true },
     }).catch(() => null);
     logger.error({ messageId: id, err }, "[message.service] Mailbox credential decryption failed");
     throw new ConflictError("Mailbox credentials are invalid or corrupted");
@@ -602,6 +658,7 @@ export async function sendOutreachMessage(id: string, userId: string) {
           await prisma.senderMailbox.update({
             where: { id: mailbox.id },
             data: { credentials: encryptJson(rotated) },
+            select: { id: true },
           });
         }
       },
@@ -627,86 +684,48 @@ export async function sendOutreachMessage(id: string, userId: string) {
     { style: (campaign.templateStyle as TemplateStyle | undefined) ?? "BRANDED" },
   );
 
-  let result: SendResult;
-  try {
-    result = await provider.sendEmail({
-      to: email,
-      from: fromAddress,
-      subject: message.subject,
-      html,
-      text,
-      headers: buildListUnsubscribeHeaders(message.id) ?? undefined,
-    });
-  } catch (err) {
-    result = { success: false, error: err instanceof Error ? err.message : "unknown send error" };
-  }
-
-  if (result.success) {
-    await prisma.$transaction([
-      prisma.outreachMessage.update({
-        where: { id },
-        data: {
-          deliveryState: "SENT",
-          sentAt: new Date(),
-          externalMessageId: result.externalId,
-          claimToken: null,
-        },
-      }),
-      prisma.senderMailbox.update({
-        where: { id: mailbox.id },
-        data: { totalSent: { increment: 1 } },
-      }),
-      ...(campaign.senderDomainId ? [
-        prisma.senderDomain.update({
-          where: { id: campaign.senderDomainId },
-          data: { totalSent: { increment: 1 } },
-        })
-      ] : []),
-    ]);
-
-    await Promise.all([
-      recalculateMailboxHealth(mailbox.id),
-      campaign.senderDomainId ? recalculateDomainHealth(campaign.senderDomainId) : Promise.resolve(),
-    ]).catch(() => null);
-
-    await Promise.all([
-      CacheService.invalidateVersioned(`version:campaigns:${userId}`),
-      CacheService.invalidateVersioned(`version:campaign:${campaign.id}`),
-      CacheService.invalidateVersioned(`version:sender-mailboxes:${userId}`),
-    ]).catch(() => null);
-  } else {
-    await prisma.outreachMessage.update({
+  // Enqueue via Transactional Outbox — Atomically commit message state & OutboxEvent
+  await prisma.$transaction(async (tx) => {
+    await tx.outreachMessage.update({
       where: { id },
       data: {
-        deliveryState: "FAILED",
-        lastError: result.error ?? "unknown error",
+        deliveryState: "QUEUED",
         claimToken: null,
-        retryCount: { increment: 1 },
       },
     });
-    await prisma.senderMailbox.update({
-      where: { id: mailbox.id },
-      data: { currentSent: { decrement: 1 } },
-    }).catch(() => null);
-    logger.warn({ messageId: id, error: result.error }, "[message.service] Manual send failed");
-  }
+
+    await createOutboxEvent(tx, {
+      organizationId: campaign.orgId ?? "org_default",
+      eventType: "EMAIL_SEND_REQUESTED",
+      aggregateType: "OutreachMessage",
+      aggregateId: id,
+      idempotencyKey: buildEmailSendIdempotencyKey(id),
+      payload: {
+        outreachMessageId: id,
+        leadId: message.lead.email ? message.lead.email : id,
+        campaignId: campaign.id,
+        senderMailboxId: mailbox.id,
+      },
+    });
+  });
 
   return prisma.outreachMessage.findUniqueOrThrow({
     where: { id },
-    include: outreachMessageInclude,
+    select: outreachMessageSelect,
   });
 }
 
 export async function batchRejectMessages(
   campaignId: string,
   messageIds: string[],
-  approverId: string
+  approverId: string,
+  orgId?: string | null
 ): Promise<BatchActionResult> {
   const messages = await prisma.outreachMessage.findMany({
     where: {
       id: { in: messageIds },
       approvalStatus: "PENDING",
-      lead: { campaignId, campaign: { createdById: approverId } },
+      lead: { campaignId, campaign: campaignAccessFilter(approverId, orgId) },
     },
     select: { id: true },
   });
@@ -718,7 +737,7 @@ export async function batchRejectMessages(
       if (!ownedIds.has(id)) {
         return Promise.reject(new Error("Not found or not pending"));
       }
-      return rejectOutreachMessage(id, approverId);
+      return rejectOutreachMessage(id, approverId, orgId);
     })
   );
 
@@ -737,4 +756,30 @@ export async function batchRejectMessages(
   });
 
   return { succeeded, failed };
+}
+
+export async function getStatusCounts(
+  campaignId: string,
+  userId: string,
+  orgId?: string | null
+): Promise<{ PENDING: number; APPROVED: number; REJECTED: number }> {
+  const groups = await prisma.outreachMessage.groupBy({
+    by: ["approvalStatus"],
+    where: {
+      lead: {
+        campaignId,
+        deletedAt: null,
+        campaign: campaignAccessFilter(userId, orgId),
+      },
+    },
+    _count: { approvalStatus: true },
+  });
+
+  const result = { PENDING: 0, APPROVED: 0, REJECTED: 0 };
+  for (const g of groups) {
+    if (g.approvalStatus === "PENDING" || g.approvalStatus === "APPROVED" || g.approvalStatus === "REJECTED") {
+      result[g.approvalStatus] = g._count.approvalStatus;
+    }
+  }
+  return result;
 }

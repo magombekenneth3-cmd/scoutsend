@@ -78,7 +78,16 @@ function SignalRow({ signal }: SignalRowProps) {
 
     return (
         <div
-            className="group border-b border-[var(--border)] hover:bg-[var(--surface-2)] transition-colors duration-100 cursor-pointer"
+            role="button"
+            tabIndex={0}
+            aria-expanded={expanded}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setExpanded((v) => !v);
+                }
+            }}
+            className="group border-b border-[var(--border)] hover:bg-[var(--surface-2)] transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] focus-visible:ring-inset"
             onClick={() => setExpanded((v) => !v)}
         >
             <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-4 items-center px-5 py-3.5">
@@ -160,7 +169,7 @@ export function SignalsTab({ campaignId }: SignalsTabProps) {
                         "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-150 whitespace-nowrap",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
                         filter === "ALL"
-                            ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]"
+                            ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]",
                     ].join(" ")}
                 >
@@ -220,7 +229,7 @@ export function SignalsTab({ campaignId }: SignalsTabProps) {
                     </div>
                 ) : error ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-                        <p className="text-sm text-[var(--red)]">{error}</p>
+                        <p className="text-sm text-[var(--red-text)]">{error}</p>
                         <button onClick={fetchSignals} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] underline">Retry</button>
                     </div>
                 ) : visible.length === 0 ? (

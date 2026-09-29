@@ -34,7 +34,7 @@ export function LiveStatusBadges({ activeEvents, recentEvents }: LiveStatusBadge
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
                         e.type === "completed"
                             ? "bg-emerald-400/10 border-emerald-400/20 text-emerald-400"
-                            : "bg-[var(--red-glow)] border-[var(--border-red)] text-[var(--red)]"
+                            : "bg-[var(--red-glow)] border-[var(--border-red)] text-[var(--red-text)]"
                     }`}
                 >
                     {e.label} {e.type === "completed" ? "✓" : "✗"}
@@ -114,7 +114,7 @@ const ACTIVITY_CONFIG: Record<
             </svg>
         ),
             iconBg: "bg-[var(--red-glow)]",
-                iconText: "text-[var(--red)]",
+                iconText: "text-[var(--red-text)]",
     },
     CAMPAIGN_STARTED: {
         icon: (
@@ -123,7 +123,7 @@ const ACTIVITY_CONFIG: Record<
             </svg>
         ),
             iconBg: "bg-[var(--red-glow)]",
-                iconText: "text-[var(--red)]",
+                iconText: "text-[var(--red-text)]",
     },
     CAMPAIGN_PAUSED: {
         icon: (

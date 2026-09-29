@@ -3,6 +3,7 @@ import { authMiddleware } from "../auth/auth.middleware";
 import {
     createReply,
     getReplies,
+    getReplyCounts,
     getReplyById,
     updateReply,
     sendReplyDraft,
@@ -15,6 +16,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get("/pipeline/stats", getPipelineStats);
+router.get("/counts", getReplyCounts);
 
 router.post("/", createReply);
 router.get("/", getReplies);

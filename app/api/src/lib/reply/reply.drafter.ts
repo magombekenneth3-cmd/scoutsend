@@ -120,11 +120,17 @@ function buildUserPrompt(
     leadFirstName: string | undefined,
     companyName: string | undefined,
     senderName: string | undefined,
+    threadHistory?: Array<{ role: "prospect" | "sender"; body: string; sentAt?: string }>,
 ): string {
+    const threadHistoryBlock = threadHistory && threadHistory.length > 0
+        ? "\n\nPRIOR THREAD HISTORY (Chronological sequence of prior messages in this conversation):\n" +
+          threadHistory.map((t) => `[${t.role.toUpperCase()}]: ${t.body}`).join("\n\n")
+        : "";
+
     if (mode === "meeting") {
         return `Original email subject: ${originalSubject}
 Lead: ${leadFirstName ?? "there"} at ${companyName ?? "their company"}
-Sender: ${senderName ?? "the team"}
+Sender: ${senderName ?? "the team"}${threadHistoryBlock}
 
 <lead_reply_${nonce}>
 ${sanitized}
@@ -134,7 +140,7 @@ ${sanitized}
     return `Context: ${intentGuidance[intent] ?? "Write a helpful, professional reply."}
 
 Original subject: ${originalSubject}
-Lead: ${leadFirstName ?? "there"} at ${companyName ?? "their company"}
+Lead: ${leadFirstName ?? "there"} at ${companyName ?? "their company"}${threadHistoryBlock}
 
 <lead_reply_${nonce}>
 ${sanitized}
@@ -168,6 +174,7 @@ async function generateReplyInternal(params: {
     senderName?: string;
     mailboxId?: string;
     tenantId?: string;
+    threadHistory?: Array<{ role: "prospect" | "sender"; body: string; sentAt?: string }>;
 }): Promise<InternalDraftResult | null> {
     const {
         mode,
@@ -180,6 +187,7 @@ async function generateReplyInternal(params: {
         senderName,
         mailboxId,
         tenantId,
+        threadHistory,
     } = params;
 
     if (mode === "normal" && NON_DRAFTABLE_INTENTS.has(intent)) return null;
@@ -220,6 +228,7 @@ async function generateReplyInternal(params: {
                                 leadFirstName,
                                 companyName,
                                 senderName,
+                                threadHistory,
                             ),
                             tools: [buildDraftTool(mode)],
                             metadata: { messageId, mode, meetingLinkInjected, bookingLink },
@@ -271,6 +280,7 @@ export async function generateMeetingRequestDraft(params: {
     senderName?: string;
     mailboxId?: string;
     tenantId?: string;
+    threadHistory?: Array<{ role: "prospect" | "sender"; body: string; sentAt?: string }>;
 }): Promise<MeetingDraftResult> {
     const result = await generateReplyInternal({
         mode: "meeting",
@@ -296,6 +306,7 @@ export async function generateDraftReply(params: {
     companyName?: string;
     messageId: string;
     tenantId?: string;
+    threadHistory?: Array<{ role: "prospect" | "sender"; body: string; sentAt?: string }>;
 }): Promise<DraftReply | null> {
     const result = await generateReplyInternal({ mode: "normal", ...params });
     if (!result) return null;

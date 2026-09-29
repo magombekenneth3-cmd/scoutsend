@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const API_BASE = process.env.INTERNAL_API_URL!;
+import { API_BASE } from "../../_proxy";
 
 export async function POST(req: Request) {
     try {

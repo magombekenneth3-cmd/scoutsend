@@ -8,6 +8,8 @@ import { EmptyState } from "@/app/components/message/emptyState";
 import { MessageListItem } from "@/app/components/message/MessageListItem";
 import { NoSelection } from "@/app/components/message/NoSelection";
 import { DetailPanel } from "@/app/components/message/DetailPanel";
+import { useToast } from "@/app/hooks/useToast";
+import { ToastRegion } from "@/app/components/dashboard/ToastRegion";
 
 export type FilterTab = ApprovalStatus | "ALL";
 
@@ -33,6 +35,7 @@ export default function MessagesPage() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterTab>("PENDING");
     const [search, setSearch] = useState("");
+    const { toasts, addToast, dismiss } = useToast();
 
     const fetchMessages = useCallback(async () => {
         try {
@@ -114,8 +117,9 @@ export default function MessagesPage() {
             });
         } catch (err) {
             console.error("Approve error:", err);
+            addToast("error", "Failed to approve message — please try again");
         }
-    }, [filtered]);
+    }, [filtered, addToast]);
 
     const handleReject = useCallback(async (id: string) => {
         try {
@@ -135,11 +139,13 @@ export default function MessagesPage() {
             });
         } catch (err) {
             console.error("Reject error:", err);
+            addToast("error", "Failed to reject message — please try again");
         }
-    }, [filtered]);
+    }, [filtered, addToast]);
 
     return (
         <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-slate-950">
+            <ToastRegion toasts={toasts} onDismiss={dismiss} />
             <div className="flex-shrink-0 h-14 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between gap-4 bg-white dark:bg-slate-900">
                 <div className="flex items-center gap-3">
                     <h1 className="font-bold text-base text-slate-900 dark:text-slate-100 tracking-tight">

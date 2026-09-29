@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { TopBar } from "@/app/components/dashboard/TopBar";
 
 const WEIGHT_KEYS = [
     { key: "icpMatch",       label: "ICP Match",       description: "How closely the company matches your defined customer profile" },
@@ -161,6 +162,15 @@ export default function ScoringWeightsPage({ params }: { params?: { id?: string 
     const [saving,      setSaving]      = useState(false);
     const [error,       setError]       = useState<string | null>(null);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [campaignName, setCampaignName] = useState("");
+
+    useEffect(() => {
+        if (!id) return;
+        fetch(`/api/campaigns/${id}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (data?.name) setCampaignName(data.name); })
+            .catch(() => {});
+    }, [id]);
 
     useEffect(() => {
         if (!id) return;
@@ -212,111 +222,130 @@ export default function ScoringWeightsPage({ params }: { params?: { id?: string 
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-80 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
-                <svg className="animate-spin text-[var(--red)]" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
+            <div className="flex flex-col h-full overflow-hidden">
+                <TopBar
+                    title="Lead Scoring Weights"
+                    breadcrumbs={[
+                        { label: "Campaigns", href: "/dashboard/campaigns" },
+                        { label: "Campaign", href: `/dashboard/campaigns/${id}` }
+                    ]}
+                />
+                <div className="flex-1 flex items-center justify-center h-80">
+                    <svg className="animate-spin text-[var(--red-text)]" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-7 max-w-2xl">
-            {/* Range thumb global styles */}
-            <style>{`
-                .scoring-slider::-webkit-slider-thumb {
-                    -webkit-appearance: none;
-                    width: 14px; height: 14px;
-                    border-radius: 50%;
-                    background: var(--text-primary);
-                    box-shadow: 0 0 0 2px #6366F1;
-                    cursor: pointer;
-                }
-                .scoring-slider::-moz-range-thumb {
-                    width: 14px; height: 14px;
-                    border-radius: 50%;
-                    background: var(--text-primary);
-                    box-shadow: 0 0 0 2px #6366F1;
-                    cursor: pointer; border: none;
-                }
-            `}</style>
+        <div className="flex flex-col h-full overflow-hidden">
+            <TopBar
+                title="Lead Scoring Weights"
+                breadcrumbs={[
+                    { label: "Campaigns", href: "/dashboard/campaigns" },
+                    { label: campaignName || "Campaign", href: `/dashboard/campaigns/${id}` }
+                ]}
+                campaignBadge={campaignName ? { name: campaignName, href: `/dashboard/campaigns/${id}` } : undefined}
+            />
 
-            <div className="flex items-start justify-between mb-7 gap-6">
-                <div>
-                    <h2 className="text-lg font-bold font-display text-[var(--text-primary)] tracking-tight">
-                        Lead Scoring Weights
-                    </h2>
-                    <p className="mt-1.5 text-xs text-[var(--text-muted)] leading-relaxed max-w-xs">
-                        Adjust how each dimension contributes to the final lead score for this campaign.
-                        Changes apply to leads scored after saving.
-                    </p>
-                </div>
-                <WeightRing weights={weights} />
-            </div>
+            <div className="flex-1 overflow-y-auto p-6 max-w-3xl w-full mx-auto">
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-7 max-w-2xl">
+                    <style>{`
+                        .scoring-slider::-webkit-slider-thumb {
+                            -webkit-appearance: none;
+                            width: 14px; height: 14px;
+                            border-radius: 50%;
+                            background: var(--text-primary);
+                            box-shadow: 0 0 0 2px #6366F1;
+                            cursor: pointer;
+                        }
+                        .scoring-slider::-moz-range-thumb {
+                            width: 14px; height: 14px;
+                            border-radius: 50%;
+                            background: var(--text-primary);
+                            box-shadow: 0 0 0 2px #6366F1;
+                            cursor: pointer; border: none;
+                        }
+                    `}</style>
 
-            <div>
-                {WEIGHT_KEYS.map(({ key, label, description }, i) => (
-                    <SliderRow
-                        key={key}
-                        label={label}
-                        description={description}
-                        value={weights[key]}
-                        color={SEGMENT_COLORS[i]}
-                        onChange={v => handleChange(key, v)}
-                    />
-                ))}
-            </div>
+                    <div className="flex items-start justify-between mb-7 gap-6">
+                        <div>
+                            <h2 className="text-lg font-bold font-display text-[var(--text-primary)] tracking-tight">
+                                Lead Scoring Weights
+                            </h2>
+                            <p className="mt-1.5 text-xs text-[var(--text-muted)] leading-relaxed max-w-xs">
+                                Adjust how each dimension contributes to the final lead score for this campaign.
+                                Changes apply to leads scored after saving.
+                            </p>
+                        </div>
+                        <WeightRing weights={weights} />
+                    </div>
 
-            {/* Validation / success banners */}
-            {error && (
-                <div className="mt-4 px-3.5 py-2.5 rounded-lg bg-[var(--red-glow)] border border-[var(--border-red)] text-xs text-[var(--red)]">
-                    {error}
-                </div>
-            )}
-            {!balanced && !error && (
-                <div className="mt-4 px-3.5 py-2.5 rounded-lg bg-sky-400/5 border border-sky-400/20 text-xs text-sky-400">
-                    Weights sum to {Math.round(total * 100)}%. Adjust sliders until total reaches 100% to save.
-                </div>
-            )}
-            {saveSuccess && (
-                <div className="mt-4 px-3.5 py-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/20 text-xs text-emerald-400">
-                    Scoring weights saved. New leads will use these weights.
-                </div>
-            )}
+                    <div>
+                        {WEIGHT_KEYS.map(({ key, label, description }, i) => (
+                            <SliderRow
+                                key={key}
+                                label={label}
+                                description={description}
+                                value={weights[key]}
+                                color={SEGMENT_COLORS[i]}
+                                onChange={v => handleChange(key, v)}
+                            />
+                        ))}
+                    </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2 justify-end mt-6">
-                <button
-                    onClick={handleRevert}
-                    disabled={!dirty || saving}
-                    className="px-4 py-2 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
-                >
-                    Revert
-                </button>
-                <button
-                    onClick={handleReset}
-                    disabled={saving}
-                    className="px-4 py-2 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
-                >
-                    Reset to defaults
-                </button>
-                <button
-                    onClick={handleSave}
-                    disabled={!balanced || saving || !dirty}
-                    className={[
-                        "px-5 py-2 rounded-lg text-xs font-semibold min-w-[88px] flex items-center justify-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
-                        balanced && dirty
-                            ? "bg-[#6366F1] hover:bg-[#4F46E5] text-white"
-                            : "bg-[var(--surface-2)] text-[var(--text-muted)] cursor-not-allowed",
-                    ].join(" ")}
-                >
-                    {saving && (
-                        <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                        </svg>
+                    {error && (
+                        <div className="mt-4 px-3.5 py-2.5 rounded-lg bg-[var(--red-glow)] border border-[var(--border-red)] text-xs text-[var(--red-text)]">
+                            {error}
+                        </div>
                     )}
-                    {saving ? "Saving…" : "Save weights"}
-                </button>
+                    {!balanced && !error && (
+                        <div className="mt-4 px-3.5 py-2.5 rounded-lg bg-sky-400/5 border border-sky-400/20 text-xs text-sky-400">
+                            Weights sum to {Math.round(total * 100)}%. Adjust sliders until total reaches 100% to save.
+                        </div>
+                    )}
+                    {saveSuccess && (
+                        <div className="mt-4 px-3.5 py-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/20 text-xs text-emerald-400">
+                            Scoring weights saved. New leads will use these weights.
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-2 justify-end mt-6">
+                        <button
+                            onClick={handleRevert}
+                            disabled={!dirty || saving}
+                            className="px-4 py-2 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                        >
+                            Revert
+                        </button>
+                        <button
+                            onClick={handleReset}
+                            disabled={saving}
+                            className="px-4 py-2 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                        >
+                            Reset to defaults
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={!balanced || saving || !dirty}
+                            className={[
+                                "px-5 py-2 rounded-lg text-xs font-semibold min-w-[88px] flex items-center justify-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
+                                balanced && dirty
+                                    ? "bg-[#6366F1] hover:bg-[#4F46E5] text-white"
+                                    : "bg-[var(--surface-2)] text-[var(--text-muted)] cursor-not-allowed",
+                            ].join(" ")}
+                        >
+                            {saving && (
+                                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                </svg>
+                            )}
+                            {saving ? "Saving…" : "Save weights"}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

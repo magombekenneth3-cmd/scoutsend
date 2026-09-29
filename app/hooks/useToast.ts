@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 
 export interface Toast {
   id: number;
-  type: "success" | "error";
+  type: "success" | "error" | "info";
   message: string;
 }
 

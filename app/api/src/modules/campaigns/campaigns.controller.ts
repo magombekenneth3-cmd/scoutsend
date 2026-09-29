@@ -1,12 +1,14 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../auth/auth.types";
 import * as CampaignService from "./campaigns.service";
-import { createCampaignSchema, updateCampaignSchema } from "./campaign.shema";
+import { createCampaignSchema, updateCampaignSchema, createSequenceStepSchema, updateSequenceStepSchema } from "./campaign.schema";
 import { isUUID } from "./validate";
 import { ValidationError, ConflictError } from "../../lib/errors";
 import { getCampaignNarrativeStats } from "./campaigns.narrative";
 import { prisma } from "../../lib/prisma";
 import { CacheService } from "../../lib/cache";
+import { assertWithinCampaignLimit } from "../../lib/billing.guard";
+
 
 function assertValidUUID(id: string): void {
   if (!isUUID(id)) {
@@ -20,18 +22,25 @@ export async function createCampaign(
   next: NextFunction
 ): Promise<void> {
   try {
+    const orgId = req.user!.orgId;
+    if (!orgId) {
+      res.status(403).json({ error: "Campaign creation requires an organisation" });
+      return;
+    }
     const parsed = createCampaignSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Validation error", details: parsed.error.issues });
       return;
     }
-    const campaign = await CampaignService.createCampaign(parsed.data, req.user!.userId);
-    await CacheService.invalidateVersioned(`version:campaigns:${req.user!.userId}`);
+    await assertWithinCampaignLimit(orgId);
+    const campaign = await CampaignService.createCampaign(parsed.data, req.user!.userId, orgId);
+    await CacheService.invalidateVersioned(`version:campaigns:${req.user!.orgId}`);
     res.status(201).json(campaign);
   } catch (error) {
     next(error);
   }
 }
+
 
 export async function getCampaigns(
   req: AuthenticatedRequest,
@@ -39,13 +48,13 @@ export async function getCampaigns(
   next: NextFunction
 ): Promise<void> {
   try {
-    const userId = req.user!.userId;
-    const baseKey = `cache:campaigns:${userId}`;
-    const versionKey = `version:campaigns:${userId}`;
+    const orgId = req.user!.orgId;
+    const baseKey = `cache:campaigns:${orgId}`;
+    const versionKey = `version:campaigns:${orgId}`;
     const campaigns = await CacheService.getOrSetVersioned(
       baseKey,
       versionKey,
-      () => CampaignService.getCampaigns(userId)
+      () => CampaignService.getCampaigns(orgId!)
     );
     res.status(200).json(campaigns);
   } catch (error) {
@@ -63,13 +72,12 @@ export async function getCampaignById(
     assertValidUUID(id);
     const leadsPage = parseInt(req.query.leadsPage as string ?? "1", 10) || 1;
     const leadsLimit = Math.min(parseInt(req.query.leadsLimit as string ?? "50", 10) || 50, 200);
-    const userId = req.user!.userId;
     const baseKey = `cache:campaign:${id}:p${leadsPage}:l${leadsLimit}`;
     const versionKey = `version:campaign:${id}`;
     const campaign = await CacheService.getOrSetVersioned(
       baseKey,
       versionKey,
-      () => CampaignService.getCampaignById(id, userId, leadsPage, leadsLimit)
+      () => CampaignService.getCampaignById(id, req.user!.orgId!, leadsPage, leadsLimit)
     );
     if (!campaign) {
       res.status(404).json({ error: "Campaign not found" });
@@ -94,9 +102,9 @@ export async function updateCampaign(
       res.status(400).json({ error: "Validation error", details: parsed.error.issues });
       return;
     }
-    const campaign = await CampaignService.updateCampaign(id, req.user!.userId, parsed.data);
+    const campaign = await CampaignService.updateCampaign(id, req.user!.orgId!, parsed.data);
     await Promise.all([
-      CacheService.invalidateVersioned(`version:campaigns:${req.user!.userId}`),
+      CacheService.invalidateVersioned(`version:campaigns:${req.user!.orgId}`),
       CacheService.invalidateVersioned(`version:campaign:${id}`)
     ]);
     res.status(200).json(campaign);
@@ -113,9 +121,9 @@ export async function deleteCampaign(
   try {
     const { id } = req.params as { id: string };
     assertValidUUID(id);
-    await CampaignService.deleteCampaign(id, req.user!.userId);
+    await CampaignService.deleteCampaign(id, req.user!.orgId!);
     await Promise.all([
-      CacheService.invalidateVersioned(`version:campaigns:${req.user!.userId}`),
+      CacheService.invalidateVersioned(`version:campaigns:${req.user!.orgId}`),
       CacheService.invalidateVersioned(`version:campaign:${id}`)
     ]);
     res.status(204).end();
@@ -132,9 +140,9 @@ export async function runCampaign(
   try {
     const { id } = req.params as { id: string };
     assertValidUUID(id);
-    const result = await CampaignService.runCampaign(id, req.user!.userId);
+    const result = await CampaignService.runCampaign(id, req.user!.orgId!, req.user!.userId);
     await Promise.all([
-      CacheService.invalidateVersioned(`version:campaigns:${req.user!.userId}`),
+      CacheService.invalidateVersioned(`version:campaigns:${req.user!.orgId}`),
       CacheService.invalidateVersioned(`version:campaign:${id}`)
     ]);
     res.status(202).json(result);
@@ -173,7 +181,13 @@ export async function getPipelineStats(
   try {
     const { id } = req.params as { id: string };
     assertValidUUID(id);
-    const stats = await CampaignService.getCampaignPipelineStats(id, req.user!.userId);
+    const baseKey = `cache:campaign-stats:${id}`;
+    const versionKey = `version:campaign:${id}`;
+    const stats = await CacheService.getOrSetVersioned(
+      baseKey,
+      versionKey,
+      () => CampaignService.getCampaignPipelineStats(id, req.user!.orgId!)
+    );
     res.json(stats);
   } catch (error) {
     next(error);
@@ -188,9 +202,9 @@ export async function pauseCampaign(
   try {
     const { id } = req.params as { id: string };
     assertValidUUID(id);
-    const result = await CampaignService.pauseCampaign(id, req.user!.userId);
+    const result = await CampaignService.pauseCampaign(id, req.user!.orgId!);
     await Promise.all([
-      CacheService.invalidateVersioned(`version:campaigns:${req.user!.userId}`),
+      CacheService.invalidateVersioned(`version:campaigns:${req.user!.orgId}`),
       CacheService.invalidateVersioned(`version:campaign:${id}`)
     ]);
     res.json(result);
@@ -211,9 +225,9 @@ export async function resumeCampaign(
   try {
     const { id } = req.params as { id: string };
     assertValidUUID(id);
-    const result = await CampaignService.resumeCampaign(id, req.user!.userId);
+    const result = await CampaignService.resumeCampaign(id, req.user!.orgId!);
     await Promise.all([
-      CacheService.invalidateVersioned(`version:campaigns:${req.user!.userId}`),
+      CacheService.invalidateVersioned(`version:campaigns:${req.user!.orgId}`),
       CacheService.invalidateVersioned(`version:campaign:${id}`)
     ]);
     res.json(result);
@@ -236,7 +250,7 @@ export async function getCampaignDiscoveryRuns(
     assertValidUUID(id);
 
     const campaign = await prisma.campaign.findFirst({
-      where: { id, createdById: req.user!.userId },
+      where: { id, orgId: req.user!.orgId },
       select: { id: true },
     });
     if (!campaign) {
@@ -278,7 +292,7 @@ export async function getCampaignSignals(
     assertValidUUID(id);
 
     const campaign = await prisma.campaign.findFirst({
-      where: { id, createdById: req.user!.userId },
+      where: { id, orgId: req.user!.orgId },
       select: { id: true },
     });
     if (!campaign) {
@@ -329,7 +343,7 @@ export async function listSequenceSteps(
     assertValidUUID(id);
 
     const campaign = await prisma.campaign.findFirst({
-      where: { id, createdById: req.user!.userId },
+      where: { id, orgId: req.user!.orgId },
       select: { id: true },
     });
     if (!campaign) {
@@ -369,7 +383,7 @@ export async function createSequenceStep(
     assertValidUUID(id);
 
     const campaign = await prisma.campaign.findFirst({
-      where: { id, createdById: req.user!.userId },
+      where: { id, orgId: req.user!.orgId },
       select: { id: true },
     });
     if (!campaign) {
@@ -383,26 +397,15 @@ export async function createSequenceStep(
       return;
     }
 
-    const { channel, trigger, delayDays, messageTemplate, subjectTemplate } = req.body as {
-      channel: string;
-      trigger?: string;
-      delayDays?: number;
-      messageTemplate?: string;
-      subjectTemplate?: string;
-    };
-
-    if (!channel) {
-      res.status(400).json({ error: "channel is required" });
-      return;
-    }
+    const { channel, trigger, delayDays, messageTemplate, subjectTemplate } = createSequenceStepSchema.parse(req.body);
 
     const step = await prisma.sequenceStep.create({
       data: {
         campaignId: id,
         stepIndex: count,
-        channel: channel as any,
-        trigger: (trigger ?? "AFTER_DELAY") as any,
-        delayDays: delayDays ?? 3,
+        channel,
+        trigger,
+        delayDays,
         messageTemplate: messageTemplate ?? null,
         subjectTemplate: subjectTemplate ?? null,
       },
@@ -436,7 +439,7 @@ export async function updateSequenceStep(
     assertValidUUID(stepId);
 
     const existing = await prisma.sequenceStep.findFirst({
-      where: { id: stepId, campaignId: id, campaign: { createdById: req.user!.userId } },
+      where: { id: stepId, campaignId: id, campaign: { orgId: req.user!.orgId } },
       select: { id: true },
     });
     if (!existing) {
@@ -444,21 +447,14 @@ export async function updateSequenceStep(
       return;
     }
 
-    const { stepIndex, channel, trigger, delayDays, messageTemplate, subjectTemplate } = req.body as {
-      stepIndex?: number;
-      channel?: string;
-      trigger?: string;
-      delayDays?: number;
-      messageTemplate?: string | null;
-      subjectTemplate?: string | null;
-    };
+    const { stepIndex, channel, trigger, delayDays, messageTemplate, subjectTemplate } = updateSequenceStepSchema.parse(req.body);
 
     const step = await prisma.sequenceStep.update({
       where: { id: stepId },
       data: {
         ...(stepIndex !== undefined && { stepIndex }),
-        ...(channel !== undefined && { channel: channel as any }),
-        ...(trigger !== undefined && { trigger: trigger as any }),
+        ...(channel !== undefined && { channel }),
+        ...(trigger !== undefined && { trigger }),
         ...(delayDays !== undefined && { delayDays }),
         ...(messageTemplate !== undefined && { messageTemplate }),
         ...(subjectTemplate !== undefined && { subjectTemplate }),
@@ -493,7 +489,7 @@ export async function deleteSequenceStep(
     assertValidUUID(stepId);
 
     const existing = await prisma.sequenceStep.findFirst({
-      where: { id: stepId, campaignId: id, campaign: { createdById: req.user!.userId } },
+      where: { id: stepId, campaignId: id, campaign: { orgId: req.user!.orgId } },
       select: { id: true, stepIndex: true },
     });
     if (!existing) {
@@ -516,6 +512,62 @@ export async function deleteSequenceStep(
     });
 
     res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getCampaignPreflight(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params as { id: string };
+    assertValidUUID(id);
+    const result = await CampaignService.getCampaignPreflight(id, req.user!.orgId!);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getCampaignConvergence(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params as { id: string };
+    assertValidUUID(id);
+
+    const campaign = await prisma.campaign.findFirst({
+      where: { id, orgId: req.user!.orgId },
+      select: { id: true },
+    });
+    if (!campaign) {
+      res.status(404).json({ error: "Campaign not found" });
+      return;
+    }
+
+    const [evaluateCampaignConvergenceModule, checkCampaignGatingModule, getCampaignForensicMetricsModule] = await Promise.all([
+      import("../../lib/send/campaign-convergence.engine"),
+      import("../../lib/send/campaign-gating.observer"),
+      import("../../lib/send/campaign-metrics.service"),
+    ]);
+
+    const [convergence, gating, metrics] = await Promise.all([
+      evaluateCampaignConvergenceModule.evaluateCampaignConvergence(id),
+      checkCampaignGatingModule.checkCampaignGatingConditions(id),
+      getCampaignForensicMetricsModule.getCampaignForensicMetrics(id),
+    ]);
+
+    res.json({
+      campaignId: id,
+      convergence,
+      gating,
+      metrics,
+    });
   } catch (error) {
     next(error);
   }

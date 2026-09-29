@@ -10,6 +10,7 @@ import { AuthToggle } from "../components/AuthToggle";
 import { ServerErrorBanner } from "../components/Servererrorbanner";
 import { validateLogin } from "../api/src/lib/helper";
 import type { LoginFieldError, FormStatus, AuthResponse } from "../api/src/lib/types";
+import { apiFetch } from "@/lib/api-fetch";
 
 export function LoginForm() {
     const router = useRouter();
@@ -44,10 +45,9 @@ export function LoginForm() {
         setServerError(null);
 
         try {
-            const res = await fetch("/api/auth/login", {
+            const res = await apiFetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                credentials: "include",
                 body: JSON.stringify({ email, password }),
             });
 
@@ -60,7 +60,8 @@ export function LoginForm() {
             }
 
             setStatus("success");
-            router.push("/dashboard");
+            router.replace("/dashboard");
+
         } catch {
             setServerError("Network error. Please check your connection.");
             setStatus("idle");
@@ -72,22 +73,22 @@ export function LoginForm() {
 
     return (
         <div>
-            <div style={{ marginBottom: 28 }}>
+            <div style={{ marginBottom: 20 }}>
                 <p style={{
                     fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
-                    textTransform: "uppercase", color: "#e94560",
+                    textTransform: "uppercase", color: "var(--red)",
                     fontFamily: "var(--font-display)", marginBottom: 10,
                 }}>
                     Welcome back
                 </p>
                 <h1 style={{
                     fontFamily: "var(--font-display)", fontWeight: 800,
-                    fontSize: 26, color: "#f0f2ff", letterSpacing: "-0.025em",
+                    fontSize: 26, color: "var(--text-primary)", letterSpacing: "-0.025em",
                     lineHeight: 1.15, marginBottom: 6,
                 }}>
                     Sign in to ScoutSend
                 </h1>
-                <p style={{ fontSize: 14, color: "#8892b0", lineHeight: 1.6 }}>
+                <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>
                     Continue building your pipeline.
                 </p>
             </div>
@@ -121,7 +122,7 @@ export function LoginForm() {
                     <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                         <a
                             href="/auth/forgot-password"
-                            style={{ fontSize: 12, color: "#e94560", textDecoration: "none" }}
+                            style={{ fontSize: 12, color: "var(--red)", textDecoration: "none" }}
                         >
                             Forgot password?
                         </a>
@@ -135,7 +136,7 @@ export function LoginForm() {
                     disabled={isLoading || isSuccess}
                     style={{
                         width: "100%", height: 48,
-                        background: isSuccess ? "#22c55e" : "#e94560",
+                        background: isSuccess ? "var(--success)" : "var(--red)",
                         border: "none", borderRadius: 10,
                         color: "#fff", fontFamily: "var(--font-display)",
                         fontWeight: 700, fontSize: 15,

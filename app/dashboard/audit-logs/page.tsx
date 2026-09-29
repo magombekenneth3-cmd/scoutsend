@@ -168,7 +168,7 @@ export default function AuditLogsPage() {
                         <p className="text-sm text-[var(--text-secondary)]">{error}</p>
                         <button
                             onClick={() => fetchLogs({ search, action, entityType, startDate, endDate, page })}
-                            className="text-xs text-[var(--red)] hover:underline focus-visible:outline-none focus-visible:underline"
+                            className="text-xs text-[var(--red-text)] hover:underline focus-visible:outline-none focus-visible:underline"
                         >
                             Retry
                         </button>
@@ -300,7 +300,7 @@ function PaginationButton({
             className={[
                 "w-8 h-8 rounded-lg text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] flex items-center justify-center",
                 active
-                    ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]"
+                    ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] border border-transparent",
                 disabled ? "opacity-30 cursor-not-allowed" : "",
             ].join(" ")}

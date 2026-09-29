@@ -59,7 +59,7 @@ function AccountCard({
 }) {
     return (
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 flex items-center gap-4 hover:border-[var(--border-red)]/60 transition-colors">
-            <div className="w-10 h-10 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red)] flex-shrink-0 overflow-hidden">
+            <div className="w-10 h-10 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red-text)] flex-shrink-0 overflow-hidden">
                 {account.avatarUrl ? (
                     <img src={account.avatarUrl} alt={account.name} className="w-full h-full object-cover rounded-full" />
                 ) : (
@@ -78,7 +78,7 @@ function AccountCard({
                             href={account.profileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-[var(--red)] hover:underline"
+                            className="text-xs text-[var(--red-text)] hover:underline"
                         >
                             View profile →
                         </a>
@@ -195,7 +195,7 @@ export default function LinkedInAccountsPage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red)]">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red-text)]">
                             <LinkedInIcon size={20} />
                         </div>
                         <div>
@@ -251,23 +251,23 @@ export default function LinkedInAccountsPage() {
 
                 {connectError && (
                     <div className="flex items-start gap-2.5 p-3.5 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-xl">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--red)] flex-shrink-0 mt-0.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--red-text)] flex-shrink-0 mt-0.5">
                             <circle cx="12" cy="12" r="10" />
                             <line x1="12" y1="8" x2="12" y2="12" />
                             <line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
-                        <p className="text-xs text-[var(--red)]">{connectError}</p>
+                        <p className="text-xs text-[var(--red-text)]">{connectError}</p>
                     </div>
                 )}
 
                 {error && (
                     <div className="flex items-start gap-2.5 p-3.5 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-xl">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--red)] flex-shrink-0 mt-0.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--red-text)] flex-shrink-0 mt-0.5">
                             <circle cx="12" cy="12" r="10" />
                             <line x1="12" y1="8" x2="12" y2="12" />
                             <line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
-                        <p className="text-xs text-[var(--red)]">{error}</p>
+                        <p className="text-xs text-[var(--red-text)]">{error}</p>
                     </div>
                 )}
 
@@ -280,7 +280,7 @@ export default function LinkedInAccountsPage() {
                             { step: "3", title: "Assign to campaigns", desc: "Select the connected account in the campaign launch wizard" },
                         ].map(({ step, title, desc }) => (
                             <div key={step} className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[9px] font-bold text-[var(--red)] flex-shrink-0 mt-0.5">
+                                <div className="w-6 h-6 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[9px] font-bold text-[var(--red-text)] flex-shrink-0 mt-0.5">
                                     {step}
                                 </div>
                                 <div>
@@ -300,7 +300,7 @@ export default function LinkedInAccountsPage() {
                         </>
                     ) : accounts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-                            <div className="w-14 h-14 rounded-2xl bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red)]">
+                            <div className="w-14 h-14 rounded-2xl bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red-text)]">
                                 <LinkedInIcon size={24} />
                             </div>
                             <div>

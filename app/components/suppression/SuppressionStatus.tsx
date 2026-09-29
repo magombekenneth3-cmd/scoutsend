@@ -61,7 +61,7 @@ export function SuppressionStatsBar({ stats, loading }: Props) {
                         className={[
                             "w-8 h-8 rounded-lg flex items-center justify-center",
                             s.accent
-                                ? "bg-[var(--red-glow)] text-[var(--red)]"
+                                ? "bg-[var(--red-glow)] text-[var(--red-text)]"
                                 : "bg-[var(--surface-2)] text-[var(--text-secondary)]",
                         ].join(" ")}
                     >

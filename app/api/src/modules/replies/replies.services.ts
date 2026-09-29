@@ -1,11 +1,14 @@
 import { z } from "zod";
 import { Prisma, SignalType } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { transitionState } from "../../lib/state/transition-state";
+import { createOutboxEvent, buildEmailSendIdempotencyKey } from "../outbox/outbox.service";
 import {
   createReplySchema,
   updateReplySchema,
   getRepliesQuerySchema,
 } from "./repliess.schema";
+import { evaluatePolicyWall } from "../conversation/policy/policy-wall";
 import {
   classifyReply,
   generateDraftReply,
@@ -27,21 +30,25 @@ import {
 import { recordWin, recordLoss } from "../memory/memory.service";
 import { getBrandSettingsOrDefault } from "../brandSettings/brandsettings.service";
 import { renderEmailTemplate } from "../../lib/emailTemplate";
-import { logAudit } from "../audit/audit.service";
 import { AUDIT_EVENTS } from "../../lib/constants";
+import { logAudit } from "../audit/audit.service";
+import { syncLeadToCrm } from "../crm/crm-sync.service";
 import { logger } from "../../lib/logger";
 import { createMailProvider, MailboxCredentials } from "../../lib/mail";
-import { decryptJson, encryptJson, isEncrypted } from "../../lib/mail/crypto";
+import { decryptMailboxCredentials, encryptJson } from "../../lib/mail/crypto";
 import { redis } from "../../lib/ioredis";
 import { campaignQueue, realtimeQueue } from "../gemini/campaign.queue";
 import { logLeadJourneyEvent } from "../../lib/leads/lead-journey.service";
 import { recomputeCompanyEngagement } from "../../lib/company/company-engagement.service";
 import { buildReplyEmbeddingText, updateReplyEmbedding } from "../../lib/embeddings/embedding.service";
+import { triggerCrmHandoff } from "../../lib/crm-handoff.service";
+import {
+  evaluateConversationAction,
+  type ConversationReplyAnalysis,
+} from "../../lib/conversation/conversation-state.machine";
 
-function decryptCredentials(raw: unknown): MailboxCredentials {
-  if (isEncrypted(raw)) return decryptJson<MailboxCredentials>(raw as string);
-  return raw as MailboxCredentials;
-}
+
+
 
 const UNSUBSCRIBE_PATTERNS: RegExp[] = [
   /\b(unsubscribe|opt[\s-]?out|remove\s+me)\b/i,
@@ -82,8 +89,40 @@ const FOLLOW_UP_SUPPRESSION_INTENTS = new Set<ReplyIntent>([
   "QUESTION",
 ]);
 
+export function extractCleanReplyText(rawBody: string): string {
+  if (!rawBody) return "";
+
+  const quotePatterns: RegExp[] = [
+    /\r?\n(?=On\s+[A-Za-z]+,\s+[A-Za-z]+\s+\d+.*wrote:)/i,
+    /\r?\n(?=On\s+.*?\s+wrote:)/i,
+    /\r?\n(?=-----Original Message-----)/i,
+    /\r?\n(?=From:\s+.*?\r?\nSent:\s+)/i,
+    /\r?\n(?=From:\s+.*?\r?\nDate:\s+)/i,
+    /\r?\n(?=_{5,})/i,
+    /\r?\n(?=\s*>)/i,
+  ];
+
+  let splitIdx = -1;
+  for (const pattern of quotePatterns) {
+    const match = rawBody.match(pattern);
+    if (match && match.index !== undefined) {
+      if (splitIdx === -1 || match.index < splitIdx) {
+        splitIdx = match.index;
+      }
+    }
+  }
+
+  if (splitIdx !== -1) {
+    const replyText = rawBody.slice(0, splitIdx).trim();
+    if (replyText) return replyText;
+  }
+
+  return rawBody.trim();
+}
+
 function normalizeBody(text: string): string {
-  return text.trim().replace(/\s+/g, " ").replace(/[^\w\s]/g, "").toLowerCase();
+  const clean = extractCleanReplyText(text);
+  return clean.replace(/\s+/g, " ").replace(/[^\w\s]/g, "").toLowerCase();
 }
 
 function extractDomain(email: string): string | null {
@@ -94,7 +133,8 @@ function extractDomain(email: string): string | null {
 async function handleUnsubscribeIfNeeded(
   replyBody: string,
   leadEmail: string | null,
-  userId: string
+  userId: string,
+  orgId: string
 ): Promise<void> {
   if (!leadEmail) return;
   if (!containsOptOutSignal(replyBody)) return;
@@ -103,49 +143,65 @@ async function handleUnsubscribeIfNeeded(
 
   await Promise.all([
     prisma.suppression.upsert({
-      where: { email_userId: { email: leadEmail, userId } },
+      where: { email_orgId: { email: leadEmail, orgId } },
       update: {},
       create: {
         email: leadEmail,
         userId,
+        orgId,
         reason: "Unsubscribe request via reply",
         source: "reply-auto",
       },
     }),
     domain
       ? prisma.suppression.upsert({
-          where: { domain_userId: { domain, userId } },
-          update: {},
-          create: {
-            domain,
-            userId,
-            reason: "Unsubscribe request via reply — domain suppressed",
-            source: "reply-auto",
-          },
-        })
+        where: { domain_orgId: { domain, orgId } },
+        update: {},
+        create: {
+          domain,
+          userId,
+          orgId,
+          reason: "Unsubscribe request via reply — domain suppressed",
+          source: "reply-auto",
+        },
+      })
       : Promise.resolve(),
   ]);
 }
 
 async function suppressPendingFollowUps(
   leadId: string,
-  intent: ReplyIntent
+  intent?: ReplyIntent,
+  tx?: any,
 ): Promise<void> {
-  if (!FOLLOW_UP_SUPPRESSION_INTENTS.has(intent)) return;
-
-  const updated = await prisma.outreachMessage.updateMany({
+  const client = tx ?? prisma;
+  const pendingMessages = await client.outreachMessage.findMany({
     where: {
       leadId,
-      deliveryState: { in: ["QUEUED", "DRAFT"] },
-      isFollowUp: true,
+      deliveryState: { in: ["QUEUED", "DRAFT", "VALIDATED", "AUTHORIZED", "DISPATCHING"] },
     },
-    data: { deliveryState: "SUPPRESSED" },
+    select: { id: true, deliveryState: true, version: true },
   });
 
-  if (updated.count > 0) {
+  let suppressedCount = 0;
+  for (const msg of pendingMessages) {
+    const res = await transitionState(client, {
+      model: "OutreachMessage",
+      entityId: msg.id,
+      expectedState: msg.deliveryState,
+      expectedVersion: msg.version,
+      nextState: "SUPPRESSED",
+      authority: { actorType: "SYSTEM", actorId: "reply-suppression" },
+    });
+    if (res.success) {
+      suppressedCount++;
+    }
+  }
+
+  if (suppressedCount > 0) {
     logger.info(
-      { leadId, count: updated.count, intent },
-      "[reply.service] Suppressed pending follow-ups"
+      { leadId, count: suppressedCount, intent },
+      "[reply.service] Suppressed pending messages due to lead reply"
     );
   }
 }
@@ -153,7 +209,8 @@ async function suppressPendingFollowUps(
 async function handleIntentSuppression(
   intent: ReplyIntent,
   leadEmail: string | null,
-  userId: string
+  userId: string,
+  orgId: string
 ): Promise<void> {
   if (!SUPPRESSION_INTENTS.has(intent) || !leadEmail) return;
 
@@ -161,61 +218,101 @@ async function handleIntentSuppression(
 
   await Promise.all([
     prisma.suppression.upsert({
-      where: { email_userId: { email: leadEmail, userId } },
+      where: { email_orgId: { email: leadEmail, orgId } },
       update: {},
       create: {
         email: leadEmail,
         userId,
+        orgId,
         reason: `Lead replied with intent: ${intent}`,
         source: "reply-auto",
       },
     }),
     domain
       ? prisma.suppression.upsert({
-          where: { domain_userId: { domain, userId } },
-          update: {},
-          create: {
-            domain,
-            userId,
-            reason: `Lead replied with intent: ${intent} — domain suppressed`,
-            source: "reply-auto",
-          },
-        })
+        where: { domain_orgId: { domain, orgId } },
+        update: {},
+        create: {
+          domain,
+          userId,
+          orgId,
+          reason: `Lead replied with intent: ${intent} — domain suppressed`,
+          source: "reply-auto",
+        },
+      })
       : Promise.resolve(),
   ]);
 }
 
 async function notifyPositiveReply(params: {
   intent: ReplyIntent;
+  leadId: string;
   leadEmail: string | null;
   leadFirstName: string | null;
+  leadLastName?: string | null;
+  leadTitle?: string | null;
+  leadQualificationScore?: number | null;
   companyName: string;
   replyBody: string;
+  replyId: string;
+  sentimentScore?: number | null;
+  buyingStage?: string | null;
+  budgetSignal?: string | null;
+  timelineSignal?: string | null;
   campaignId: string;
+  campaignName?: string | null;
+  outreachSubject: string;
 }): Promise<void> {
   const webhookUrl = process.env.REPLY_WEBHOOK_URL;
-  if (!webhookUrl) return;
-  try {
-    await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event: "positive_reply",
-        intent: params.intent,
-        lead: {
-          email: params.leadEmail,
-          firstName: params.leadFirstName,
-          companyName: params.companyName,
-        },
-        preview: params.replyBody.slice(0, 300),
-        campaignId: params.campaignId,
-        timestamp: new Date().toISOString(),
-      }),
-      signal: AbortSignal.timeout(5_000),
-    });
-  } catch (err) {
-    logger.warn({ err }, "[reply.service] positive reply webhook failed");
+  if (webhookUrl) {
+    try {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "positive_reply",
+          intent: params.intent,
+          lead: {
+            email: params.leadEmail,
+            firstName: params.leadFirstName,
+            companyName: params.companyName,
+          },
+          preview: params.replyBody.slice(0, 300),
+          campaignId: params.campaignId,
+          timestamp: new Date().toISOString(),
+        }),
+        signal: AbortSignal.timeout(5_000),
+      });
+    } catch (err) {
+      logger.warn({ err }, "[reply.service] positive reply webhook failed");
+    }
   }
+
+  await triggerCrmHandoff({
+    lead: {
+      id: params.leadId,
+      firstName: params.leadFirstName,
+      lastName: params.leadLastName ?? null,
+      email: params.leadEmail,
+      companyName: params.companyName,
+      title: params.leadTitle ?? null,
+      qualificationScore: params.leadQualificationScore ?? null,
+    },
+    reply: {
+      id: params.replyId,
+      body: params.replyBody,
+      intent: params.intent,
+      sentimentScore: params.sentimentScore ?? null,
+      buyingStage: params.buyingStage ?? null,
+      budgetSignal: params.budgetSignal ?? null,
+      timelineSignal: params.timelineSignal ?? null,
+    },
+    campaign: {
+      id: params.campaignId,
+      name: params.campaignName ?? null,
+    },
+    outreachSubject: params.outreachSubject,
+  });
 }
 
 async function scheduleOOORequeue(
@@ -243,6 +340,34 @@ async function scheduleOOORequeue(
       "[reply.service] OOO detected — follow-ups rescheduled"
     );
   }
+}
+
+async function getLeadThreadHistory(leadId: string): Promise<Array<{ role: "prospect" | "sender"; body: string; sentAt?: string }>> {
+  const [messages, replies] = await Promise.all([
+    prisma.outreachMessage.findMany({
+      where: { leadId, deliveryState: "SENT" },
+      select: { body: true, sentAt: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.reply.findMany({
+      where: { leadId },
+      select: { body: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+  ]);
+
+  const combined = [
+    ...messages.map((m) => ({ role: "sender" as const, body: m.body, createdAt: m.sentAt ?? m.createdAt })),
+    ...replies.map((r) => ({ role: "prospect" as const, body: r.body, createdAt: r.createdAt })),
+  ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+  return combined.map((item) => ({
+    role: item.role,
+    body: item.body,
+    sentAt: item.createdAt.toISOString(),
+  }));
 }
 
 async function recordReplyMemory(params: {
@@ -356,6 +481,7 @@ export async function createReply(
             targetIndustry: true,
             targetRegion: true,
             createdById: true,
+            orgId: true,
           },
         },
       },
@@ -431,8 +557,11 @@ export async function createReply(
     return createdReply;
   });
 
-  handleUnsubscribeIfNeeded(data.body, lead.email, lead.campaign.createdById).catch((err) =>
-    logger.error({ err, replyId: reply.id }, "[reply.service] handleUnsubscribeIfNeeded failed")
+  await Promise.all([
+    handleUnsubscribeIfNeeded(data.body, lead.email, lead.campaign.createdById, lead.campaign.orgId ?? ""),
+    suppressPendingFollowUps(lead.id),
+  ]).catch((err) =>
+    logger.error({ err, replyId: reply.id }, "[reply.service] handleUnsubscribeIfNeeded / suppressPendingFollowUps failed")
   );
 
   await realtimeQueue.add(
@@ -484,6 +613,7 @@ export async function processReplyAI(replyId: string): Promise<void> {
               targetRegion: true,
               createdById: true,
               senderMailboxId: true,
+              orgId: true,
             },
           },
         },
@@ -513,24 +643,92 @@ export async function processReplyAI(replyId: string): Promise<void> {
 
   if (!alreadyClassified) {
     try {
-      const classification = await classifyReply({
-        replyBody: reply.body,
-        originalSubject: reply.outreachMessage.subject,
-        originalBody: reply.outreachMessage.body,
-        leadFirstName: reply.lead.firstName ?? undefined,
-        companyName: reply.lead.companyName,
-        messageId: reply.outreachMessage.id,
-      });
+      const cleanReplyBody = extractCleanReplyText(reply.body);
+      const policyDecision = evaluatePolicyWall(cleanReplyBody || reply.body);
 
-      resolvedIntent = classification.intent;
-      sentimentScore = classification.sentimentScore;
-      confidence = classification.confidence;
-      requiresHumanReview = classification.requiresHumanReview;
-      buyingStage = classification.buyingStage;
-      painPoints = classification.painPoints;
-      competitorsMentioned = classification.competitorsMentioned;
-      budgetSignal = classification.budgetSignal;
-      timelineSignal = classification.timelineSignal;
+      if (policyDecision.action !== "CONTINUE_TO_CLASSIFIER") {
+        logger.info(
+          { replyId, action: policyDecision.action, matchedRules: policyDecision.matchedRules },
+          "[reply.service] Deterministic policy wall triggered — bypassing LLM classifier with 0 LLM calls"
+        );
+        if (policyDecision.action === "OPT_OUT") {
+          resolvedIntent = "NOT_INTERESTED";
+        } else if (policyDecision.action === "COMPLAINT") {
+          resolvedIntent = "NEGATIVE";
+        } else if (policyDecision.action === "SNOOZE") {
+          resolvedIntent = "OUT_OF_OFFICE";
+        }
+        confidence = 1.0;
+        sentimentScore = policyDecision.action === "OPT_OUT" || policyDecision.action === "COMPLAINT" ? -1.0 : 0.0;
+        requiresHumanReview = false;
+      } else {
+        const threadHistory = await getLeadThreadHistory(reply.leadId);
+        const classification = await classifyReply({
+          replyBody: cleanReplyBody || reply.body,
+          originalSubject: reply.outreachMessage.subject,
+          originalBody: reply.outreachMessage.body,
+          leadFirstName: reply.lead.firstName ?? undefined,
+          companyName: reply.lead.companyName,
+          messageId: reply.outreachMessage.id,
+          threadHistory,
+        });
+
+        resolvedIntent = classification.intent;
+        sentimentScore = classification.sentimentScore;
+        confidence = classification.confidence;
+        requiresHumanReview = classification.requiresHumanReview;
+        buyingStage = classification.buyingStage;
+        painPoints = classification.painPoints;
+        competitorsMentioned = classification.competitorsMentioned;
+        budgetSignal = classification.budgetSignal;
+        timelineSignal = classification.timelineSignal;
+      }
+
+      const replyAnalysis: ConversationReplyAnalysis = {
+        intents: [{ type: resolvedIntent as ConversationReplyAnalysis["intents"][0]["type"], confidence: confidence ?? 0.5 }],
+        questions: [],
+        temporalConstraints: resolvedIntent === "OUT_OF_OFFICE" && timelineSignal
+          ? [{ rawText: timelineSignal, targetDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }]
+          : [],
+        sentiment: sentimentScore ?? 0,
+        confidence: confidence ?? 0.5,
+        requiresHumanReview: requiresHumanReview ?? false,
+      };
+
+      const conversationAction = evaluateConversationAction(replyAnalysis, reply.leadId);
+
+      logger.info(
+        { replyId, leadId: reply.leadId, conversationAction: conversationAction.type },
+        "[reply.service] Conversation action evaluated",
+      );
+
+      if (conversationAction.type === "STOP_SEQUENCE") {
+        await Promise.allSettled([
+          suppressPendingFollowUps(reply.leadId, resolvedIntent),
+          handleUnsubscribeIfNeeded(reply.body, reply.lead.email, reply.lead.campaign.createdById, reply.lead.campaign.orgId ?? ""),
+        ]);
+        requiresHumanReview = false;
+      } else if (conversationAction.type === "SNOOZE_UNTIL") {
+        logger.info(
+          { replyId, leadId: reply.leadId, resumeAt: conversationAction.resumeAt },
+          "[reply.service] Conversation SNOOZE_UNTIL — suppressing pending follow-ups",
+        );
+        await suppressPendingFollowUps(reply.leadId, resolvedIntent).catch((err) =>
+          logger.error({ err, replyId }, "[reply.service] suppressPendingFollowUps failed on snooze")
+        );
+      } else if (conversationAction.type === "BOOK_MEETING") {
+        await markLeadMeetingBooked({
+          leadId: reply.leadId,
+          replyId: reply.id,
+          campaignId: reply.lead.campaign.id,
+          auditUserId: reply.lead.campaign.createdById,
+        }).catch((err) =>
+          logger.error({ err, replyId }, "[reply.service] markLeadMeetingBooked failed")
+        );
+        requiresHumanReview = true;
+      } else if (conversationAction.type === "HUMAN_REVIEW") {
+        requiresHumanReview = true;
+      }
 
       logger.info(
         { replyId, intent: resolvedIntent, sentimentScore, confidence, requiresHumanReview },
@@ -573,7 +771,7 @@ export async function processReplyAI(replyId: string): Promise<void> {
   if (!alreadyClassified) {
     const postProcessingSteps: Promise<unknown>[] = [
       suppressPendingFollowUps(reply.leadId, resolvedIntent),
-      handleIntentSuppression(resolvedIntent, reply.lead.email, reply.lead.campaign.createdById),
+      handleIntentSuppression(resolvedIntent, reply.lead.email, reply.lead.campaign.createdById, reply.lead.campaign.orgId ?? ""),
     ];
 
     if (resolvedIntent === "OUT_OF_OFFICE" && reply.oooRequeuedAt === null) {
@@ -585,14 +783,34 @@ export async function processReplyAI(replyId: string): Promise<void> {
     }
 
     if (resolvedIntent === "POSITIVE" || resolvedIntent === "MEETING_REQUEST") {
+      if (reply.lead.campaign.orgId) {
+        postProcessingSteps.push(
+          syncLeadToCrm({
+            orgId: reply.lead.campaign.orgId,
+            leadId: reply.lead.id,
+            replyId: reply.id,
+            intent: resolvedIntent,
+            eventType: resolvedIntent === "MEETING_REQUEST" ? "MEETING_REQUEST" : "POSITIVE_REPLY",
+          })
+        );
+      }
       postProcessingSteps.push(
         notifyPositiveReply({
           intent: resolvedIntent,
+          leadId: reply.lead.id,
           leadEmail: reply.lead.email,
           leadFirstName: reply.lead.firstName,
+          leadTitle: reply.lead.title,
+          leadQualificationScore: reply.lead.qualificationScore,
           companyName: reply.lead.companyName,
           replyBody: reply.body,
+          replyId: reply.id,
+          sentimentScore,
+          buyingStage,
+          budgetSignal,
+          timelineSignal,
           campaignId: reply.lead.campaign.id,
+          outreachSubject: reply.outreachMessage.subject,
         })
       );
     }
@@ -712,7 +930,7 @@ export async function generateReplyDraft(replyId: string): Promise<{ replyId: st
           },
         },
         outreachMessage: {
-          select: { id: true, subject: true },
+          select: { id: true, subject: true, body: true },
         },
       },
     });
@@ -727,6 +945,9 @@ export async function generateReplyDraft(replyId: string): Promise<{ replyId: st
     let draftBody: string | null = null;
     let objectionCategory: string | null = null;
     let meetingLinkInjected = false;
+    let requiresHumanReview = reply.requiresHumanReview;
+
+    const threadHistory = await getLeadThreadHistory(reply.lead.id);
 
     if (resolvedIntent === "MEETING_REQUEST") {
       try {
@@ -744,6 +965,7 @@ export async function generateReplyDraft(replyId: string): Promise<{ replyId: st
           messageId: reply.outreachMessage.id,
           senderName,
           mailboxId: reply.lead.campaign.senderMailboxId ?? undefined,
+          threadHistory,
         });
         draftSubject = meetingDraft.subject;
         draftBody = meetingDraft.body;
@@ -761,14 +983,20 @@ export async function generateReplyDraft(replyId: string): Promise<{ replyId: st
           replyBody: reply.body,
           intent: resolvedIntent,
           originalSubject: reply.outreachMessage.subject,
+          originalBody: reply.outreachMessage.body,
           leadFirstName: reply.lead.firstName ?? undefined,
           companyName: reply.lead.companyName,
           title: reply.lead.title ?? undefined,
           messageId: reply.outreachMessage.id,
+          confidence: reply.confidence ?? 0,
+          threadHistory,
         });
         draftSubject = objectionDraft.subject;
         draftBody = objectionDraft.body;
         objectionCategory = objectionDraft.objectionCategory;
+        if (objectionDraft.requiresHumanReview) {
+          requiresHumanReview = true;
+        }
       } catch {
         const fallbackDraft = await generateDraftReply({
           intent: resolvedIntent as "POSITIVE" | "QUESTION",
@@ -777,6 +1005,7 @@ export async function generateReplyDraft(replyId: string): Promise<{ replyId: st
           leadFirstName: reply.lead.firstName ?? undefined,
           companyName: reply.lead.companyName,
           messageId: reply.outreachMessage.id,
+          threadHistory,
         });
         if (fallbackDraft) {
           draftSubject = fallbackDraft.subject;
@@ -786,7 +1015,6 @@ export async function generateReplyDraft(replyId: string): Promise<{ replyId: st
     }
 
     if (draftSubject !== null || draftBody !== null || meetingLinkInjected) {
-      let requiresHumanReview = reply.requiresHumanReview;
 
       if (draftBody !== null) {
         let bookingLink: string | null = null;
@@ -801,12 +1029,14 @@ export async function generateReplyDraft(replyId: string): Promise<{ replyId: st
         ];
 
         const gate = await canAutoSend({
+          leadId: reply.lead.id,
           campaign: { autoSendRepliesEnabled: reply.lead.campaign.autoSendRepliesEnabled },
           intent: resolvedIntent,
           confidence: reply.confidence ?? 0,
           draftBody,
           allowedLinks,
         });
+
 
         requiresHumanReview = !gate.ok;
 
@@ -825,6 +1055,13 @@ export async function generateReplyDraft(replyId: string): Promise<{ replyId: st
         if (gate.ok) {
           try {
             await sendReplyDraft(replyId, reply.lead.campaign.createdById);
+            logAudit({
+              userId: reply.lead.campaign.createdById,
+              action: AUDIT_EVENTS.REPLY_DRAFT_SENT,
+              entityType: "Reply",
+              entityId: replyId,
+              metadata: { auto: true, intent: resolvedIntent, confidence: reply.confidence },
+            }).catch(() => { });
             logger.info(
               { replyId, confidence: reply.confidence, intent: resolvedIntent },
               "[reply.drafter] Draft auto-sent"
@@ -836,8 +1073,16 @@ export async function generateReplyDraft(replyId: string): Promise<{ replyId: st
               .catch(() => { });
           }
         } else {
+          logAudit({
+            userId: reply.lead.campaign.createdById,
+            action: AUDIT_EVENTS.AUTO_SEND_BLOCKED,
+            entityType: "Reply",
+            entityId: replyId,
+            metadata: { reason: gate.reason, intent: resolvedIntent, confidence: reply.confidence },
+          }).catch(() => { });
           logger.info({ replyId, reason: gate.reason }, "[reply.drafter] Auto-send skipped");
         }
+
       } else {
         await prisma.reply.update({
           where: { id: replyId },
@@ -874,6 +1119,7 @@ export async function sendReplyDraft(
           campaign: {
             select: {
               id: true,
+              orgId: true,
               createdById: true,
               senderMailbox: {
                 select: {
@@ -981,7 +1227,7 @@ export async function sendReplyDraft(
 
   const from = `${brand.senderName} <${senderMailbox.emailAddress}>`;
 
-  const creds = decryptCredentials(senderMailbox.credentials);
+  const creds = decryptMailboxCredentials<MailboxCredentials>(senderMailbox.credentials, `mailbox:${senderMailbox.id}`);
   const mailboxId = senderMailbox.id;
   const provider = createMailProvider(creds, {
     outlook:
@@ -1003,44 +1249,38 @@ export async function sendReplyDraft(
         }
         : undefined,
   });
-  const result = await provider.sendEmail({
-    to: leadEmail,
-    from,
-    subject: reply.draftSubject,
-    html,
-    text,
-  });
-
-  if (!result.success) {
-    logger.error(
-      { error: result.error, replyId, leadEmail },
-      "[reply.service] sendReplyDraft — mailbox provider send failed"
-    );
-    throw Object.assign(
-      new Error("Failed to send draft reply — see server logs"),
-      { statusCode: 502 }
-    );
-  }
-
-  const externalId = result.externalId;
-
-  await prisma.$transaction([
-    prisma.reply.update({
+  // Enqueue via Transactional Outbox — Atomically commit draft state & OutboxEvent
+  await prisma.$transaction(async (tx) => {
+    await tx.reply.update({
       where: { id: replyId },
       data: {
         draftSentAt: new Date(),
         draftSentBy: sentByUserId,
-        draftExternalId: externalId ?? null,
       },
-    }),
-    prisma.senderMailbox.update({
+    });
+
+    await tx.senderMailbox.update({
       where: { id: senderMailbox.id },
       data: {
         currentSent: { increment: 1 },
         totalSent: { increment: 1 },
       },
-    }),
-  ]);
+    });
+
+    await createOutboxEvent(tx, {
+      organizationId: reply.lead.campaign.orgId ?? "org_default",
+      eventType: "EMAIL_SEND_REQUESTED",
+      aggregateType: "Reply",
+      aggregateId: replyId,
+      idempotencyKey: buildEmailSendIdempotencyKey(`reply:${replyId}`),
+      payload: {
+        outreachMessageId: `reply:${replyId}`,
+        leadId: reply.lead.email ? reply.lead.email : reply.lead.id,
+        campaignId: reply.lead.campaign.id,
+        senderMailboxId: senderMailbox.id,
+      },
+    });
+  });
 
   if (reply.intent === "MEETING_REQUEST") {
     advanceLeadPipeline({
@@ -1061,18 +1301,17 @@ export async function sendReplyDraft(
     entityId: replyId,
     metadata: {
       leadEmail,
-      externalId,
       meetingLinkInjected: reply.meetingLinkInjected,
       objectionCategory: reply.objectionCategory,
     },
   });
 
   logger.info(
-    { replyId, leadEmail, externalId, sentByUserId },
-    "[reply.service] Draft reply sent"
+    { replyId, leadEmail, sentByUserId },
+    "[reply.service] Draft reply queued for delivery via transactional outbox"
   );
 
-  return { success: true, externalId };
+  return { success: true, externalId: undefined };
 }
 
 export async function markMeetingBooked(params: {
@@ -1190,18 +1429,31 @@ export async function updateReply(
   userId: string,
   data: z.infer<typeof updateReplySchema>
 ) {
-  const owned = await prisma.reply.findFirst({
+  const existing = await prisma.reply.findFirst({
     where: {
       id,
       lead: { campaign: { createdById: userId } },
     },
-    select: { id: true },
+    select: {
+      id: true,
+      intent: true,
+      leadId: true,
+      lead: {
+        select: {
+          id: true,
+          email: true,
+          campaign: {
+            select: { id: true, orgId: true }
+          }
+        }
+      }
+    },
   });
 
-  if (!owned) {
+  if (!existing) {
     throw Object.assign(new Error("Reply not found or access denied"), { statusCode: 404 });
   }
-  return prisma.reply.update({
+  const updated = await prisma.reply.update({
     where: { id },
     data,
     include: {
@@ -1220,6 +1472,23 @@ export async function updateReply(
       },
     },
   });
+
+  if (data.intent && data.intent !== existing.intent) {
+    const newIntent = data.intent as ReplyIntent;
+    await suppressPendingFollowUps(existing.leadId, newIntent);
+    await handleIntentSuppression(newIntent, existing.lead.email, userId, existing.lead.campaign.orgId ?? "");
+    if (PIPELINE_INTENTS.has(newIntent)) {
+      await advanceLeadPipeline({
+        leadId: existing.leadId,
+        intent: newIntent,
+        replyId: id,
+        campaignId: existing.lead.campaign.id,
+        auditUserId: userId,
+      });
+    }
+  }
+
+  return updated;
 }
 
 export async function getRepliesForUser(
@@ -1275,6 +1544,28 @@ export async function getRepliesForUser(
     data: replies,
     meta: { total, page, limit: safeLimit, totalPages: Math.ceil(total / safeLimit) },
   };
+}
+
+export async function getReplyCountsForUser(userId: string): Promise<Record<string, number>> {
+  const [grouped, needsReview] = await Promise.all([
+    prisma.reply.groupBy({
+      by: ["intent"],
+      where: { lead: { campaign: { createdById: userId } } },
+      _count: { id: true },
+    }),
+    prisma.reply.count({
+      where: { lead: { campaign: { createdById: userId } }, requiresHumanReview: true },
+    }),
+  ]);
+
+  const counts: Record<string, number> = { ALL: 0, NEEDS_REVIEW: needsReview };
+  let total = 0;
+  for (const row of grouped) {
+    counts[row.intent] = row._count.id;
+    total += row._count.id;
+  }
+  counts.ALL = total;
+  return counts;
 }
 
 export { getPipelineStats, getPipelineStatsForUser };

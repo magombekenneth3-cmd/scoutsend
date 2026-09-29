@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useId } from "react";
+import { motion } from "framer-motion";
 import { CampaignBadge } from "./badges";
 import type { CampaignStatus } from "./badges";
 
@@ -28,9 +29,11 @@ function RateBar({ value, color }: { value: number; color: string }) {
                 role="presentation"
                 aria-hidden="true"
             >
-                <div
+                <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(value, 100)}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
                     className={`h-full ${color} rounded-full`}
-                    style={{ width: `${Math.min(value, 100)}%` }}
                 />
             </div>
             <span className="text-sm text-[var(--text-secondary)] tabular-nums">
@@ -42,11 +45,14 @@ function RateBar({ value, color }: { value: number; color: string }) {
 
 function CampaignRow({ campaign }: CampaignRowProps) {
     return (
-        <tr className="group border-b border-[var(--border)] hover:bg-[var(--surface-2)] transition-colors duration-100">
+        <motion.tr
+            whileHover={{ backgroundColor: "rgba(244, 63, 94, 0.04)" }}
+            className="row-hover-glow border-b border-[var(--border)] transition-colors duration-150"
+        >
             <td className="px-4 py-3 min-w-[160px]">
                 <Link
                     href={`/dashboard/campaigns/${campaign.id}`}
-                    className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--red)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] rounded"
+                    className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--red-text)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] rounded"
                 >
                     {campaign.name}
                 </Link>
@@ -72,7 +78,7 @@ function CampaignRow({ campaign }: CampaignRowProps) {
                     day: "numeric",
                 })}
             </td>
-        </tr>
+        </motion.tr>
     );
 }
 
@@ -84,8 +90,8 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
     const captionId = useId();
 
     return (
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-4 border-b border-[var(--border)]">
+        <div className="card-glass overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-[var(--glass-border)]">
                 <h2
                     id={captionId}
                     className="text-sm font-semibold font-display text-[var(--text-primary)]"

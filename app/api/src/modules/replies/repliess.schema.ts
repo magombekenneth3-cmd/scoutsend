@@ -14,6 +14,9 @@ export const createReplySchema = z.object({
 
 export const updateReplySchema = z.object({
   requiresHumanReview: z.boolean().optional(),
+  isRead: z.boolean().optional(),
+  snoozedUntil: z.string().datetime().nullable().optional(),
+  intent: z.enum(["POSITIVE", "NEGATIVE", "NOT_INTERESTED", "OUT_OF_OFFICE", "MEETING_REQUEST", "QUESTION", "UNKNOWN"]).optional(),
 });
 
 export const getRepliesQuerySchema = z.object({

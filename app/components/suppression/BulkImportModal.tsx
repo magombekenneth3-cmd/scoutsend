@@ -278,7 +278,7 @@ export function BulkImportModal({ open, onClose, onImported }: Props) {
                                     className="block text-xs font-semibold text-[var(--text-secondary)]"
                                 >
                                     Emails or domains{" "}
-                                    <span className="text-[var(--red)]">*</span>
+                                    <span className="text-[var(--red-text)]">*</span>
                                     <span className="ml-2 text-[var(--text-muted)] font-normal">
                                         one per line, or comma-separated
                                     </span>
@@ -325,7 +325,7 @@ export function BulkImportModal({ open, onClose, onImported }: Props) {
                                     htmlFor="bulk-reason"
                                     className="block text-xs font-semibold text-[var(--text-secondary)]"
                                 >
-                                    Reason <span className="text-[var(--red)]">*</span>
+                                    Reason <span className="text-[var(--red-text)]">*</span>
                                 </label>
                                 <input
                                     id="bulk-reason"

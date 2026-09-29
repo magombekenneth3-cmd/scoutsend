@@ -84,4 +84,8 @@ export const getLeadsQuerySchema = z.object({
     .string()
     .optional()
     .transform((v) => (v === "true" ? true : v === "false" ? false : undefined)),
+  recommendedAction: z.string().optional(),
+  minScore: z.coerce.number().optional(),
+  pipelineStage: z.string().optional(),
+  emailStatus: z.string().optional(),
 });

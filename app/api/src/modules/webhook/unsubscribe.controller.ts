@@ -1,15 +1,17 @@
-import { createHmac } from "crypto";
 import { Request, Response } from "express";
 import { prisma } from "../../lib/prisma";
 import { logger } from "../../lib/logger";
+import { verifyHmacSignature } from "../../lib/webhook-auth";
+
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+if (!WEBHOOK_SECRET) throw new Error("[unsubscribe] WEBHOOK_SECRET env var is not set");
 
 // ─── shared helpers ───────────────────────────────────────────────────────────
 
+// SECURITY FIX: replaced plain === comparison (vulnerable to timing attacks)
+// with verifyHmacSignature from lib/webhook-auth.ts which uses timingSafeEqual.
 function verifyToken(token: string, mid: string): boolean {
-  const expected = createHmac("sha256", process.env.WEBHOOK_SECRET!)
-    .update(mid)
-    .digest("hex");
-  return token === expected;
+  return verifyHmacSignature(mid, token, WEBHOOK_SECRET!);
 }
 
 async function suppressEmail(mid: string): Promise<string | null> {
@@ -19,7 +21,7 @@ async function suppressEmail(mid: string): Promise<string | null> {
       lead: {
         select: {
           email: true,
-          campaign: { select: { createdById: true } },
+          campaign: { select: { createdById: true, orgId: true } },
         },
       },
     },
@@ -28,14 +30,17 @@ async function suppressEmail(mid: string): Promise<string | null> {
   if (!message?.lead?.email) return null;
 
   const email = message.lead.email;
-  const userId = message.lead.campaign.createdById;
+  const { createdById: userId, orgId } = message.lead.campaign;
+
+  if (!orgId) return email;
 
   await prisma.suppression.upsert({
-    where: { email_userId: { email, userId } },
+    where: { email_orgId: { email, orgId } },
     create: {
       email,
       reason: "User clicked unsubscribe link",
       source: "unsubscribe-link",
+      orgId,
       userId,
     },
     update: {},

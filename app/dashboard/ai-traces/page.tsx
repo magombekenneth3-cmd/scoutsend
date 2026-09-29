@@ -10,6 +10,8 @@ import { AITraceFilters } from "@/app/components/Aitrace/AitraceFilter";
 import { AITraceRow } from "@/app/components/Aitrace/AitraceRows";
 import { AITraceDetailPanel } from "@/app/components/Aitrace/aitraceDetailPanel";
 import { AITrace, AITraceStats, TraceFilters } from "@/app/api/ai-traces/types";
+import { useToast } from "@/app/hooks/useToast";
+import { ToastRegion } from "@/app/components/dashboard/ToastRegion";
 
 
 const DEFAULT_FILTERS: TraceFilters = {
@@ -87,7 +89,7 @@ function PageLoadingScreen() {
     return (
         <div className="flex-1 flex items-center justify-center">
             <div className="flex flex-col items-center gap-3">
-                <svg className="animate-spin text-[var(--red)]" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg className="animate-spin text-[var(--red-text)]" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
                 <p className="text-sm text-[var(--text-muted)]">Verifying access…</p>
@@ -109,6 +111,7 @@ export default function AITracesPage() {
     const [selectedTrace, setSelectedTrace] = useState<AITrace | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [showBreakdown, setShowBreakdown] = useState(false);
+    const { toasts, addToast, dismiss } = useToast();
 
     useEffect(() => {
         fetchCurrentUser()
@@ -189,6 +192,7 @@ export default function AITracesPage() {
             } : s);
         } catch (e) {
             console.error("[delete trace]", e);
+            addToast("error", "Failed to delete trace — please try again");
         } finally {
             setDeletingId(null);
         }
@@ -226,7 +230,7 @@ export default function AITracesPage() {
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center space-y-3">
                         <p className="text-sm text-[var(--text-secondary)]">Failed to verify your session.</p>
-                        <button onClick={() => router.refresh()} className="text-xs text-[var(--red)] hover:underline">Try again</button>
+                        <button onClick={() => router.refresh()} className="text-xs text-[var(--red-text)] hover:underline">Try again</button>
                     </div>
                 </div>
             </div>
@@ -235,6 +239,7 @@ export default function AITracesPage() {
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
+            <ToastRegion toasts={toasts} onDismiss={dismiss} />
             <TopBar
                 title="AI Traces"
                 subtitle={loadingTraces ? "Loading…" : `${meta.total.toLocaleString()} trace${meta.total !== 1 ? "s" : ""}`}
@@ -246,7 +251,7 @@ export default function AITracesPage() {
                                 className={[
                                     "inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
                                     showBreakdown
-                                        ? "bg-[var(--red-glow)] border-[var(--border-red)] text-[var(--red)]"
+                                        ? "bg-[var(--red-glow)] border-[var(--border-red)] text-[var(--red-text)]"
                                         : "bg-[var(--surface)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                                 ].join(" ")}
                             >
@@ -316,7 +321,7 @@ export default function AITracesPage() {
                                 </svg>
                             </div>
                             <p className="text-sm text-[var(--text-secondary)]">{tracesError}</p>
-                            <button onClick={() => loadTraces(filters)} className="text-xs text-[var(--red)] hover:underline focus-visible:outline-none">Retry</button>
+                            <button onClick={() => loadTraces(filters)} className="text-xs text-[var(--red-text)] hover:underline focus-visible:outline-none">Retry</button>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">

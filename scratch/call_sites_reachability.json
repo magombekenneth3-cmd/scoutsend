@@ -1,0 +1,3512 @@
+[
+  {
+    "file": "app/api/src/check-brand.ts",
+    "line": 4,
+    "model": "BrandSettings",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const settings = await prisma.brandSettings.findMany();"
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 18,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 36,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 59,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leadsWithSignals = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/company/company-engagement.service.ts",
+    "line": 17,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/company/company-research-context.ts",
+    "line": 96,
+    "model": "Company",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const company = await prisma.company.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/leads/eligibility.service.ts",
+    "line": 210,
+    "model": "Reply",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const nonOooReply = await prisma.reply.findFirst({"
+  },
+  {
+    "file": "app/api/src/lib/leads/eligibility.service.ts",
+    "line": 68,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/linkedInAgent/linkedDiscovery.persistence.ts",
+    "line": 45,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existingLead = await tx.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/lib/linkedInAgent/linkedDiscovery.persistence.ts",
+    "line": 63,
+    "model": "Lead",
+    "op": "create",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const createdLead = await tx.lead.create({"
+  },
+  {
+    "file": "app/api/src/lib/ownership.ts",
+    "line": 49,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/prospect-discovery/email-reveal.ts",
+    "line": 182,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const localSibling = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/lib/providers/apify-linkedin.provider.ts",
+    "line": 148,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/providers/apify-linkedin.provider.ts",
+    "line": 180,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({ where: { id: lead.id }, data: patch });"
+  },
+  {
+    "file": "app/api/src/lib/reply/reply.policy.ts",
+    "line": 52,
+    "model": "Reply",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const recentAutoSend = await prisma.reply.findFirst({"
+  },
+  {
+    "file": "app/api/src/lib/send/campaign-convergence.engine.ts",
+    "line": 122,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const scheduledLeads = await tx.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/send/manual-review.service.ts",
+    "line": 43,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const msg = await tx.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 73,
+    "model": "SenderMailbox",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "const mailbox = await prisma.senderMailbox.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 94,
+    "model": "SenderMailbox",
+    "op": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "await prisma.senderMailbox.delete({ where: { id: testMailboxId } }).catch(() => null);"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 240,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 63,
+    "model": "Lead",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "const lead = await prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 95,
+    "model": "Lead",
+    "op": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "await prisma.lead.delete({ where: { id: testLeadId } }).catch(() => null);"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 102,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "const message = await prisma.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 131,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const updatedMsg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 159,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "const message2 = await prisma.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 186,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "const message3 = await prisma.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 216,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const msg3Check = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 256,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "const message = await prisma.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 79,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 113,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const txLead = await tx.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 83,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 27,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 65,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 94,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const staleMessages = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 124,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 146,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-dispatch.worker.ts",
+    "line": 195,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-dispatch.worker.ts",
+    "line": 221,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 169,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 359,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 224,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 414,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-quota.service.ts",
+    "line": 55,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await client.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-quota.service.ts",
+    "line": 296,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/unknown-reconciliation.sweeper.ts",
+    "line": 188,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/middleware/org-access.middleware.ts",
+    "line": 58,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const r = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/middleware/org-access.middleware.ts",
+    "line": 50,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const r = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/middleware/org-access.middleware.ts",
+    "line": 82,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const r = await prisma.brandSettings.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 167,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await tx.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 90,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const ownerMsg = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 146,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 193,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 216,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 248,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 330,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/brandSettings/brandsettings.service.ts",
+    "line": 15,
+    "model": "BrandSettings",
+    "op": "upsert",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "return prisma.brandSettings.upsert({"
+  },
+  {
+    "file": "app/api/src/modules/brandSettings/brandsettings.service.ts",
+    "line": 25,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "return prisma.brandSettings.findUnique({ where: { userId } });"
+  },
+  {
+    "file": "app/api/src/modules/brandSettings/brandsettings.service.ts",
+    "line": 35,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const settings = await prisma.brandSettings.findUnique({ where: { userId } });"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 21,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 54,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id: mailboxId } });"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 76,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 114,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 121,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 128,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 142,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 51,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const reply = await prisma.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 109,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 185,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const authState = await prisma.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 228,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const authState = await tx.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 238,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const updatedReply = await tx.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/crm/crm-sync.service.ts",
+    "line": 89,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/crm/crm-sync.service.ts",
+    "line": 160,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/campaign-health.agent.ts",
+    "line": 366,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1313,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1507,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await tx.lead.findFirst("
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1547,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await tx.lead.findFirst("
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1582,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await tx.lead.findFirst("
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1616,
+    "model": "Lead",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.lead.create("
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1695,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.lead.findFirst("
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 54,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const approved = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 150,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 179,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 96,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 51,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 156,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 188,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discoveryLib/insert.service.ts",
+    "line": 34,
+    "model": "Lead",
+    "op": "create",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "tx.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discoveryLib/ranking.ts",
+    "line": 48,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const scoredLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 291,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const candidates = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 494,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const current = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 556,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 563,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 611,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({ where: { id: lead.id }, data: updateData });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 665,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 795,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichmentData: true } });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 902,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichmentData: true } });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 939,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1047,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1091,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await tx.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1118,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1130,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1302,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1383,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1394,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1559,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existingEmailRows = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1660,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1670,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1779,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 509,
+    "model": "Company",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const company = await prisma.company.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 526,
+    "model": "Company",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.company.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.queue.ts",
+    "line": 197,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-sequence.agent.ts",
+    "line": 764,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "? await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-sequence.agent.ts",
+    "line": 844,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const created = await tx.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-sequence.agent.ts",
+    "line": 514,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-cache.ts",
+    "line": 46,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 352,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 466,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 495,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const rescored = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 547,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const staleLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 434,
+    "model": "Company",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.company.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 451,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const current = await tx.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 727,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 777,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leadCampaign = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 770,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 538,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 950,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.create("
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 1134,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1269,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1430,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1474,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1509,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1634,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2019,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2146,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2173,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2508,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await tx.lead.findUnique("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2529,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "? await tx.lead.update("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2561,
+    "model": "Lead",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": ": await tx.lead.create("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2680,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.findUnique("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2694,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.update("
+  },
+  {
+    "file": "app/api/src/modules/gemini/job-intel.agent.ts",
+    "line": 1111,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-agent.agent.ts",
+    "line": 160,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const updated = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 791,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 677,
+    "model": "Company",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const company = await prisma.company.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 708,
+    "model": "Company",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const company = await prisma.company.findUnique({ where: { id: companyId }, select: { enrichmentData: true } });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 710,
+    "model": "Company",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.company.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1192,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": ": await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1770,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1987,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/linkedin-outreach.agent.ts",
+    "line": 250,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/multi-source-discovery.agent.ts",
+    "line": 103,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/multi-source-discovery.agent.ts",
+    "line": 107,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/objection-handler.agent.ts",
+    "line": 488,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const reply = await prisma.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/objection-handler.agent.ts",
+    "line": 562,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/objection-handler.agent.ts",
+    "line": 588,
+    "model": "Reply",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const replies = await prisma.reply.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/orchestration.graph.ts",
+    "line": 232,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const unscoredLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/orchestration.service.ts",
+    "line": 207,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/quality.agent.ts",
+    "line": 632,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/quality.agent.ts",
+    "line": 967,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/research.agent.ts",
+    "line": 551,
+    "model": "Lead",
+    "op": "findUniqueOrThrow",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.lead.findUniqueOrThrow({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 257,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const messages = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 437,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 535,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const stillHeld = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 248,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/seed-warmup.agent.ts",
+    "line": 12,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 393,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 408,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1018,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const alternativeMailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1471,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1663,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1760,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1297,
+    "model": "Reply",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const replies = await prisma.reply.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1407,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1177,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const rawCandidatePool = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1207,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1271,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const messages = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1349,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1361,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1376,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1385,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1403,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1499,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1622,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1744,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/signal-ingestion.agent.ts",
+    "line": 53,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/tech-detection.agent.ts",
+    "line": 1045,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/tech-detection.agent.ts",
+    "line": 1105,
+    "model": "Company",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const company = await prisma.company.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 108,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 139,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 214,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/leadSignal.worker.ts",
+    "line": 58,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 393,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "for (const row of await prisma.senderMailbox.findMany({ select: { id: true, timezone: true, lastResetAt: true } })) {"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 395,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.senderMailbox.update({ where: { id: row.id }, data: { currentSent: 0, lastResetAt: now } });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 536,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 158,
+    "model": "Reply",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const pendingReplies = await prisma.reply.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 671,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const qualifiedLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 718,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 419,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const stuckMessages = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 859,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const messages = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 145,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 812,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const scoredLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 908,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const scoredLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 37,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const scored = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 48,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { linkedinUrl: true } });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 64,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const scored = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 77,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 115,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 48,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 83,
+    "model": "SenderMailbox",
+    "op": "findUniqueOrThrow",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "prisma.senderMailbox.findUniqueOrThrow({ where: { id: senderMailboxId } }),"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 113,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 273,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 430,
+    "model": "SenderMailbox",
+    "op": "findUniqueOrThrow",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "WORKER_REACHABLE",
+    "snippet": "const customerMailbox = await prisma.senderMailbox.findUniqueOrThrow({ where: { id: senderMailboxId } });"
+  },
+  {
+    "file": "app/api/src/modules/lead-agent/lead-agent.controller.ts",
+    "line": 105,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/lead-agent/lead-agent.controller.ts",
+    "line": 191,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 600,
+    "model": "Lead",
+    "op": "create",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 841,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 983,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1017,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const owned = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1086,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const ownedLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1167,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1207,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1220,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const committee = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1274,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1302,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1352,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1314,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existing = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1388,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const pendingMessages = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 23,
+    "model": "Lead",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "return await prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 67,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 122,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 165,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const currentLead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 183,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 199,
+    "model": "Lead",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "return prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/learning/learning.service.ts",
+    "line": 209,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/learning/learning.service.ts",
+    "line": 259,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/learning/learning.service.ts",
+    "line": 332,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/lookalike/seed-resolver.ts",
+    "line": 41,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.controller.ts",
+    "line": 42,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 642,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 657,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 124,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 131,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 159,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.outreachMessage.findMany({ where, select: { id: true }, orderBy, skip, take: limit }),"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 166,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const messages = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 182,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 200,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existing = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 239,
+    "model": "OutreachMessage",
+    "op": "findUniqueOrThrow",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.outreachMessage.findUniqueOrThrow({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 247,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existing = await tx.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 290,
+    "model": "OutreachMessage",
+    "op": "findUniqueOrThrow",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await tx.outreachMessage.findUniqueOrThrow({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 386,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existing = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 429,
+    "model": "OutreachMessage",
+    "op": "findUniqueOrThrow",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findUniqueOrThrow({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 532,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const messages = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 570,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 627,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 638,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 687,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 710,
+    "model": "OutreachMessage",
+    "op": "findUniqueOrThrow",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.outreachMessage.findUniqueOrThrow({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 722,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const messages = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/outbox/outbox.integration.test.ts",
+    "line": 91,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "await tx.outreachMessage.create({ data: { subject: \"Hello\", body: \"World\" } });"
+  },
+  {
+    "file": "app/api/src/modules/outbox/outbox.integration.test.ts",
+    "line": 115,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "TEST_ONLY",
+    "snippet": "const msg = await tx.outreachMessage.create({ data: { subject: \"Test\" } });"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 201,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 837,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "leads = (await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 855,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "leads = (await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1011,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 357,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "createdMessage = await tx.outreachMessage.create({ data: createData });"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 359,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "createdMessage = await tx.outreachMessage.create({ data: createData });"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 478,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const existingMsg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 592,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({ where: { id: current.persistedMessageId } });"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 684,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const existingMsg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1048,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1061,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1085,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1096,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1122,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1131,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1219,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 916,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const dbLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1129,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1438,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1524,
+    "model": "Lead",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 111,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 123,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 192,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const currentLead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 302,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 335,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const currentLead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.contoller.ts",
+    "line": 29,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1237,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1260,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 352,
+    "model": "Reply",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.reply.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 498,
+    "model": "Reply",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existingReply = await prisma.reply.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 524,
+    "model": "Reply",
+    "op": "create",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const createdReply = await tx.reply.create({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 581,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const reply = await prisma.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 741,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 778,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "prisma.reply.update({ where: { id: replyId }, data: { oooRequeuedAt: new Date() } })"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 904,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const reply = await prisma.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1041,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1085,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1108,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const reply = await prisma.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1252,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1322,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const reply = await prisma.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1361,
+    "model": "Reply",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.reply.findMany({ where, select: { id: true }, orderBy, skip, take: safeLimit }),"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1371,
+    "model": "Reply",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const replies = await prisma.reply.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1398,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1430,
+    "model": "Reply",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existing = await prisma.reply.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1454,
+    "model": "Reply",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const updated = await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1511,
+    "model": "Reply",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.reply.findMany({ where, select: { id: true }, orderBy, skip, take: safeLimit }),"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1521,
+    "model": "Reply",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const replies = await prisma.reply.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 467,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 178,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const pendingMessages = await client.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 347,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 487,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 550,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 115,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 144,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 167,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 183,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 285,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 313,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 174,
+    "model": "Reply",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existingReplies = await prisma.reply.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 82,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 225,
+    "model": "Lead",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 64,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const msg = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 196,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const matched = await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 19,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 35,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 64,
+    "model": "SenderMailbox",
+    "op": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "return await prisma.senderMailbox.create({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 106,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 146,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "return prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 206,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "return prisma.senderMailbox.update({ where: { id }, data: updateData });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 223,
+    "model": "SenderMailbox",
+    "op": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "return prisma.senderMailbox.delete({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 236,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "return prisma.senderMailbox.update({ where: { id }, data: { currentSent: 0 } });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 241,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingColumn": true,
+    "classification": "REACHABLE_NOW",
+    "snippet": "? await prisma.senderMailbox.findUnique({ where: { id } })"
+  },
+  {
+    "file": "app/api/src/modules/webhook/delivery.worker.ts",
+    "line": 107,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await tx.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/delivery.worker.ts",
+    "line": 251,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 148,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await tx.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 219,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 320,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 332,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 291,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 116,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const campaignOrg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 172,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 261,
+    "model": "OutreachMessage",
+    "op": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "(await prisma.outreachMessage.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/inbound.controller.ts",
+    "line": 105,
+    "model": "Reply",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const existingReply = await prisma.reply.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/inbound.controller.ts",
+    "line": 91,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/inbound.controller.ts",
+    "line": 118,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "outreachMessage = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/inbound.controller.ts",
+    "line": 125,
+    "model": "OutreachMessage",
+    "op": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "outreachMessage = await prisma.outreachMessage.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/linkedin.controller.ts",
+    "line": 70,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/tracking.controller.ts",
+    "line": 84,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/tracking.controller.ts",
+    "line": 189,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/unsubscribe.controller.ts",
+    "line": 18,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/routes/unsubscribe.routes.ts",
+    "line": 39,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingColumn": false,
+    "classification": "SAFE_BY_EXPLICIT_SELECT",
+    "snippet": "const message = await prisma.outreachMessage.findUnique({"
+  }
+]

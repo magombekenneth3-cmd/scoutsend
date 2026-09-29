@@ -25,7 +25,7 @@ export function BrandField({
             >
                 {label}
                 {required && (
-                    <span className="text-[var(--red)] ml-1" aria-hidden="true">
+                    <span className="text-[var(--red-text)] ml-1" aria-hidden="true">
                         *
                     </span>
                 )}

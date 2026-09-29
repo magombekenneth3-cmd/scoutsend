@@ -28,6 +28,7 @@ const DEFAULT_FORM: BrandSettingsInput = {
     senderName: "",
     senderTitle: null,
     senderPhone: null,
+    provenStats: null,
     companyAddress: null,
     unsubscribeText:
         "You received this email because you match our ideal customer profile. To unsubscribe, reply with 'unsubscribe'.",
@@ -56,6 +57,7 @@ function settingsToForm(s: BrandSettings): BrandSettingsInput {
         senderName: s.senderName ?? "",
         senderTitle: s.senderTitle ?? null,
         senderPhone: s.senderPhone ?? null,
+        provenStats: Array.isArray(s.provenStats) ? s.provenStats : null,
         companyAddress: s.companyAddress ?? null,
         unsubscribeText:
             s.unsubscribeText ??

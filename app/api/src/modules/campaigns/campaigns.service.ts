@@ -1,28 +1,35 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { z } from "zod";
 import { NotFoundError, ForbiddenError, ValidationError, ConflictError } from "../../lib/errors";
 import {
   createCampaignSchema,
   updateCampaignSchema,
-} from "./campaign.shema";
+} from "./campaign.schema";
 import { campaignQueue } from "../gemini/campaign.scheduler";
 
 export async function createCampaign(
   data: z.infer<typeof createCampaignSchema>,
-  createdById: string
+  createdById: string,
+  orgId: string
 ) {
+  const { provenStats, ...rest } = data;
   return prisma.campaign.create({
     data: {
-      ...data,
+      ...rest,
       createdById,
+      orgId,
+      ...(provenStats !== undefined && {
+        provenStats: provenStats === null ? Prisma.DbNull : (provenStats as Prisma.InputJsonValue),
+      }),
     },
   });
 }
 
-export async function getCampaigns(createdById: string) {
+export async function getCampaigns(orgId: string) {
   return prisma.campaign.findMany({
     where: {
-      createdById,
+      orgId,
       deletedAt: null,
     },
     orderBy: {
@@ -50,6 +57,12 @@ export async function getCampaigns(createdById: string) {
           id: true,
         },
       },
+      queueJobs: {
+        where: { status: "FAILED" },
+        orderBy: { updatedAt: "desc" },
+        take: 1,
+        select: { errorMessage: true, result: true },
+      },
     },
   });
 }
@@ -57,7 +70,7 @@ export async function getCampaigns(createdById: string) {
 // FIX 6: filter soft-deleted leads in count and paginated include
 export async function getCampaignById(
   id: string,
-  createdById: string,
+  orgId: string,
   leadsPage: number = 1,
   leadsLimit: number = 50
 ) {
@@ -66,7 +79,7 @@ export async function getCampaignById(
   return prisma.campaign.findFirst({
     where: {
       id,
-      createdById,
+      orgId,
       deletedAt: null,
     },
     include: {
@@ -80,7 +93,9 @@ export async function getCampaignById(
         skip,
         take: leadsLimit,
         orderBy: { qualificationScore: "desc" },
+        select: { id: true },
       },
+
       senderMailbox: {
         select: {
           emailAddress: true,
@@ -98,6 +113,7 @@ export async function getCampaignById(
         take: 1,
         select: {
           errorMessage: true,
+          result: true,
         },
       },
     },
@@ -106,12 +122,12 @@ export async function getCampaignById(
 
 export async function updateCampaign(
   id: string,
-  createdById: string,
+  orgId: string,
   data: z.infer<typeof updateCampaignSchema>
 ) {
   return prisma.$transaction(async (tx) => {
     const existing = await tx.campaign.findFirst({
-      where: { id, createdById, deletedAt: null },
+      where: { id, orgId, deletedAt: null },
       select: { id: true },
     });
 
@@ -127,17 +143,26 @@ export async function updateCampaign(
       throw new NotFoundError("Campaign");
     }
 
-    return tx.campaign.update({ where: { id }, data });
+    const { provenStats, ...rest } = data;
+    return tx.campaign.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(provenStats !== undefined && {
+          provenStats: provenStats === null ? Prisma.DbNull : (provenStats as Prisma.InputJsonValue),
+        }),
+      } as Prisma.CampaignUpdateInput,
+    });
   });
 }
 
 export async function deleteCampaign(
   id: string,
-  createdById: string
+  orgId: string
 ) {
   return prisma.$transaction(async (tx) => {
     const existing = await tx.campaign.findFirst({
-      where: { id, createdById, deletedAt: null },
+      where: { id, orgId, deletedAt: null },
       select: { id: true },
     });
 
@@ -161,9 +186,9 @@ export async function deleteCampaign(
 }
 
 // FIX 8: reinstate sender guard before queueing pipeline
-export async function runCampaign(id: string, createdById: string) {
+export async function runCampaign(id: string, orgId: string, userId: string) {
   const campaign = await prisma.campaign.findFirst({
-    where: { id, createdById, deletedAt: null },
+    where: { id, orgId, createdById: userId, deletedAt: null },
     select: {
       id: true,
       status: true,
@@ -175,11 +200,11 @@ export async function runCampaign(id: string, createdById: string) {
   });
 
   if (!campaign) {
-    const exists = await prisma.campaign.findUnique({
-      where: { id },
-      select: { id: true, deletedAt: true },
+    const exists = await prisma.campaign.findFirst({
+      where: { id, orgId, deletedAt: null },
+      select: { id: true },
     });
-    if (exists && !exists.deletedAt) throw new ForbiddenError();
+    if (exists) throw new ForbiddenError();
     throw new NotFoundError("Campaign");
   }
 
@@ -216,7 +241,7 @@ export async function runCampaign(id: string, createdById: string) {
   const jobId = `run-pipeline-${id}`;
   await campaignQueue.add(
     "run-pipeline",
-    { campaignId: id, triggeredBy: createdById },
+    { campaignId: id, triggeredBy: userId },
     {
       jobId,
       removeOnComplete: { age: 300 },
@@ -229,54 +254,50 @@ export async function runCampaign(id: string, createdById: string) {
 
 const PAUSABLE_STATUSES = ["RESEARCHING", "GENERATING", "REVIEW", "QUEUED", "SENDING"] as const;
 
-type PausedRow = { id: string; status: string; previousStatus: string };
-type ResumedRow = { id: string; status: string };
 
-export async function pauseCampaign(id: string, createdById: string): Promise<{ campaignId: string; status: string }> {
-  const rows = await prisma.$queryRaw<PausedRow[]>`
-    UPDATE "Campaign"
-    SET
-      status            = 'PAUSED'::"CampaignStatus",
-      "previousStatus"  = status,
-      "updatedAt"       = NOW()
-    WHERE
-      id               = ${id}
-      AND "createdById" = ${createdById}
-      AND status        = ANY(ARRAY['RESEARCHING','GENERATING','REVIEW','QUEUED','SENDING']::"CampaignStatus"[])
-      AND "deletedAt"   IS NULL
-    RETURNING id, status, "previousStatus"
-  `;
-
-  if (rows.length === 0) {
-    const exists = await prisma.campaign.findFirst({
-      where: { id, deletedAt: null },
-      select: { id: true, createdById: true, status: true },
+export async function pauseCampaign(id: string, orgId: string): Promise<{ campaignId: string; status: string }> {
+  return prisma.$transaction(async (tx) => {
+    const campaign = await tx.campaign.findFirst({
+      where: { id, orgId, status: { in: [...PAUSABLE_STATUSES] }, deletedAt: null },
+      select: { id: true, status: true },
     });
-    if (!exists) throw new NotFoundError("Campaign");
-    if (exists.createdById !== createdById) throw new ForbiddenError();
-    throw new ConflictError(`Campaign cannot be paused from status "${exists.status}"`);
-  }
 
-  return { campaignId: rows[0].id, status: rows[0].status };
+    if (!campaign) {
+      const exists = await tx.campaign.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true, orgId: true, status: true },
+      });
+      if (!exists) throw new NotFoundError("Campaign");
+      if (exists.orgId !== orgId) throw new ForbiddenError();
+      throw new ConflictError(`Campaign cannot be paused from status "${exists.status}"`);
+    }
+
+    await tx.campaign.update({
+      where: { id },
+      data: { status: "PAUSED", previousStatus: campaign.status },
+    });
+
+    return { campaignId: id, status: "PAUSED" };
+  });
 }
 
 // FIX 7: null guard for previousStatus — refuses to resume without a recorded prior state
 export async function resumeCampaign(
   id: string,
-  createdById: string
+  orgId: string
 ): Promise<{ campaignId: string; status: string }> {
   const campaign = await prisma.campaign.findFirst({
-    where: { id, createdById, status: "PAUSED", deletedAt: null },
+    where: { id, orgId, status: "PAUSED", deletedAt: null },
     select: { id: true, previousStatus: true },
   });
 
   if (!campaign) {
     const exists = await prisma.campaign.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true, createdById: true, status: true },
+      select: { id: true, orgId: true, status: true },
     });
     if (!exists) throw new NotFoundError("Campaign");
-    if (exists.createdById !== createdById) throw new ForbiddenError();
+    if (exists.orgId !== orgId) throw new ForbiddenError();
     throw new ConflictError(`Campaign cannot be resumed from status "${exists.status}"`);
   }
 
@@ -286,31 +307,22 @@ export async function resumeCampaign(
     );
   }
 
-  const rows = await prisma.$queryRaw<ResumedRow[]>`
-    UPDATE "Campaign"
-    SET
-      status           = ${campaign.previousStatus}::"CampaignStatus",
-      "previousStatus" = NULL,
-      "updatedAt"      = NOW()
-    WHERE
-      id               = ${id}
-      AND "createdById" = ${createdById}
-      AND status        = 'PAUSED'::"CampaignStatus"
-      AND "deletedAt"   IS NULL
-    RETURNING id, status
-  `;
+  const updated = await prisma.campaign.updateMany({
+    where: { id, orgId, status: "PAUSED", deletedAt: null },
+    data: { status: campaign.previousStatus, previousStatus: null },
+  });
 
-  if (rows.length === 0) {
+  if (updated.count === 0) {
     throw new ConflictError("Campaign resume conflict — another request may have already resumed it");
   }
 
-  return { campaignId: rows[0].id, status: rows[0].status };
+  return { campaignId: id, status: campaign.previousStatus };
 }
 
 // FIX 15: replace 7 correlated subqueries with two GROUP BY aggregations + soft-delete filter
-export async function getCampaignPipelineStats(campaignId: string, createdById: string) {
+export async function getCampaignPipelineStats(campaignId: string, orgId: string) {
   const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, createdById, deletedAt: null },
+    where: { id: campaignId, orgId, deletedAt: null },
     select: { id: true },
   });
   if (!campaign) {
@@ -387,4 +399,106 @@ export async function getCampaignPipelineStats(campaignId: string, createdById: 
     emailsBounced: d.get("BOUNCED") ?? 0,
     activeJob: activeJob ?? null,
   };
+}
+
+export async function getCampaignPreflight(id: string, orgId: string) {
+  const campaign = await prisma.campaign.findFirst({
+    where: { id, orgId, deletedAt: null },
+    select: {
+      id: true,
+      senderMailboxId: true,
+      senderDomainId: true,
+      linkedInAccountId: true,
+      senderMailbox: {
+        select: {
+          id: true,
+          health: true,
+          emailAddress: true,
+        }
+      },
+      senderDomain: {
+        select: {
+          id: true,
+          health: true,
+          domain: true,
+          spfValid: true,
+          dkimValid: true,
+          dmarcValid: true,
+        }
+      },
+      linkedInAccount: {
+        select: {
+          id: true,
+          name: true,
+        }
+      }
+    }
+  });
+
+  if (!campaign) {
+    throw new NotFoundError("Campaign");
+  }
+
+  const [leadCount, stepCount] = await Promise.all([
+    prisma.lead.count({ where: { campaignId: id, deletedAt: null } }),
+    prisma.sequenceStep.count({ where: { campaignId: id } }),
+  ]);
+
+  const checks = {
+    leads: {
+      valid: leadCount > 0,
+      count: leadCount,
+    },
+    sequence: {
+      valid: stepCount > 0,
+      count: stepCount,
+    },
+    sender: {
+      configured: !!(campaign.senderMailboxId || campaign.senderDomainId || campaign.linkedInAccountId),
+      type: campaign.senderMailboxId ? "mailbox" : campaign.senderDomainId ? "domain" : campaign.linkedInAccountId ? "linkedin" : "none",
+      valid: false,
+      details: null as any,
+    },
+    dns: {
+      valid: false,
+      spf: false,
+      dkim: false,
+      dmarc: false,
+    }
+  };
+
+  if (campaign.senderMailbox) {
+    const mailbox = campaign.senderMailbox;
+    const healthOk = mailbox.health === "HEALTHY" || mailbox.health === "WARNING";
+    checks.sender.valid = healthOk;
+    checks.sender.details = { id: mailbox.id, email: mailbox.emailAddress, health: mailbox.health };
+    if (campaign.senderDomain) {
+      checks.dns.spf = !!campaign.senderDomain.spfValid;
+      checks.dns.dkim = !!campaign.senderDomain.dkimValid;
+      checks.dns.dmarc = !!campaign.senderDomain.dmarcValid;
+      checks.dns.valid = checks.dns.spf && checks.dns.dkim && checks.dns.dmarc;
+    } else {
+      checks.dns.spf = false;
+      checks.dns.dkim = false;
+      checks.dns.dmarc = false;
+      checks.dns.valid = false;
+    }
+  } else if (campaign.senderDomain) {
+    const domain = campaign.senderDomain;
+    const healthOk = domain.health === "HEALTHY" || domain.health === "WARNING";
+    checks.sender.valid = healthOk;
+    checks.sender.details = { id: domain.id, domain: domain.domain, health: domain.health };
+    checks.dns.spf = !!domain.spfValid;
+    checks.dns.dkim = !!domain.dkimValid;
+    checks.dns.dmarc = !!domain.dmarcValid;
+    checks.dns.valid = checks.dns.spf && checks.dns.dkim && checks.dns.dmarc;
+  } else if (campaign.linkedInAccount) {
+    checks.sender.valid = true;
+    checks.sender.details = { id: campaign.linkedInAccount.id, name: campaign.linkedInAccount.name, health: "HEALTHY" };
+    checks.dns.valid = true;
+  }
+
+  const ready = checks.leads.valid && checks.sequence.valid && checks.sender.valid && checks.dns.valid;
+
+  return { ready, checks };
 }

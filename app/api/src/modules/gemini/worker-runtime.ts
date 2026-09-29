@@ -76,6 +76,7 @@ export function wireProcessShutdown(): void {
 
 export function wireWorkerEvents(w: Worker, queueName: string): void {
   w.on("active", async (job) => {
+    if (!job?.id) return;
     const data = job.data as Record<string, unknown>;
     const campaignId = data?.campaignId as string | undefined;
 
@@ -90,9 +91,9 @@ export function wireWorkerEvents(w: Worker, queueName: string): void {
     }
 
     await prisma.queueJob.upsert({
-      where: { bullJobId: job.id! },
+      where: { bullJobId: job.id },
       create: {
-        bullJobId: job.id!,
+        bullJobId: job.id,
         queueName,
         jobType: job.name,
         status: "ACTIVE",
@@ -110,6 +111,7 @@ export function wireWorkerEvents(w: Worker, queueName: string): void {
   });
 
   w.on("completed", async (job) => {
+    if (!job?.id) return;
     const campaignId = (job.data as Record<string, unknown>)?.campaignId as string | undefined;
     logger.info({ jobId: job.id, jobName: job.name, queueName }, "[worker-runtime] Job completed");
 
@@ -127,18 +129,19 @@ export function wireWorkerEvents(w: Worker, queueName: string): void {
     }
 
     await prisma.queueJob.updateMany({
-      where: { bullJobId: job.id! },
+      where: { bullJobId: job.id },
       data: { status: "COMPLETED", result: (job.returnvalue ?? null) as any },
     }).catch((err) => logger.error({ err, jobId: job.id }, "[worker-runtime] QueueJob update (completed) failed"));
   });
 
   w.on("failed", async (job, err) => {
-    const campaignId = (job?.data as Record<string, unknown>)?.campaignId as string | undefined;
-    const terminal = !!job && job.attemptsMade >= (job.opts.attempts ?? 1);
+    if (!job?.id) return;
+    const campaignId = (job.data as Record<string, unknown>)?.campaignId as string | undefined;
+    const terminal = job.attemptsMade >= (job.opts.attempts ?? 1);
 
-    logger.error({ jobId: job?.id, jobName: job?.name, queueName, terminal, err }, "[worker-runtime] Job failed");
+    logger.error({ jobId: job.id, jobName: job.name, queueName, terminal, err }, "[worker-runtime] Job failed");
 
-    if (campaignId && job) {
+    if (campaignId) {
       emitCampaignEvent({
         campaignId,
         type: "failed",
@@ -160,10 +163,8 @@ export function wireWorkerEvents(w: Worker, queueName: string): void {
       }
     }
 
-    if (!job) return;
-
     await prisma.queueJob.updateMany({
-      where: { bullJobId: job.id! },
+      where: { bullJobId: job.id },
       data: {
         status: terminal ? "FAILED" : "ACTIVE",
         attempts: job.attemptsMade,

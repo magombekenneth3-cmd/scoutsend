@@ -91,7 +91,7 @@ const labelCls = "block text-xs font-medium text-[var(--text-secondary)] mb-1.5"
 
 function FieldError({ msg }: { msg?: string }) {
     if (!msg) return null;
-    return <p className="mt-1 text-xs text-[var(--red)]">{msg}</p>;
+    return <p className="mt-1 text-xs text-[var(--red-text)]">{msg}</p>;
 }
 
 function Toggle({
@@ -446,7 +446,7 @@ export function AddMailboxSheet({ open, onClose, onCreated }: AddMailboxSheetPro
                                         <p className="text-sm font-semibold text-[var(--text-primary)]">{label}</p>
                                         <p className="text-xs text-[var(--text-muted)] mt-0.5">{description}</p>
                                     </div>
-                                    <svg className="flex-shrink-0 text-[var(--text-muted)] group-hover:text-[var(--red)] transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                    <svg className="flex-shrink-0 text-[var(--text-muted)] group-hover:text-[var(--red-text)] transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                                         <path d="M9 18l6-6-6-6" />
                                     </svg>
                                 </button>
@@ -458,7 +458,7 @@ export function AddMailboxSheet({ open, onClose, onCreated }: AddMailboxSheetPro
                     {step === "credentials" && (
                         <div className="space-y-4">
                             <div>
-                                <label className={labelCls}>Email address <span className="text-[var(--red)]">*</span></label>
+                                <label className={labelCls}>Email address <span className="text-[var(--red-text)]">*</span></label>
                                 <input
                                     ref={firstInputRef}
                                     type="email"
@@ -474,17 +474,17 @@ export function AddMailboxSheet({ open, onClose, onCreated }: AddMailboxSheetPro
                             {form.providerType === "GMAIL" && (
                                 <>
                                     <div>
-                                        <label className={labelCls}>Client ID <span className="text-[var(--red)]">*</span></label>
+                                        <label className={labelCls}>Client ID <span className="text-[var(--red-text)]">*</span></label>
                                         <input type="text" autoComplete="off" className={`${inputCls} ${errors.clientId ? errorBorder : ""}`} placeholder="xxxx.apps.googleusercontent.com" value={form.clientId} onChange={(e) => setField("clientId", e.target.value)} />
                                         <FieldError msg={errors.clientId} />
                                     </div>
                                     <div>
-                                        <label className={labelCls}>Client secret <span className="text-[var(--red)]">*</span></label>
+                                        <label className={labelCls}>Client secret <span className="text-[var(--red-text)]">*</span></label>
                                         <input type="password" autoComplete="new-password" className={`${inputCls} ${errors.clientSecret ? errorBorder : ""}`} placeholder="GOCSPX-…" value={form.clientSecret} onChange={(e) => setField("clientSecret", e.target.value)} />
                                         <FieldError msg={errors.clientSecret} />
                                     </div>
                                     <div>
-                                        <label className={labelCls}>Refresh token <span className="text-[var(--red)]">*</span></label>
+                                        <label className={labelCls}>Refresh token <span className="text-[var(--red-text)]">*</span></label>
                                         <input type="password" autoComplete="new-password" className={`${inputCls} ${errors.refreshToken ? errorBorder : ""}`} placeholder="1//04…" value={form.refreshToken} onChange={(e) => setField("refreshToken", e.target.value)} />
                                         <FieldError msg={errors.refreshToken} />
                                         <p className="mt-1 text-xs text-[var(--text-muted)]">Generate via Google OAuth Playground with Gmail scopes.</p>
@@ -495,22 +495,22 @@ export function AddMailboxSheet({ open, onClose, onCreated }: AddMailboxSheetPro
                             {form.providerType === "OUTLOOK" && (
                                 <>
                                     <div>
-                                        <label className={labelCls}>Client ID <span className="text-[var(--red)]">*</span></label>
+                                        <label className={labelCls}>Client ID <span className="text-[var(--red-text)]">*</span></label>
                                         <input type="text" autoComplete="off" className={`${inputCls} ${errors.clientId ? errorBorder : ""}`} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={form.clientId} onChange={(e) => setField("clientId", e.target.value)} />
                                         <FieldError msg={errors.clientId} />
                                     </div>
                                     <div>
-                                        <label className={labelCls}>Client secret <span className="text-[var(--red)]">*</span></label>
+                                        <label className={labelCls}>Client secret <span className="text-[var(--red-text)]">*</span></label>
                                         <input type="password" autoComplete="new-password" className={`${inputCls} ${errors.clientSecret ? errorBorder : ""}`} placeholder="Azure app secret value" value={form.clientSecret} onChange={(e) => setField("clientSecret", e.target.value)} />
                                         <FieldError msg={errors.clientSecret} />
                                     </div>
                                     <div>
-                                        <label className={labelCls}>Tenant ID <span className="text-[var(--red)]">*</span></label>
+                                        <label className={labelCls}>Tenant ID <span className="text-[var(--red-text)]">*</span></label>
                                         <input type="text" autoComplete="off" className={`${inputCls} ${errors.tenantId ? errorBorder : ""}`} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={form.tenantId} onChange={(e) => setField("tenantId", e.target.value)} />
                                         <FieldError msg={errors.tenantId} />
                                     </div>
                                     <div>
-                                        <label className={labelCls}>Refresh token <span className="text-[var(--red)]">*</span></label>
+                                        <label className={labelCls}>Refresh token <span className="text-[var(--red-text)]">*</span></label>
                                         <input type="password" autoComplete="new-password" className={`${inputCls} ${errors.refreshToken ? errorBorder : ""}`} placeholder="Microsoft OAuth refresh token" value={form.refreshToken} onChange={(e) => setField("refreshToken", e.target.value)} />
                                         <FieldError msg={errors.refreshToken} />
                                     </div>
@@ -521,12 +521,12 @@ export function AddMailboxSheet({ open, onClose, onCreated }: AddMailboxSheetPro
                                 <>
                                     <div className="grid grid-cols-[1fr_100px] gap-3">
                                         <div>
-                                            <label className={labelCls}>SMTP host <span className="text-[var(--red)]">*</span></label>
+                                            <label className={labelCls}>SMTP host <span className="text-[var(--red-text)]">*</span></label>
                                             <input type="text" autoComplete="off" className={`${inputCls} ${errors.smtpHost ? errorBorder : ""}`} placeholder="smtp.yourprovider.com" value={form.smtpHost} onChange={(e) => setField("smtpHost", e.target.value)} />
                                             <FieldError msg={errors.smtpHost} />
                                         </div>
                                         <div>
-                                            <label className={labelCls}>Port <span className="text-[var(--red)]">*</span></label>
+                                            <label className={labelCls}>Port <span className="text-[var(--red-text)]">*</span></label>
                                             <input type="number" min={1} max={65535} className={`${inputCls} ${errors.smtpPort ? errorBorder : ""}`} value={form.smtpPort} onChange={(e) => setField("smtpPort", e.target.value)} />
                                             <FieldError msg={errors.smtpPort} />
                                         </div>
@@ -538,12 +538,12 @@ export function AddMailboxSheet({ open, onClose, onCreated }: AddMailboxSheetPro
                                         description="Enable for port 465. Leave off for port 587 (STARTTLS)."
                                     />
                                     <div>
-                                        <label className={labelCls}>Username <span className="text-[var(--red)]">*</span></label>
+                                        <label className={labelCls}>Username <span className="text-[var(--red-text)]">*</span></label>
                                         <input type="text" autoComplete="off" className={`${inputCls} ${errors.username ? errorBorder : ""}`} placeholder="Usually your full email address" value={form.username} onChange={(e) => setField("username", e.target.value)} />
                                         <FieldError msg={errors.username} />
                                     </div>
                                     <div>
-                                        <label className={labelCls}>Password <span className="text-[var(--red)]">*</span></label>
+                                        <label className={labelCls}>Password <span className="text-[var(--red-text)]">*</span></label>
                                         <input type="password" autoComplete="new-password" className={`${inputCls} ${errors.password ? errorBorder : ""}`} placeholder="App password or SMTP password" value={form.password} onChange={(e) => setField("password", e.target.value)} />
                                         <FieldError msg={errors.password} />
                                     </div>
@@ -570,7 +570,7 @@ export function AddMailboxSheet({ open, onClose, onCreated }: AddMailboxSheetPro
                     {step === "settings" && (
                         <div className="space-y-4">
                             <div>
-                                <label className={labelCls}>Label <span className="text-[var(--red)]">*</span></label>
+                                <label className={labelCls}>Label <span className="text-[var(--red-text)]">*</span></label>
                                 <input
                                     ref={firstInputRef}
                                     type="text"
@@ -584,7 +584,7 @@ export function AddMailboxSheet({ open, onClose, onCreated }: AddMailboxSheetPro
                                 <p className="mt-1 text-xs text-[var(--text-muted)]">A friendly name to identify this mailbox in campaigns.</p>
                             </div>
                             <div>
-                                <label className={labelCls}>Daily send limit <span className="text-[var(--red)]">*</span></label>
+                                <label className={labelCls}>Daily send limit <span className="text-[var(--red-text)]">*</span></label>
                                 <input
                                     type="number"
                                     min={1}
@@ -605,10 +605,10 @@ export function AddMailboxSheet({ open, onClose, onCreated }: AddMailboxSheetPro
                             />
                             {serverError && (
                                 <div className="flex items-start gap-2 p-3 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-lg">
-                                    <svg className="flex-shrink-0 mt-0.5 text-[var(--red)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <svg className="flex-shrink-0 mt-0.5 text-[var(--red-text)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                                     </svg>
-                                    <p className="text-xs text-[var(--red)]">{serverError}</p>
+                                    <p className="text-xs text-[var(--red-text)]">{serverError}</p>
                                 </div>
                             )}
                         </div>

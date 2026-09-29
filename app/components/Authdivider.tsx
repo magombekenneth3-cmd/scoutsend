@@ -10,9 +10,9 @@ export function AuthDivider() {
                 margin: "18px 0",
             }}
         >
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
-            <span style={{ fontSize: 12, color: "#4a5175" }}>or</span>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>or</span>
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
     );
 }

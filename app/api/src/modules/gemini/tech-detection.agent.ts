@@ -4,7 +4,9 @@ import dns from "dns/promises";
 import pLimit from "p-limit";
 import { prisma } from "../../lib/prisma";
 import { redis } from "../../lib/ioredis";
-import { callGemini, extractJSON, MODELS } from "./gemini.client";
+import { MODELS } from "./gemini.client";
+import { callGateway, TechStackResultSchema } from "../../lib/llm-gateway";
+import type { TechStackResultOutput } from "../../lib/llm-gateway";
 import { logger } from "../../lib/logger";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -18,7 +20,8 @@ const TECH_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1_000;
 const FAILURE_RETRY_TTL_MS = 1 * 24 * 60 * 60 * 1_000;
 const NO_TECH_RETRY_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 const DOMAIN_CACHE_TTL_SEC = 90 * 24 * 60 * 60;
-const DISTRIBUTED_LOCK_TTL_MS = 60_000;
+const DISTRIBUTED_LOCK_TTL_MS = 5 * 60_000;
+const DISTRIBUTED_LOCK_RENEW_INTERVAL_MS = 30_000;
 
 const BUILTWITH_CONFIDENCE = 0.97;
 const HEADERS_CONFIDENCE = 0.80;
@@ -206,30 +209,39 @@ interface MigrationSignal {
 }
 
 function detectMigrations(
-    oldTechs: TechRecord[],
-    newTechs: string[],
+    previousTechnologies: string[],
+    currentTechnologies: string[],
     category: "CRM" | "Analytics" | "Cloud",
     knownSet: Set<string>,
 ): MigrationSignal[] {
-    const oldInCategory = oldTechs.filter(t => knownSet.has(normalizeTech(t.name)));
-    const newInCategory = newTechs.filter(t => knownSet.has(normalizeTech(t)));
-    const migrations: MigrationSignal[] = [];
+    const previous = new Map(
+        previousTechnologies
+            .filter(t => knownSet.has(normalizeTech(t)))
+            .map(t => [normalizeTech(t), t]),
+    );
+    const current = new Map(
+        currentTechnologies
+            .filter(t => knownSet.has(normalizeTech(t)))
+            .map(t => [normalizeTech(t), t]),
+    );
 
-    for (const oldT of oldInCategory) {
-        for (const newT of newInCategory) {
-            if (normalizeTech(oldT.name) !== normalizeTech(newT)) {
-                migrations.push({
-                    category,
-                    from: oldT.name,
-                    to: newT,
-                    confidence: 0.88,
-                    detectedAt: new Date().toISOString(),
-                });
-            }
-        }
-    }
+    const removed = Array.from(previous.entries()).filter(([key]) => !current.has(key));
+    const added = Array.from(current.entries()).filter(([key]) => !previous.has(key));
 
-    return migrations;
+    // A migration is only emitted when the change is unambiguous: exactly one
+    // known technology disappeared and exactly one different known technology
+    // appeared. If several tools changed at once, we cannot safely infer which
+    // one replaced which, so record no migration rather than inventing intent.
+    if (removed.length !== 1 || added.length !== 1) return [];
+
+    const detectedAt = new Date().toISOString();
+    return [{
+        category,
+        from: removed[0]![1],
+        to: added[0]![1],
+        confidence: 0.88,
+        detectedAt,
+    }];
 }
 
 function buildTechRecords(
@@ -374,6 +386,8 @@ interface DomainCacheEntry {
 
 interface CachedTechStack {
     technologies?: string[];
+    /** Technologies observed on the immediately preceding successful scan. */
+    lastObservedTechnologies?: string[];
     techRecords?: TechRecord[];
     crmDetected?: string | null;
     analyticsDetected?: string | null;
@@ -436,7 +450,7 @@ interface DeterministicClassification {
     analyticsDetected: string | null;
     cloudProvider: string | null;
     aiToolsDetected: string[];
-    isFullyClassified: boolean;
+    isSufficientlyClassified: boolean;
 }
 
 // ─── Pure utilities ───────────────────────────────────────────────────────────
@@ -511,8 +525,8 @@ function classifyDeterministically(technologies: string[]): DeterministicClassif
     const cloudProvider = technologies[normalized.findIndex(t => KNOWN_CLOUD.has(t))] ?? null;
     const aiToolsDetected = technologies.filter((_, i) => KNOWN_AI_TOOLS.has(normalized[i]!));
     const classifiedCount = [crmDetected, analyticsDetected, cloudProvider].filter(Boolean).length;
-    const isFullyClassified = classifiedCount >= 2 && technologies.length <= 15;
-    return { crmDetected, analyticsDetected, cloudProvider, aiToolsDetected, isFullyClassified };
+    const isSufficientlyClassified = classifiedCount >= 2 && technologies.length <= 15;
+    return { crmDetected, analyticsDetected, cloudProvider, aiToolsDetected, isSufficientlyClassified };
 }
 
 // ─── Distributed lock (token-based, safe release via Lua CAS) ─────────────────
@@ -525,6 +539,14 @@ else
 end
 `;
 
+const LOCK_RENEW_SCRIPT = `
+if redis.call("get", KEYS[1]) == ARGV[1] then
+  return redis.call("pexpire", KEYS[1], ARGV[2])
+else
+  return 0
+end
+`;
+
 async function acquireLock(key: string): Promise<string | null> {
     const token = randomUUID();
     const lockKey = `lock:tech-detection:${key}`;
@@ -532,8 +554,49 @@ async function acquireLock(key: string): Promise<string | null> {
     return result === "OK" ? token : null;
 }
 
+async function renewLock(key: string, token: string): Promise<boolean> {
+    const result = await redis.eval(
+        LOCK_RENEW_SCRIPT,
+        1,
+        `lock:tech-detection:${key}`,
+        token,
+        String(DISTRIBUTED_LOCK_TTL_MS),
+    );
+    return Number(result) === 1;
+}
+
 async function releaseLock(key: string, token: string): Promise<void> {
-    await (redis as any).eval(LOCK_RELEASE_SCRIPT, 1, `lock:tech-detection:${key}`, token);
+    await redis.eval(LOCK_RELEASE_SCRIPT, 1, `lock:tech-detection:${key}`, token);
+}
+
+function startLockHeartbeat(key: string, token: string): {
+    hasLostLock: () => boolean;
+    stop: () => void;
+} {
+    let lost = false;
+    const timer = setInterval(() => {
+        void renewLock(key, token).then(ok => {
+            if (!ok) {
+                lost = true;
+                logger.error({ key }, "[tech-detection] Distributed lock renewal failed; abandoning further writes");
+            }
+        }).catch(err => {
+            logger.error({ err, key }, "[tech-detection] Distributed lock renewal error");
+        });
+    }, DISTRIBUTED_LOCK_RENEW_INTERVAL_MS);
+
+    timer.unref?.();
+
+    return {
+        hasLostLock: () => lost,
+        stop: () => clearInterval(timer),
+    };
+}
+
+function assertLockHeld(heartbeat: { hasLostLock: () => boolean }): void {
+    if (heartbeat.hasLostLock()) {
+        throw new Error("Tech detection distributed lock was lost; refusing to write results");
+    }
 }
 
 // ─── Global domain cache (Redis) ──────────────────────────────────────────────
@@ -549,6 +612,119 @@ async function setDomainCache(domain: string, entry: DomainCacheEntry): Promise<
 }
 
 // ─── Retry ────────────────────────────────────────────────────────────────────
+
+async function fetchViaSerper(companyName: string, domain: string): Promise<SerperResult[]> {
+    if (!process.env.SERPER_API_KEY) return [];
+
+    const queries = buildSerperQueries(companyName, domain);
+    const allResults: SerperResult[] = [];
+
+    for (const q of queries) {
+        const results = await serperLimit(() => withRetry(async () => {
+            const res = await fetch("https://google.serper.dev/search", {
+                method: "POST",
+                headers: { "X-API-KEY": process.env.SERPER_API_KEY!, "Content-Type": "application/json" },
+                body: JSON.stringify({ q, num: 4 }),
+                signal: AbortSignal.timeout(8_000),
+            });
+            if (res.status === 429 || res.status >= 500) throw Object.assign(new Error(`Serper ${res.status}`), { status: res.status });
+            if (!res.ok) return [] as SerperResult[];
+            const data = (await res.json()) as { organic?: SerperResult[] };
+            return data.organic ?? [];
+        }));
+        allResults.push(...results);
+    }
+
+    const seen = new Set<string>();
+    return allResults.filter(r => {
+        if (seen.has(r.link)) return false;
+        seen.add(r.link);
+        return true;
+    });
+}
+
+const WAF_BLOCK_HEADERS = [
+    "cf-ray",
+    "x-sucuri-id",
+    "x-ddos-protection",
+    "x-fw-hash",
+    "x-cdn-forward",
+    "x-iinfo",
+    "x-akamai-transformed",
+    "x-cache-status",
+];
+
+function isWafBlocked(status: number, headers: Headers): boolean {
+    if (status === 403 || status === 429 || status === 503) {
+        const server = headers.get("server")?.toLowerCase() ?? "";
+        if (server.includes("cloudflare")) return true;
+        for (const h of WAF_BLOCK_HEADERS) {
+            if (headers.has(h)) return true;
+        }
+    }
+    return false;
+}
+
+async function fetchViaHTTPHeaders(website: string): Promise<{ techs: string[]; wafBlocked: boolean }> {
+    const url = website.startsWith("http") ? website : `https://${website}`;
+
+    let res: Response;
+    try {
+        res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5_000) });
+        if (res.status === 405) {
+            res = await fetch(url, { method: "GET", headers: { Range: "bytes=0-0" }, signal: AbortSignal.timeout(5_000) });
+        }
+    } catch {
+        return { techs: [], wafBlocked: false };
+    }
+
+    if (isWafBlocked(res.status, res.headers)) {
+        logger.warn({ website }, "[tech-detection] WAF/bot block on HTTP headers — skipping header signals");
+        return { techs: [], wafBlocked: true };
+    }
+
+    const detected: string[] = [];
+    const server = res.headers.get("server")?.toLowerCase() ?? "";
+    const powered = res.headers.get("x-powered-by")?.toLowerCase() ?? "";
+    const via = res.headers.get("via")?.toLowerCase() ?? "";
+
+    if (server.includes("cloudflare")) detected.push("Cloudflare");
+    if (server.includes("nginx")) detected.push("nginx");
+    if (server.includes("apache")) detected.push("Apache");
+    if (powered.includes("next.js")) detected.push("Next.js");
+    if (powered.includes("php")) detected.push("PHP");
+    if (via.includes("cloudfront")) detected.push("Amazon CloudFront");
+    if (res.headers.has("x-shopify-stage")) detected.push("Shopify");
+    if (res.headers.has("x-vercel-id")) detected.push("Vercel");
+    if (res.headers.has("x-wix-request-id")) detected.push("Wix");
+    if (res.headers.has("x-hubspot-request-id")) detected.push("HubSpot");
+
+    return { techs: detected, wafBlocked: false };
+}
+
+async function fetchViaHTMLScan(website: string): Promise<{ techs: string[]; wafBlocked: boolean }> {
+    try {
+        const res = await fetch(website.startsWith("http") ? website : `https://${website}`, {
+            signal: AbortSignal.timeout(8_000),
+            headers: { Accept: "text/html" },
+        });
+
+        if (isWafBlocked(res.status, res.headers)) {
+            logger.warn({ website }, "[tech-detection] WAF/bot block on HTML scan — triggering BuiltWith API failover");
+            return { techs: [], wafBlocked: true };
+        }
+
+        if (!res.ok) return { techs: [], wafBlocked: false };
+        const html = await res.text();
+        const detected: string[] = [];
+        for (const { pattern, name } of HTML_DETECTORS) {
+            if (pattern.test(html)) detected.push(name);
+        }
+        return { techs: detected, wafBlocked: false };
+    } catch {
+        return { techs: [], wafBlocked: false };
+    }
+}
 
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
     let lastErr: unknown;
@@ -586,86 +762,6 @@ async function fetchViaBuiltWith(domain: string): Promise<string[]> {
     }));
 }
 
-async function fetchViaSerper(companyName: string, domain: string): Promise<SerperResult[]> {
-    if (!process.env.SERPER_API_KEY) return [];
-
-    const queries = buildSerperQueries(companyName, domain);
-    const allResults: SerperResult[] = [];
-
-    for (const q of queries) {
-        const results = await serperLimit(() => withRetry(async () => {
-            const res = await fetch("https://google.serper.dev/search", {
-                method: "POST",
-                headers: { "X-API-KEY": process.env.SERPER_API_KEY!, "Content-Type": "application/json" },
-                body: JSON.stringify({ q, num: 4 }),
-                signal: AbortSignal.timeout(8_000),
-            });
-            if (res.status === 429 || res.status >= 500) throw Object.assign(new Error(`Serper ${res.status}`), { status: res.status });
-            if (!res.ok) return [] as SerperResult[];
-            const data = (await res.json()) as { organic?: SerperResult[] };
-            return data.organic ?? [];
-        }));
-        allResults.push(...results);
-    }
-
-    const seen = new Set<string>();
-    return allResults.filter(r => {
-        if (seen.has(r.link)) return false;
-        seen.add(r.link);
-        return true;
-    });
-}
-
-async function fetchViaHTTPHeaders(website: string): Promise<string[]> {
-    const url = website.startsWith("http") ? website : `https://${website}`;
-
-    let res: Response;
-    try {
-        res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5_000) });
-        if (res.status === 405) {
-            res = await fetch(url, { method: "GET", headers: { Range: "bytes=0-0" }, signal: AbortSignal.timeout(5_000) });
-        }
-    } catch {
-        return [];
-    }
-
-    const detected: string[] = [];
-    const server = res.headers.get("server")?.toLowerCase() ?? "";
-    const powered = res.headers.get("x-powered-by")?.toLowerCase() ?? "";
-    const via = res.headers.get("via")?.toLowerCase() ?? "";
-
-    if (server.includes("cloudflare")) detected.push("Cloudflare");
-    if (server.includes("nginx")) detected.push("nginx");
-    if (server.includes("apache")) detected.push("Apache");
-    if (powered.includes("next.js")) detected.push("Next.js");
-    if (powered.includes("php")) detected.push("PHP");
-    if (via.includes("cloudfront")) detected.push("Amazon CloudFront");
-    if (res.headers.has("x-shopify-stage")) detected.push("Shopify");
-    if (res.headers.has("x-vercel-id")) detected.push("Vercel");
-    if (res.headers.has("x-wix-request-id")) detected.push("Wix");
-    if (res.headers.has("x-hubspot-request-id")) detected.push("HubSpot");
-
-    return detected;
-}
-
-async function fetchViaHTMLScan(website: string): Promise<string[]> {
-    try {
-        const res = await fetch(website.startsWith("http") ? website : `https://${website}`, {
-            signal: AbortSignal.timeout(8_000),
-            headers: { Accept: "text/html" },
-        });
-        if (!res.ok) return [];
-        const html = await res.text();
-        const detected: string[] = [];
-        for (const { pattern, name } of HTML_DETECTORS) {
-            if (pattern.test(html)) detected.push(name);
-        }
-        return detected;
-    } catch {
-        return [];
-    }
-}
-
 // ─── Gemini analysis ──────────────────────────────────────────────────────────
 
 async function analyzeTechStack(params: {
@@ -686,7 +782,7 @@ async function analyzeTechStack(params: {
         ? `Technologies detected: ${topTechs.join(", ")}`
         : `Search evidence:\n${searchSnippets.map((r, i) => `${i + 1}. ${r.title}: ${r.snippet}`).join("\n")}`;
 
-    const systemPrompt = partialClassification.isFullyClassified
+    const systemPrompt = partialClassification.isSufficientlyClassified
         ? `You are a B2B intelligence analyst. Classification is already complete — CRM: ${partialClassification.crmDetected ?? "none"}, Analytics: ${partialClassification.analyticsDetected ?? "none"}, Cloud: ${partialClassification.cloudProvider ?? "none"}, AI tools: ${partialClassification.aiToolsDetected.join(", ") || "none"}.
 
 Identify buying signals ONLY:
@@ -750,15 +846,29 @@ Return ONLY JSON:
   "aiAdoptionLevel": string
 }`;
 
-    const { text } = await geminiLimit(() => callGemini({
-        agentName: "tech-detection.analyzer",
-        model: MODELS.RESEARCH,
-        systemPrompt,
-        userPrompt: `Company: ${companyName}\nICP: ${icpDescription}\nSource confidence: ${sourceConfidence}\n\n${techList}`,
-        temperature: 0.2,
-    }));
+    let result: TechStackResult | null;
+    try {
+        const proposal = await geminiLimit(() =>
+            callGateway<TechStackResultOutput>({
+                agentName: "tech-detection.analyzer",
+                model: MODELS.RESEARCH,
+                responseMode: "text",
+                outputSchema: TechStackResultSchema,
+                systemPrompt,
+                userPrompt: `Company: ${companyName}\nICP: ${icpDescription}\nSource confidence: ${sourceConfidence}\n\n${techList}`,
+                proposalContext: { contextHash: companyName },
+                temperature: 0.2,
+            })
+        );
+        result = proposal.payload as unknown as TechStackResult;
+    } catch (err) {
+        logger.warn(
+            { companyName, err: err instanceof Error ? err.message : String(err) },
+            "[tech-detection.agent] Gateway call failed — returning null",
+        );
+        return null;
+    }
 
-    const result = extractJSON<TechStackResult | null>(text);
     if (!result || result.confidence < 0.5) return null;
 
     if (partialClassification.crmDetected) result.crmDetected = partialClassification.crmDetected;
@@ -846,6 +956,17 @@ interface DetectionResult {
     sourceConf: number;
     signalSourceHint: string;
     earlyExit: boolean;
+    wafBlocked: boolean;
+}
+
+function hasStrongBuiltWithEvidence(technologies: string[]): boolean {
+    const normalized = technologies.map(normalizeTech);
+    return normalized.some(t =>
+        KNOWN_CRMS.has(t) ||
+        KNOWN_ANALYTICS.has(t) ||
+        KNOWN_CLOUD.has(t) ||
+        KNOWN_AI_TOOLS.has(t),
+    ) || technologies.some(t => !NOISE_TECHNOLOGIES.has(normalizeTech(t)));
 }
 
 async function collectTechEvidence(
@@ -875,20 +996,40 @@ async function collectTechEvidence(
 
     const sourceConfBuiltWith = rawTechs.length > 0 ? (domainCacheEntry?.confidence ?? BUILTWITH_CONFIDENCE) : 0;
 
-    if (sourceConfBuiltWith >= BUILTWITH_EARLY_EXIT_THRESHOLD) {
+    if (
+        sourceConfBuiltWith >= BUILTWITH_EARLY_EXIT_THRESHOLD &&
+        hasStrongBuiltWithEvidence(rawTechs)
+    ) {
         metrics.earlyExits++;
-        return { allRawTechs: rawTechs, rawTechs, headerTechs: [], htmlTechs: [], dnsTechs: [], snippets: [], sourceConf: sourceConfBuiltWith, signalSourceHint, earlyExit: true };
+        return { allRawTechs: rawTechs, rawTechs, headerTechs: [], htmlTechs: [], dnsTechs: [], snippets: [], sourceConf: sourceConfBuiltWith, signalSourceHint, earlyExit: true, wafBlocked: false };
     }
 
-    const [headerTechs, htmlTechs, dnsTechs] = await Promise.all([
-        rawTechs.length === 0 ? fetchViaHTTPHeaders(website) : Promise.resolve([]),
-        rawTechs.length === 0 ? fetchViaHTMLScan(website) : Promise.resolve([]),
+    const [headerResult, htmlResult, dnsTechs] = await Promise.all([
+        rawTechs.length === 0 ? fetchViaHTTPHeaders(website) : Promise.resolve({ techs: [], wafBlocked: false }),
+        rawTechs.length === 0 ? fetchViaHTMLScan(website) : Promise.resolve({ techs: [], wafBlocked: false }),
         fetchViaDNS(domain),
     ]);
 
+    const wafBlocked = headerResult.wafBlocked || htmlResult.wafBlocked;
+    let headerTechs = headerResult.techs;
+    let htmlTechs = htmlResult.techs;
+
+    if (wafBlocked && rawTechs.length === 0) {
+        logger.warn({ domain }, "[tech-detection] WAF_PROTECTED — attempting BuiltWith API failover");
+        const failoverTechs = await fetchViaBuiltWith(domain);
+        if (failoverTechs.length > 0) {
+            metrics.builtwithHits++;
+            rawTechs = failoverTechs;
+            signalSourceHint = "builtwith_waf_failover";
+            await setDomainCache(domain, { technologies: failoverTechs, provider: "builtwith", confidence: BUILTWITH_CONFIDENCE, timestamp: new Date().toISOString() });
+        } else {
+            signalSourceHint = "WAF_PROTECTED";
+        }
+    }
+
     const allRawTechs = [...new Set([...rawTechs, ...headerTechs, ...htmlTechs, ...dnsTechs])];
 
-    const sourceConf = rawTechs.length > 0 ? sourceConfBuiltWith
+    const sourceConf = rawTechs.length > 0 ? (domainCacheEntry?.confidence ?? BUILTWITH_CONFIDENCE)
         : dnsTechs.length > 0 ? DNS_CONFIDENCE
             : headerTechs.length > 0 || htmlTechs.length > 0 ? HEADERS_CONFIDENCE
                 : 0;
@@ -902,7 +1043,7 @@ async function collectTechEvidence(
     if (dnsTechs.length > 0 && rawTechs.length === 0) signalSourceHint = "dns";
     if (snippets.length > 0 && allRawTechs.length === 0) signalSourceHint = "serper";
 
-    return { allRawTechs, rawTechs, headerTechs, htmlTechs, dnsTechs, snippets, sourceConf: effectiveConf, signalSourceHint, earlyExit: false };
+    return { allRawTechs, rawTechs, headerTechs, htmlTechs, dnsTechs, snippets, sourceConf: effectiveConf, signalSourceHint, earlyExit: false, wafBlocked };
 }
 
 // ─── Main agent ───────────────────────────────────────────────────────────────
@@ -972,8 +1113,10 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
                 }
 
                 metrics.totalProcessed++;
+                const lockHeartbeat = startLockHeartbeat(key, lockToken);
 
                 try {
+                    assertLockHeld(lockHeartbeat);
                     if (group.companyId) {
                         const company = await prisma.company.findUnique({
                             where: { id: group.companyId },
@@ -993,6 +1136,7 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
                             if (!existingSignal) {
                                 const value = deriveCacheSignalValue(cachedStack);
                                 const explanation = "Reconstructed from cached company enrichment data";
+                                assertLockHeld(lockHeartbeat);
                                 await prisma.$transaction(async tx => {
                                     await writeVersionedCompanySignal(tx, { companyId: group.companyId!, value, confidence: 0.7, source: "tech_detection_cache", explanation });
                                 });
@@ -1000,6 +1144,7 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
                                 logger.info({ companyId: group.companyId }, "[tech-detection] Reconstructed missing CompanySignal from cache");
                             }
 
+                            assertLockHeld(lockHeartbeat);
                             await prisma.$transaction(async tx => {
                                 await writeVersionedLeadSignalBatch(tx, {
                                     leads: group.leads,
@@ -1026,10 +1171,15 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
                         const failureBase: CachedTechStack = { ...(cachedStack ?? {}), lastCheckedAt: new Date().toISOString() };
 
                         if (allRawTechs.length === 0 && snippets.length === 0) {
-                            await prisma.company.update({
-                                where: { id: group.companyId },
-                                data: { enrichmentData: { ...companyData, [TECH_ENRICHMENT_KEY]: { ...failureBase, status: "NO_TECH_FOUND" } } as unknown as Prisma.InputJsonValue },
+                            assertLockHeld(lockHeartbeat);
+                            const patch = JSON.stringify({
+                                [TECH_ENRICHMENT_KEY]: { ...failureBase, status: "NO_TECH_FOUND" },
                             });
+                            await prisma.$executeRaw`
+                                UPDATE "Company"
+                                SET "enrichmentData" = COALESCE("enrichmentData", '{}'::jsonb) || ${patch}::jsonb
+                                WHERE id = ${group.companyId}
+                            `;
                             return;
                         }
 
@@ -1038,7 +1188,7 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
 
                         let techData: TechStackResult | null = null;
 
-                        if (partial.isFullyClassified && snippets.length === 0) {
+                        if (partial.isSufficientlyClassified && snippets.length === 0) {
                             metrics.geminiSkipped++;
                             techData = {
                                 technologies: filterNoise(allRawTechs),
@@ -1067,24 +1217,30 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
                         }
 
                         if (!techData) {
-                            await prisma.company.update({
-                                where: { id: group.companyId },
-                                data: { enrichmentData: { ...companyData, [TECH_ENRICHMENT_KEY]: { ...failureBase, status: "FAILED" } } as unknown as Prisma.InputJsonValue },
+                            assertLockHeld(lockHeartbeat);
+                            const patch = JSON.stringify({
+                                [TECH_ENRICHMENT_KEY]: { ...failureBase, status: "FAILED" },
                             });
+                            await prisma.$executeRaw`
+                                UPDATE "Company"
+                                SET "enrichmentData" = COALESCE("enrichmentData", '{}'::jsonb) || ${patch}::jsonb
+                                WHERE id = ${group.companyId}
+                            `;
                             return;
                         }
 
                         const prevTechRecords = (cachedStack?.techRecords ?? []) as TechRecord[];
+                        const previousTechnologies = cachedStack?.lastObservedTechnologies ?? [];
                         const newTechRecords = buildTechRecords(allRawTechs, signalSourceHint, effectiveConf, prevTechRecords);
                         const migrations = [
-                            ...detectMigrations(prevTechRecords, allRawTechs, "CRM", KNOWN_CRMS),
-                            ...detectMigrations(prevTechRecords, allRawTechs, "Analytics", KNOWN_ANALYTICS),
-                            ...detectMigrations(prevTechRecords, allRawTechs, "Cloud", KNOWN_CLOUD),
+                            ...detectMigrations(previousTechnologies, allRawTechs, "CRM", KNOWN_CRMS),
+                            ...detectMigrations(previousTechnologies, allRawTechs, "Analytics", KNOWN_ANALYTICS),
+                            ...detectMigrations(previousTechnologies, allRawTechs, "Cloud", KNOWN_CLOUD),
                         ];
 
                         if (migrations.length > 0) metrics.migrationSignals += migrations.length;
 
-                        const finalConf = partial.isFullyClassified ? effectiveConf : weightedConfidence(effectiveConf, techData.confidence);
+                        const finalConf = partial.isSufficientlyClassified ? effectiveConf : weightedConfidence(effectiveConf, techData.confidence);
                         const signalValue = buildSignalValue(techData, stackPatterns);
                         const fullExplanation = [
                             stackPatterns.length > 0 ? stackPatterns[0]!.description : techData.explanation,
@@ -1102,6 +1258,7 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
 
                         const techStackPayload: CachedTechStack = {
                             technologies: mergeTechnologies(cachedStack?.technologies, techData.technologies),
+                            lastObservedTechnologies: [...new Set(allRawTechs)],
                             techRecords: mergeTechRecords(prevTechRecords, newTechRecords),
                             crmDetected: techData.crmDetected,
                             analyticsDetected: techData.analyticsDetected,
@@ -1116,14 +1273,15 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
                             evidenceSources: [evidenceRecord, ...((cachedStack?.evidenceSources ?? []) as EvidenceRecord[])].slice(0, 10),
                         };
 
+                        assertLockHeld(lockHeartbeat);
                         await prisma.$transaction(async tx => {
-                            await tx.company.update({
-                                where: { id: group.companyId! },
-                                data: {
-                                    enrichmentData: { ...companyData, [TECH_ENRICHMENT_KEY]: techStackPayload } as unknown as Prisma.InputJsonValue,
-                                    lastEnrichedAt: new Date(),
-                                },
-                            });
+                            const patch = JSON.stringify({ [TECH_ENRICHMENT_KEY]: techStackPayload });
+                            await tx.$executeRaw`
+                                UPDATE "Company"
+                                SET "enrichmentData" = COALESCE("enrichmentData", '{}'::jsonb) || ${patch}::jsonb,
+                                    "lastEnrichedAt" = NOW()
+                                WHERE id = ${group.companyId!}
+                            `;
 
                             await writeVersionedCompanySignal(tx, { companyId: group.companyId!, value: signalValue, confidence: finalConf, source: signalSourceHint, explanation: fullExplanation });
 
@@ -1150,11 +1308,21 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
                         const { allRawTechs, snippets, sourceConf, signalSourceHint } = evidence;
 
                         const writeFailure = async (status: TechEnrichmentStatus) => {
+                            assertLockHeld(lockHeartbeat);
                             const leadIds = group.leads.map(l => l.id);
-                            await prisma.lead.updateMany({
-                                where: { id: { in: leadIds } },
-                                data: { enrichmentData: { [TECH_ENRICHMENT_KEY]: { status, lastCheckedAt: new Date().toISOString() } } as unknown as Prisma.InputJsonValue },
-                            });
+                            // Merge via jsonb `||` instead of a plain Prisma
+                            // update, which would replace the whole
+                            // enrichmentData column and wipe out whatever the
+                            // company/person waterfall already wrote there.
+                            // This makes tech-detection safe to run
+                            // concurrently with the waterfall, not just
+                            // sequentially before it.
+                            const patch = JSON.stringify({ [TECH_ENRICHMENT_KEY]: { status, lastCheckedAt: new Date().toISOString() } });
+                            await prisma.$executeRaw`
+                                UPDATE "Lead"
+                                SET "enrichmentData" = COALESCE("enrichmentData", '{}'::jsonb) || ${patch}::jsonb
+                                WHERE id = ANY(${leadIds}::text[])
+                            `;
                         };
 
                         if (allRawTechs.length === 0 && snippets.length === 0) {
@@ -1167,7 +1335,7 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
 
                         let techData: TechStackResult | null = null;
 
-                        if (partial.isFullyClassified && snippets.length === 0) {
+                        if (partial.isSufficientlyClassified && snippets.length === 0) {
                             metrics.geminiSkipped++;
                             techData = {
                                 technologies: filterNoise(allRawTechs),
@@ -1201,20 +1369,22 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
                         }
 
                         const prevTechRecords = (leadCache?.techRecords ?? []) as TechRecord[];
+                        const previousTechnologies = leadCache?.lastObservedTechnologies ?? [];
                         const newTechRecords = buildTechRecords(allRawTechs, signalSourceHint, sourceConf, prevTechRecords);
                         const migrations = [
-                            ...detectMigrations(prevTechRecords, allRawTechs, "CRM", KNOWN_CRMS),
-                            ...detectMigrations(prevTechRecords, allRawTechs, "Analytics", KNOWN_ANALYTICS),
-                            ...detectMigrations(prevTechRecords, allRawTechs, "Cloud", KNOWN_CLOUD),
+                            ...detectMigrations(previousTechnologies, allRawTechs, "CRM", KNOWN_CRMS),
+                            ...detectMigrations(previousTechnologies, allRawTechs, "Analytics", KNOWN_ANALYTICS),
+                            ...detectMigrations(previousTechnologies, allRawTechs, "Cloud", KNOWN_CLOUD),
                         ];
 
                         if (migrations.length > 0) metrics.migrationSignals += migrations.length;
 
-                        const finalConf = partial.isFullyClassified ? sourceConf : weightedConfidence(sourceConf, techData.confidence);
+                        const finalConf = partial.isSufficientlyClassified ? sourceConf : weightedConfidence(sourceConf, techData.confidence);
                         const signalValue = buildSignalValue(techData, stackPatterns);
 
                         const techStackPayload: CachedTechStack = {
                             technologies: mergeTechnologies(leadCache?.technologies, techData.technologies),
+                            lastObservedTechnologies: [...new Set(allRawTechs)],
                             techRecords: mergeTechRecords(prevTechRecords, newTechRecords),
                             crmDetected: techData.crmDetected,
                             analyticsDetected: techData.analyticsDetected,
@@ -1237,13 +1407,19 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
 
                         const leadIds = group.leads.map(l => l.id);
 
+                        assertLockHeld(lockHeartbeat);
                         await prisma.$transaction(async tx => {
                             await writeVersionedLeadSignalBatch(tx, { leads: group.leads, value: signalValue, confidence: finalConf, source: signalSourceHint, explanation: techData!.explanation });
 
-                            await tx.lead.updateMany({
-                                where: { id: { in: leadIds } },
-                                data: { enrichmentData: { [TECH_ENRICHMENT_KEY]: techStackPayload } as unknown as Prisma.InputJsonValue },
-                            });
+                            // Same jsonb-merge fix as writeFailure above —
+                            // preserve any company/person waterfall data
+                            // already sitting in enrichmentData.
+                            const patch = JSON.stringify({ [TECH_ENRICHMENT_KEY]: techStackPayload });
+                            await tx.$executeRaw`
+                                UPDATE "Lead"
+                                SET "enrichmentData" = COALESCE("enrichmentData", '{}'::jsonb) || ${patch}::jsonb
+                                WHERE id = ANY(${leadIds}::text[])
+                            `;
                         });
 
                         metrics.totalEnriched += group.leads.length;
@@ -1251,6 +1427,7 @@ export async function runTechDetectionAgent(campaignId: string): Promise<void> {
                 } catch (err) {
                     logger.warn({ err, leadId: rep.id, key }, "[tech-detection] Failed for lead group");
                 } finally {
+                    lockHeartbeat.stop();
                     await releaseLock(key, lockToken);
                 }
             }),

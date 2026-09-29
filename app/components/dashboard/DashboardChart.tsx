@@ -131,9 +131,9 @@ export function DashboardChart({ campaigns }: DashboardChartProps) {
 
                     <div className="flex gap-3" aria-hidden="true">
                         {[
-                            { label: "Sent", color: "#e94560" },
-                            { label: "Opens", color: "#38bdf8" },
-                            { label: "Replies", color: "#4ade80" },
+                            { label: "Sent",    color: "var(--chart-sent)"    },
+                            { label: "Opens",   color: "var(--chart-opens)"   },
+                            { label: "Replies", color: "var(--chart-replies)" },
                         ].map(({ label, color }) => (
                             <div key={label} className="flex items-center gap-1.5">
                                 <span className="w-2 h-2 rounded-full" style={{ background: color }} />
@@ -214,7 +214,7 @@ export function DashboardChart({ campaigns }: DashboardChartProps) {
                 {!error && !loading && !isEmpty && (
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                             <XAxis
                                 dataKey="day"
                                 tick={{ fill: "var(--text-muted)", fontSize: 11, fontFamily: "var(--font-body)" }}
@@ -229,10 +229,10 @@ export function DashboardChart({ campaigns }: DashboardChartProps) {
                                 allowDecimals={false}
                                 width={32}
                             />
-                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)", strokeWidth: 1 }} />
-                            <Line type="monotone" dataKey="sent" stroke="#e94560" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#e94560", strokeWidth: 0 }} />
-                            <Line type="monotone" dataKey="opens" stroke="#38bdf8" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#38bdf8", strokeWidth: 0 }} />
-                            <Line type="monotone" dataKey="replies" stroke="#4ade80" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#4ade80", strokeWidth: 0 }} />
+                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: "var(--chart-cursor)", strokeWidth: 1 }} />
+                            <Line type="monotone" dataKey="sent"    stroke="var(--chart-sent)"    strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "var(--chart-sent)",    strokeWidth: 0 }} />
+                            <Line type="monotone" dataKey="opens"   stroke="var(--chart-opens)"   strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "var(--chart-opens)",   strokeWidth: 0 }} />
+                            <Line type="monotone" dataKey="replies" stroke="var(--chart-replies)" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "var(--chart-replies)", strokeWidth: 0 }} />
                         </LineChart>
                     </ResponsiveContainer>
                 )}

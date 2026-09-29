@@ -53,12 +53,24 @@ export function AddDomainSheet({ open, onClose, onCreated }: AddDomainSheetProps
         setErrors((e) => ({ ...e, [field]: undefined }));
     }
 
+    function cleanDomainInput(raw: string): string {
+        return raw
+            .toLowerCase()
+            .trim()
+            .replace(/^https?:\/\//i, "")
+            .replace(/^mailto:/i, "")
+            .replace(/^[^@]+@/, "")
+            .replace(/\/.*$/, "");
+    }
+
     function validate(): boolean {
         const e: Partial<Record<keyof FormState, string>> = {};
-        const domainRegex = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}$/;
-        if (!form.domain.trim()) {
+        const domainRegex = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+        const cleaned = cleanDomainInput(form.domain);
+
+        if (!cleaned) {
             e.domain = "Domain is required";
-        } else if (!domainRegex.test(form.domain.toLowerCase().trim())) {
+        } else if (!domainRegex.test(cleaned)) {
             e.domain = "Invalid domain format (e.g. outreach.company.com)";
         }
         const limit = Number(form.dailyLimit);
@@ -75,7 +87,7 @@ export function AddDomainSheet({ open, onClose, onCreated }: AddDomainSheetProps
         setServerError(null);
         try {
             const domain = await createDomain({
-                domain: form.domain.toLowerCase().trim(),
+                domain: cleanDomainInput(form.domain),
                 dailyLimit: Number(form.dailyLimit),
                 warmupEnabled: form.warmupEnabled,
             });
@@ -133,7 +145,7 @@ export function AddDomainSheet({ open, onClose, onCreated }: AddDomainSheetProps
                 <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
                     <div>
                         <label htmlFor="sd-domain" className={labelCls}>
-                            Domain <span className="text-[var(--red)]">*</span>
+                            Domain <span className="text-[var(--red-text)]">*</span>
                         </label>
                         <input
                             ref={inputRef}
@@ -146,13 +158,13 @@ export function AddDomainSheet({ open, onClose, onCreated }: AddDomainSheetProps
                             value={form.domain}
                             onChange={(e) => set("domain", e.target.value)}
                         />
-                        {errors.domain && <p className="mt-1 text-xs text-[var(--red)]">{errors.domain}</p>}
+                        {errors.domain && <p className="mt-1 text-xs text-[var(--red-text)]">{errors.domain}</p>}
                         <p className="mt-1 text-xs text-[var(--text-muted)]">Use a subdomain dedicated to outreach, not your main domain.</p>
                     </div>
 
                     <div>
                         <label htmlFor="sd-limit" className={labelCls}>
-                            Daily send limit <span className="text-[var(--red)]">*</span>
+                            Daily send limit <span className="text-[var(--red-text)]">*</span>
                         </label>
                         <input
                             id="sd-limit"
@@ -164,7 +176,7 @@ export function AddDomainSheet({ open, onClose, onCreated }: AddDomainSheetProps
                             value={form.dailyLimit}
                             onChange={(e) => set("dailyLimit", e.target.value)}
                         />
-                        {errors.dailyLimit && <p className="mt-1 text-xs text-[var(--red)]">{errors.dailyLimit}</p>}
+                        {errors.dailyLimit && <p className="mt-1 text-xs text-[var(--red-text)]">{errors.dailyLimit}</p>}
                         <p className="mt-1 text-xs text-[var(--text-muted)]">Start low (25–50) during warmup, increase over time.</p>
                     </div>
 
@@ -194,10 +206,10 @@ export function AddDomainSheet({ open, onClose, onCreated }: AddDomainSheetProps
 
                     {serverError && (
                         <div className="flex items-start gap-2 p-3 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-lg">
-                            <svg className="flex-shrink-0 mt-0.5 text-[var(--red)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg className="flex-shrink-0 mt-0.5 text-[var(--red-text)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                             </svg>
-                            <p className="text-xs text-[var(--red)]">{serverError}</p>
+                            <p className="text-xs text-[var(--red-text)]">{serverError}</p>
                         </div>
                     )}
                 </div>

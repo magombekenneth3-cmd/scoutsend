@@ -83,19 +83,19 @@ export function RegisterForm() {
             <div style={{ marginBottom: 28 }}>
                 <p style={{
                     fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
-                    textTransform: "uppercase", color: "#e94560",
+                    textTransform: "uppercase", color: "var(--red)",
                     fontFamily: "var(--font-display)", marginBottom: 10,
                 }}>
                     Get started free
                 </p>
                 <h1 style={{
                     fontFamily: "var(--font-display)", fontWeight: 800,
-                    fontSize: 26, color: "#f0f2ff", letterSpacing: "-0.025em",
+                    fontSize: 26, color: "var(--text-primary)", letterSpacing: "-0.025em",
                     lineHeight: 1.15, marginBottom: 6,
                 }}>
                     Create your account
                 </h1>
-                <p style={{ fontSize: 14, color: "#8892b0", lineHeight: 1.6 }}>
+                <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>
                     100 leads, 3 campaigns, no credit card.
                 </p>
             </div>
@@ -162,17 +162,17 @@ export function RegisterForm() {
                                 setAgree(e.target.checked);
                                 if (touched.agree) touch("agree", { agree: e.target.checked });
                             }}
-                            style={{ width: 16, height: 16, marginTop: 2, accentColor: "#e94560", flexShrink: 0, cursor: "pointer" }}
+                            style={{ width: 16, height: 16, marginTop: 2, accentColor: "var(--red)", flexShrink: 0, cursor: "pointer" }}
                         />
-                        <label htmlFor={`${id}-agree`} style={{ fontSize: 13, color: "#8892b0", lineHeight: 1.5, cursor: "pointer" }}>
+                        <label htmlFor={`${id}-agree`} style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, cursor: "pointer" }}>
                             I agree to ScoutSend&apos;s{" "}
-                            <a href="/terms" style={{ color: "#e94560", textDecoration: "none" }}>Terms of Service</a>{" "}
+                            <a href="/terms" style={{ color: "var(--red)", textDecoration: "none" }}>Terms of Service</a>{" "}
                             and{" "}
-                            <a href="/privacy" style={{ color: "#e94560", textDecoration: "none" }}>Privacy Policy</a>
+                            <a href="/privacy" style={{ color: "var(--red)", textDecoration: "none" }}>Privacy Policy</a>
                         </label>
                     </div>
                     {touched.agree && errors.agree && (
-                        <p style={{ fontSize: 12, color: "#f87171", marginTop: 5 }}>{errors.agree}</p>
+                        <p style={{ fontSize: 12, color: "var(--danger-text)", marginTop: 5 }}>{errors.agree}</p>
                     )}
                 </div>
 
@@ -183,7 +183,7 @@ export function RegisterForm() {
                     disabled={isLoading || isSuccess}
                     style={{
                         width: "100%", height: 48,
-                        background: isSuccess ? "#22c55e" : "#e94560",
+                        background: isSuccess ? "var(--success)" : "var(--red)",
                         border: "none", borderRadius: 10,
                         color: "#fff", fontFamily: "var(--font-display)",
                         fontWeight: 700, fontSize: 15,

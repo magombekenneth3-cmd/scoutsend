@@ -5,18 +5,20 @@ import { ForbiddenError, NotFoundError } from "@/app/api/src/lib/errors";
 import { logAudit } from "@/app/api/src/modules/audit/audit.service";
 import { AUDIT_EVENTS } from "@/app/api/src/lib/constants";
 import { findOrCreatePendingReport } from "@/app/api/src/modules/gemini/research.agent";
+import { getServerSession } from "@/app/api/src/lib/session";
 
 const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 
-function getUserId(req: NextRequest): string | null {
-  return req.headers.get("x-user-id");
+async function getUserId(_req: NextRequest): Promise<string | null> {
+  const session = await getServerSession();
+  return session?.userId ?? null;
 }
 
 async function handleOwnership(
   req: NextRequest,
   leadId: string,
 ): Promise<{ userId: string } | NextResponse> {
-  const userId = getUserId(req);
+  const userId = await getUserId(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

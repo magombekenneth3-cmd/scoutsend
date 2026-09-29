@@ -1,20 +1,28 @@
 import { randomUUID } from "crypto";
 import { ApprovalStatus, DeliveryState, ReplyIntent, EmailStatus, Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import { buildListUnsubscribeHeaders, renderEmailTemplate, TemplateStyle } from "../../lib/emailTemplate";
+import { renderEmailTemplate, TemplateStyle, buildListUnsubscribeHeaders } from "../../lib/emailTemplate";
+import { logLeadJourneyEvent } from "../../lib/leads/lead-journey.service";
 import { getBrandSettingsOrDefault } from "../brandSettings/brandsettings.service";
 import { extractJSON } from "../gemini/gemini.client";
 import { logger } from "../../lib/logger";
 import { createMailProvider, MailboxCredentials, SendResult, OutlookCredentials } from "../../lib/mail";
 import { redis } from "../../lib/ioredis";
-import { decryptJson, isEncrypted, encryptJson } from "../../lib/mail/crypto";
-import { DOMAIN_HEALTH_THRESHOLDS } from "../../lib/constants";
+import { decryptMailboxCredentials, encryptJson } from "../../lib/mail/crypto";
+import { DOMAIN_HEALTH_THRESHOLDS, AUDIT_EVENTS } from "../../lib/constants";
 import { emitCampaignEvent } from "../../lib/campaign-events";
 import { effectiveCurrentSent, reserveDailyCapacity } from "../../lib/daily-quota";
+import {
+  buildSendIdempotencyKey,
+  createOrRecoverSendIntent,
+} from "../../lib/send/send-intent.service";
 import { verifySenderDomainDns } from "../senderDomain/senderDomain.services";
 import { verifyMailboxDns } from "../senderMailbox/senderMailbox.services";
 import { CacheService } from "../../lib/cache";
 import { recalculateDomainHealth, recalculateMailboxHealth } from "../Deliverybilityevents/deliverbility.service";
+import { logAudit } from "../audit/audit.service";
+import { checkBounceCircuitBreaker } from "./campaign-health.agent";
+import dns from "dns/promises";
 
 
 
@@ -26,10 +34,6 @@ const COMPLAINT_PENALTY_DAYS_PER_EXCESS = 7;
 
 const DEGRADED_EXTRA_PENALTY_DAYS = 7;
 
-function decryptCredentials(raw: unknown): MailboxCredentials {
-  if (isEncrypted(raw)) return decryptJson<MailboxCredentials>(raw as string);
-  return raw as MailboxCredentials;
-}
 
 interface ParsedBody {
   greeting?: string;
@@ -43,46 +47,143 @@ const GREETING_RE = /^(?:Hi|Hello|Hey|Dear)\b.{0,60}[,.]?\s*$/im;
 const CLOSING_RE = /^(?:Best|Regards|Sincerely|Cheers|Thanks|Thank you|Kind regards|Warm regards)[,.]?\s*$/im;
 
 function parseBody(raw: string) {
+  let greeting = "";
+  let opening = "";
+  let body = raw ? raw.trim() : "";
+  let ctaText = "";
+  let closing = "";
+
   try {
     const parsed = extractJSON<ParsedBody>(raw);
     if (parsed && typeof parsed === "object" && parsed.body) {
-      return {
-        greeting: parsed.greeting ?? "Hi there,",
-        opening: parsed.opening ?? "",
-        body: parsed.body,
-        ctaText: parsed.ctaText ?? "Let's connect",
-        closing: parsed.closing ?? "Best,",
-      };
+      greeting = parsed.greeting ?? "";
+      opening = parsed.opening ?? "";
+      body = parsed.body;
+      ctaText = parsed.ctaText ?? "";
+      closing = parsed.closing ?? "";
     }
   } catch (err) {
     logger.warn({ err }, "[send.agent] parseBody JSON extraction failed, falling back to regex");
   }
 
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-  const greetingIdx = lines.findIndex((l) => GREETING_RE.test(l));
+  if (!body) body = raw;
 
-  if (greetingIdx !== -1) {
-    const reversedClosingIdx = [...lines].reverse().findIndex((l) => CLOSING_RE.test(l));
-    const closingIdx = reversedClosingIdx >= 0 ? lines.length - 1 - reversedClosingIdx : -1;
-    const bodyStart = greetingIdx + 1;
-    const bodyEnd = closingIdx > bodyStart ? closingIdx : lines.length;
-
-    return {
-      greeting: lines[greetingIdx],
-      opening: "",
-      body: lines.slice(bodyStart, bodyEnd).join("\n"),
-      ctaText: "Let's connect",
-      closing: closingIdx > 0 ? lines.slice(closingIdx).join("\n") : "Best,",
-    };
+  const inlineGreetingMatch = body.match(/^(?:Hi|Hello|Hey|Dear)\b[^\n,.]*[,.]?/i);
+  if (inlineGreetingMatch) {
+    if (!greeting) {
+      greeting = inlineGreetingMatch[0].trim();
+    }
+    body = body.slice(inlineGreetingMatch[0].length).trim();
   }
 
+  if (!greeting && !opening) {
+    const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length > 0 && GREETING_RE.test(lines[0])) {
+      greeting = lines[0];
+      body = lines.slice(1).join("\n\n");
+    }
+  }
+
+  const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length > 0) {
+    const lastLine = lines[lines.length - 1];
+    if (CLOSING_RE.test(lastLine)) {
+      if (!closing) closing = lastLine;
+      body = lines.slice(0, -1).join("\n\n");
+    }
+  }
+
+  if (!closing) closing = "Best,";
+
   return {
-    greeting: "Hi there,",
-    opening: "",
-    body: raw,
-    ctaText: "Let's connect",
-    closing: "Best,",
+    greeting,
+    opening,
+    body,
+    ctaText,
+    closing,
   };
+}
+
+interface LeadVariableContext {
+  firstName?: string | null;
+  lastName?: string | null;
+  companyName?: string | null;
+  website?: string | null;
+}
+
+function replaceTemplateVars(template: string, ctx: LeadVariableContext): string {
+  const firstName = ctx.firstName?.trim() || "there";
+  const lastName = ctx.lastName?.trim() || "";
+  const companyName = ctx.companyName?.trim() || "your company";
+  const website = ctx.website?.trim() || "";
+
+  return template
+    .replace(/\{\{\s*(?:first_name|firstName)\s*\}\}/gi, firstName)
+    .replace(/\{\{\s*(?:last_name|lastName)\s*\}\}/gi, lastName)
+    .replace(/\{\{\s*(?:company_name|companyName|company)\s*\}\}/gi, companyName)
+    .replace(/\{\{\s*(?:website|url)\s*\}\}/gi, website)
+    .replace(/\s+([,.!?])/g, "$1");
+}
+
+function formatMessageIdHeader(rawId: string | null | undefined): string | undefined {
+  if (!rawId) return undefined;
+  const cleaned = rawId.trim().replace(/^<+|>+$/g, "");
+  return cleaned ? `<${cleaned}>` : undefined;
+}
+
+const SPAM_TRIGGER_PATTERNS: RegExp[] = [
+  /\b100%\s*free\b/i,
+  /\bact\s*now\b/i,
+  /\blimited\s*time\s*offer\b/i,
+  /\bclick\s*here\s*immediately\b/i,
+  /\bno\s*obligation\b/i,
+  /\brisk[\s-]*free\b/i,
+  /\bcongratulations!?\s*you\b/i,
+  /\bdouble\s*your\b/i,
+  /\bmillion\s*dollars\b/i,
+  /\b(?:buy|order)\s*now\b/i,
+  /\bdon'?t\s*miss\s*out\b/i,
+  /\bexclusive\s*deal\b/i,
+  /\bfree\s*(?:gift|money|access|trial)\b/i,
+  /\bguaranteed\b/i,
+  /\bno\s*(?:cost|catch|strings)\b/i,
+  /\bwinner\b/i,
+  /\burgent\b/i,
+  /\bunsubscribe\b/i,
+  /\b(?:cash|money)\s*(?:back|bonus)\b/i,
+  /\blowest\s*price\b/i,
+];
+
+function scoreSpamRisk(text: string): number {
+  let hits = 0;
+  for (const pattern of SPAM_TRIGGER_PATTERNS) {
+    if (pattern.test(text)) hits++;
+  }
+  return hits;
+}
+
+const CROSS_CAMPAIGN_DEDUP_TTL = 86400;
+
+const MX_CHECK_TIMEOUT_MS = 3_000;
+
+async function hasMxRecord(domain: string, cache: Map<string, boolean>): Promise<boolean> {
+  const cached = cache.get(domain);
+  if (cached !== undefined) return cached;
+
+  try {
+    const result = await Promise.race([
+      dns.resolveMx(domain),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`MX timeout: ${domain}`)), MX_CHECK_TIMEOUT_MS)
+      ),
+    ]);
+    const hasMx = Array.isArray(result) && result.length > 0;
+    cache.set(domain, hasMx);
+    return hasMx;
+  } catch {
+    cache.set(domain, false);
+    return false;
+  }
 }
 
 const MAX_RETRIES = 3;
@@ -91,8 +192,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const WARMUP_DAYS = 28;
 const MIN_WARMUP_SEND = 5;
 
-const SEND_JITTER_MIN_MS = 2000;
-const SEND_JITTER_RANGE_MS = 8000;
+const SEND_JITTER_MIN_MS = 90_000;
+const SEND_JITTER_RANGE_MS = 150_000;
 const BLOCKED_EMAIL_STATUSES: EmailStatus[] = [
   EmailStatus.INVALID,
   EmailStatus.BOUNCED,
@@ -108,13 +209,24 @@ const jitterMs = () => Math.floor(SEND_JITTER_MIN_MS + Math.random() * SEND_JITT
 const ROTATION_COOLDOWN_SEC = 6 * 60 * 60;
 const MIN_ROTATION_BATCH = 5;
 const HEALTH_PRIORITY: Record<string, number> = { HEALTHY: 0, WARNING: 1, DEGRADED: 2 };
-const SAFE_UTC_WINDOW_START = 13;
-const SAFE_UTC_WINDOW_END = 16;
+const SAFE_UTC_WINDOW_START = 14;
+const SAFE_UTC_WINDOW_END = 18;
 
 async function tryRotateWithCooldown(campaignId: string): Promise<boolean> {
   const key = `rotation-lock:${campaignId}`;
   const acquired = await redis.set(key, "1", "EX", ROTATION_COOLDOWN_SEC, "NX");
   return !!acquired;
+}
+
+function pickWeightedRandomMailbox<T extends { remainingToday: number }>(items: T[]): T {
+  if (items.length === 1) return items[0];
+  const totalWeight = items.reduce((sum, item) => sum + Math.max(1, item.remainingToday), 0);
+  let randomWeight = Math.random() * totalWeight;
+  for (const item of items) {
+    randomWeight -= Math.max(1, item.remainingToday);
+    if (randomWeight <= 0) return item;
+  }
+  return items[0];
 }
 
 export function getWarmupLimit(domain: {
@@ -160,11 +272,17 @@ export function getWarmupLimit(domain: {
   }
 
   const progress = Math.sqrt(effectiveAgeDays / WARMUP_DAYS);
-  const limit = Math.floor(
+  const calculatedLimit = Math.floor(
     MIN_WARMUP_SEND + (domain.dailyLimit - MIN_WARMUP_SEND) * progress,
   );
 
-  return Math.max(MIN_WARMUP_SEND, Math.min(limit, domain.dailyLimit));
+  const healthMultiplier =
+    domain.health === "HEALTHY" ? 1.0 :
+      domain.health === "WARNING" ? 0.6 :
+        domain.health === "DEGRADED" ? 0.25 : 0;
+
+  const healthCappedLimit = Math.floor(domain.dailyLimit * healthMultiplier);
+  return Math.max(0, Math.min(calculatedLimit, healthCappedLimit));
 }
 
 const BOUNCE_CRITICAL = DOMAIN_HEALTH_THRESHOLDS.BOUNCE_RATE_BLOCKED;
@@ -366,7 +484,7 @@ function scoreMessageForSend(msg: MessageWithLead): number {
   return qualScore + clampedSignalScore + starvationBump;
 }
 
-const DEFAULT_SEND_WINDOW_START = 7;
+const DEFAULT_SEND_WINDOW_START = 9;
 const DEFAULT_SEND_WINDOW_END = 17;
 const DEFAULT_SEND_WINDOW_DAYS = [1, 2, 3, 4, 5];
 
@@ -423,6 +541,163 @@ function isWithinSendWindow(campaign: SendWindowCampaign): boolean {
   if (!windowDays.includes(schemaBit)) return false;
   if (now.getUTCHours() < SAFE_UTC_WINDOW_START || now.getUTCHours() >= SAFE_UTC_WINDOW_END) return false;
   return true;
+}
+
+const LOCATION_TIMEZONE_MAP: Array<{ pattern: RegExp; timezone: string }> = [
+  { pattern: /\b(?:California|San Francisco|Los Angeles|San Diego|San Jose|Palo Alto|Sacramento|Oakland|Irvine|Santa Clara|Sunnyvale)\b|,\s*CA\b/i, timezone: "America/Los_Angeles" },
+  { pattern: /\b(?:Seattle|Spokane|Tacoma|Bellevue)\b|,\s*WA\b/i, timezone: "America/Los_Angeles" },
+  { pattern: /\b(?:Oregon|Portland|Eugene)\b|,\s*OR\b/i, timezone: "America/Los_Angeles" },
+  { pattern: /\b(?:New York|NYC|Brooklyn|Manhattan|Buffalo|Rochester)\b|,\s*NY\b/i, timezone: "America/New_York" },
+  { pattern: /\b(?:Massachusetts|Boston|Cambridge|Worcester)\b|,\s*MA\b/i, timezone: "America/New_York" },
+  { pattern: /\b(?:Florida|Miami|Orlando|Tampa|Jacksonville)\b|,\s*FL\b/i, timezone: "America/New_York" },
+  { pattern: /\b(?:Georgia|Atlanta|Savannah)\b|,\s*GA\b/i, timezone: "America/New_York" },
+  { pattern: /\b(?:New Jersey|Jersey City|Newark)\b|,\s*NJ\b/i, timezone: "America/New_York" },
+  { pattern: /\b(?:Pennsylvania|Philadelphia|Pittsburgh)\b|,\s*PA\b/i, timezone: "America/New_York" },
+  { pattern: /\b(?:North Carolina|Charlotte|Raleigh)\b|,\s*NC\b/i, timezone: "America/New_York" },
+  { pattern: /\b(?:Virginia|Richmond|Arlington)\b|,\s*VA\b/i, timezone: "America/New_York" },
+  { pattern: /\b(?:Washington DC|D\.C\.|District of Columbia)\b/i, timezone: "America/New_York" },
+  { pattern: /\b(?:Texas|Austin|Dallas|Houston|San Antonio|Fort Worth)\b|,\s*TX\b/i, timezone: "America/Chicago" },
+  { pattern: /\b(?:Illinois|Chicago|Naperville)\b|,\s*IL\b/i, timezone: "America/Chicago" },
+  { pattern: /\b(?:Minnesota|Minneapolis|Saint Paul|St\.?\s*Paul)\b|,\s*MN\b/i, timezone: "America/Chicago" },
+  { pattern: /\b(?:Colorado|Denver|Boulder|Colorado Springs)\b|,\s*CO\b/i, timezone: "America/Chicago" },
+  { pattern: /\b(?:Missouri|St\.?\s*Louis|Kansas City)\b|,\s*MO\b/i, timezone: "America/Chicago" },
+  { pattern: /\b(?:Kansas)\b|,\s*KS\b/i, timezone: "America/Chicago" },
+  { pattern: /\b(?:Indiana|Indianapolis)\b|,\s*IN\s*,\s*(?:USA?|United States)\b/i, timezone: "America/Indiana/Indianapolis" },
+  { pattern: /\b(?:Arizona|Phoenix|Scottsdale|Tucson)\b|,\s*AZ\b/i, timezone: "America/Phoenix" },
+  { pattern: /\b(?:Nevada|Las Vegas|Reno)\b|,\s*NV\b/i, timezone: "America/Phoenix" },
+  { pattern: /\b(?:Utah|Salt Lake City|Provo)\b|,\s*UT\b/i, timezone: "America/Phoenix" },
+  { pattern: /\b(?:Canada|Toronto|Ottawa|Hamilton|Halifax)\b|,\s*CA\s*,\s*Canada\b/i, timezone: "America/Toronto" },
+  { pattern: /\b(?:Vancouver|Calgary|Edmonton|Winnipeg)\b/i, timezone: "America/Vancouver" },
+  { pattern: /\b(?:Montreal|Montréal|Quebec|Québec)\b/i, timezone: "America/Toronto" },
+  { pattern: /\b(?:Mexico|México|Mexico City|CDMX|Guadalajara|Monterrey)\b|,\s*MX\b/i, timezone: "America/Mexico_City" },
+  { pattern: /\b(?:Brazil|Brasil|São Paulo|Sao Paulo|Rio de Janeiro|Brasília|Curitiba)\b|,\s*BR\b/i, timezone: "America/Sao_Paulo" },
+  { pattern: /\b(?:Argentina|Buenos Aires|Chile|Santiago)\b/i, timezone: "America/Argentina/Buenos_Aires" },
+  { pattern: /\b(?:Colombia|Bogota|Bogotá|Peru|Lima|Ecuador|Quito|Venezuela|Caracas)\b/i, timezone: "America/Bogota" },
+  { pattern: /\b(?:United Kingdom|London|England|Ireland|Dublin|Scotland|Wales|Edinburgh|Manchester|Birmingham|Belfast)\b|,\s*(?:UK|GB)\b/i, timezone: "Europe/London" },
+  { pattern: /\b(?:Germany|Deutschland|Berlin|Munich|München|Frankfurt|Hamburg|Cologne|Köln|Stuttgart|Düsseldorf)\b|,\s*DE\b/i, timezone: "Europe/Berlin" },
+  { pattern: /\b(?:France|Paris|Lyon|Marseille|Toulouse|Nice)\b|,\s*FR\b/i, timezone: "Europe/Paris" },
+  { pattern: /\b(?:Spain|España|Madrid|Barcelona|Valencia|Seville)\b|,\s*ES\b/i, timezone: "Europe/Madrid" },
+  { pattern: /\b(?:Italy|Italia|Rome|Roma|Milan|Milano|Turin|Naples)\b|,\s*IT\b/i, timezone: "Europe/Rome" },
+  { pattern: /\b(?:Netherlands|Holland|Amsterdam|Rotterdam|The Hague|Utrecht)\b|,\s*NL\b/i, timezone: "Europe/Amsterdam" },
+  { pattern: /\b(?:Sweden|Sverige|Stockholm|Gothenburg|Malmö)\b|,\s*SE\b/i, timezone: "Europe/Stockholm" },
+  { pattern: /\b(?:Norway|Norge|Oslo|Bergen)\b|,\s*NO\b/i, timezone: "Europe/Oslo" },
+  { pattern: /\b(?:Denmark|Danmark|Copenhagen|København)\b|,\s*DK\b/i, timezone: "Europe/Copenhagen" },
+  { pattern: /\b(?:Finland|Suomi|Helsinki)\b|,\s*FI\b/i, timezone: "Europe/Helsinki" },
+  { pattern: /\b(?:Poland|Polska|Warsaw|Warszawa|Kraków|Cracow|Wrocław)\b|,\s*PL\b/i, timezone: "Europe/Warsaw" },
+  { pattern: /\b(?:Switzerland|Schweiz|Zurich|Zürich|Geneva|Genève|Basel|Bern)\b|,\s*CH\b/i, timezone: "Europe/Zurich" },
+  { pattern: /\b(?:Austria|Österreich|Vienna|Wien)\b|,\s*AT\b/i, timezone: "Europe/Vienna" },
+  { pattern: /\b(?:Belgium|België|Belgique|Brussels|Bruxelles|Antwerp)\b|,\s*BE\b/i, timezone: "Europe/Brussels" },
+  { pattern: /\b(?:Turkey|Türkiye|Istanbul|Ankara)\b|,\s*TR\b/i, timezone: "Europe/Istanbul" },
+  { pattern: /\b(?:South Africa|Johannesburg|Cape Town|Durban|Pretoria|Nigeria|Lagos|Abuja|Kenya|Nairobi|Ghana|Accra)\b|,\s*ZA\b/i, timezone: "Africa/Johannesburg" },
+  { pattern: /\b(?:Egypt|Cairo|Alexandria)\b|,\s*EG\b/i, timezone: "Africa/Cairo" },
+  { pattern: /\b(?:Israel|Tel Aviv|Jerusalem|Haifa)\b|,\s*IL\b/i, timezone: "Asia/Jerusalem" },
+  { pattern: /\b(?:UAE|United Arab Emirates|Dubai|Abu Dhabi|Saudi Arabia|Riyadh|Qatar|Doha|Bahrain|Kuwait)\b/i, timezone: "Asia/Dubai" },
+  { pattern: /\b(?:India|Bharat|Mumbai|Delhi|New Delhi|Bangalore|Bengaluru|Hyderabad|Chennai|Kolkata|Calcutta|Pune|Ahmedabad|Jaipur|Surat|Noida|Gurgaon|Gurugram)\b|,\s*IN\b/i, timezone: "Asia/Kolkata" },
+  { pattern: /\b(?:Pakistan|Karachi|Lahore|Bangladesh|Dhaka|Sri Lanka|Colombo)\b/i, timezone: "Asia/Colombo" },
+  { pattern: /\b(?:Singapore)\b|,\s*SG\b/i, timezone: "Asia/Singapore" },
+  { pattern: /\b(?:Malaysia|Kuala Lumpur|KL|Philippines|Manila|Indonesia|Jakarta|Bali)\b/i, timezone: "Asia/Singapore" },
+  { pattern: /\b(?:Vietnam|Ho Chi Minh|Hanoi|Thailand|Bangkok)\b/i, timezone: "Asia/Bangkok" },
+  { pattern: /\b(?:China|Beijing|Shanghai|Shenzhen|Guangzhou|Chengdu|Hangzhou)\b|,\s*CN\b/i, timezone: "Asia/Shanghai" },
+  { pattern: /\b(?:Hong Kong|HK)\b/i, timezone: "Asia/Hong_Kong" },
+  { pattern: /\b(?:South Korea|Korea|Seoul|Busan|Incheon)\b|,\s*KR\b/i, timezone: "Asia/Seoul" },
+  { pattern: /\b(?:Japan|Nippon|Nihon|Tokyo|Osaka|Kyoto|Yokohama|Nagoya)\b|,\s*JP\b/i, timezone: "Asia/Tokyo" },
+  { pattern: /\b(?:Australia|Sydney|Melbourne|Brisbane|Perth|Adelaide|Canberra)\b|,\s*AU\b/i, timezone: "Australia/Sydney" },
+  { pattern: /\b(?:New Zealand|Auckland|Wellington|Christchurch)\b|,\s*NZ\b/i, timezone: "Pacific/Auckland" },
+];
+
+const TLD_TIMEZONE_MAP: Array<{ tld: string; timezone: string }> = [
+  { tld: ".co.uk", timezone: "Europe/London" },
+  { tld: ".uk", timezone: "Europe/London" },
+  { tld: ".ie", timezone: "Europe/London" },
+  { tld: ".de", timezone: "Europe/Berlin" },
+  { tld: ".at", timezone: "Europe/Berlin" },
+  { tld: ".ch", timezone: "Europe/Berlin" },
+  { tld: ".fr", timezone: "Europe/Paris" },
+  { tld: ".be", timezone: "Europe/Brussels" },
+  { tld: ".nl", timezone: "Europe/Amsterdam" },
+  { tld: ".es", timezone: "Europe/Madrid" },
+  { tld: ".it", timezone: "Europe/Rome" },
+  { tld: ".se", timezone: "Europe/Stockholm" },
+  { tld: ".no", timezone: "Europe/Oslo" },
+  { tld: ".dk", timezone: "Europe/Copenhagen" },
+  { tld: ".fi", timezone: "Europe/Helsinki" },
+  { tld: ".pl", timezone: "Europe/Warsaw" },
+  { tld: ".cz", timezone: "Europe/Prague" },
+  { tld: ".ca", timezone: "America/Toronto" },
+  { tld: ".com.au", timezone: "Australia/Sydney" },
+  { tld: ".au", timezone: "Australia/Sydney" },
+  { tld: ".nz", timezone: "Pacific/Auckland" },
+  { tld: ".in", timezone: "Asia/Kolkata" },
+  { tld: ".sg", timezone: "Asia/Singapore" },
+  { tld: ".jp", timezone: "Asia/Tokyo" },
+  { tld: ".co.jp", timezone: "Asia/Tokyo" },
+  { tld: ".kr", timezone: "Asia/Seoul" },
+  { tld: ".co.kr", timezone: "Asia/Seoul" },
+  { tld: ".hk", timezone: "Asia/Hong_Kong" },
+  { tld: ".cn", timezone: "Asia/Shanghai" },
+  { tld: ".com.br", timezone: "America/Sao_Paulo" },
+  { tld: ".br", timezone: "America/Sao_Paulo" },
+  { tld: ".mx", timezone: "America/Mexico_City" },
+  { tld: ".za", timezone: "Africa/Johannesburg" },
+  { tld: ".ae", timezone: "Asia/Dubai" },
+  { tld: ".il", timezone: "Asia/Jerusalem" },
+];
+
+function resolveTimezoneFromWebsite(website: string): string | null {
+  try {
+    const raw = website.trim();
+    const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const host = new URL(href).hostname.toLowerCase();
+    for (const entry of TLD_TIMEZONE_MAP) {
+      if (host.endsWith(entry.tld)) return entry.timezone;
+    }
+  } catch { }
+  return null;
+}
+
+export function resolveLeadTimezone(
+  location: string | null | undefined,
+  fallbackTimezone: string | null,
+  website?: string | null,
+  companyLocation?: string | null,
+): string | null {
+  const primaryLoc = location?.trim();
+  if (primaryLoc) {
+    for (const entry of LOCATION_TIMEZONE_MAP) {
+      if (entry.pattern.test(primaryLoc)) return entry.timezone;
+    }
+  }
+  const secondaryLoc = companyLocation?.trim();
+  if (secondaryLoc) {
+    for (const entry of LOCATION_TIMEZONE_MAP) {
+      if (entry.pattern.test(secondaryLoc)) return entry.timezone;
+    }
+  }
+  if (website) {
+    const tldTz = resolveTimezoneFromWebsite(website);
+    if (tldTz) return tldTz;
+  }
+  if (fallbackTimezone && fallbackTimezone.trim().length > 0) return fallbackTimezone;
+  return null;
+}
+
+export function isLeadInSendWindow(
+  leadLocation: string | null | undefined,
+  campaign: SendWindowCampaign,
+  leadWebsite?: string | null,
+  companyLocation?: string | null,
+): boolean {
+  const targetTimezone = resolveLeadTimezone(leadLocation, campaign.timezone, leadWebsite, companyLocation);
+  if (!targetTimezone) {
+    logger.info(
+      { leadLocation, leadWebsite, companyLocation },
+      "[send.agent] Timezone unresolved for lead — defaulting to safe UTC business hour window"
+    );
+  }
+  return isWithinSendWindow({
+    ...campaign,
+    timezone: targetTimezone,
+  });
 }
 
 async function validateDomainForFailover(
@@ -483,12 +758,25 @@ async function validateMailboxForFailover(
   }
 }
 
-function classifyFailure(errorMsg: string): "permanent" | "retryable" {
+type FailureCategory = "permanent" | "reputation_block" | "retryable";
+
+function classifyFailure(errorMsg: string): FailureCategory {
   const normalized = errorMsg.toLowerCase();
   if (
-    normalized.includes("550") ||
-    normalized.includes("554") ||
-    normalized.includes("501") ||
+    normalized.includes("5.7.1") ||
+    normalized.includes("spamhaus") ||
+    normalized.includes("ip blocked") ||
+    normalized.includes("blacklisted") ||
+    normalized.includes("client host blocked") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("too many requests") ||
+    normalized.includes("reputation")
+  ) {
+    return "reputation_block";
+  }
+  if (
+    normalized.includes("5.1.1") ||
+    normalized.includes("550 5.1.") ||
     normalized.includes("mailbox not found") ||
     normalized.includes("user unknown") ||
     normalized.includes("recipient rejected") ||
@@ -502,6 +790,44 @@ function classifyFailure(errorMsg: string): "permanent" | "retryable" {
     return "permanent";
   }
   return "retryable";
+}
+
+function isTransientMailboxError(errorMsg?: string | null): boolean {
+  if (!errorMsg) return false;
+  const n = errorMsg.toLowerCase();
+  return (
+    n.includes("429") ||
+    n.includes("451") ||
+    n.includes("535") ||
+    n.includes("554") ||
+    n.includes("5.7.") ||
+    n.includes("4.7.") ||
+    n.includes("invalid_grant") ||
+    n.includes("unauthorized") ||
+    n.includes("authentication failed") ||
+    n.includes("rate limit") ||
+    n.includes("quota exceeded") ||
+    n.includes("econnreset") ||
+    n.includes("etimedout") ||
+    n.includes("eauth") ||
+    n.includes("token expired") ||
+    n.includes("provider unavailable")
+  );
+}
+
+async function coolOffMailbox(mailboxId: string): Promise<void> {
+  const failKey = `mailbox:failcount:${mailboxId}`;
+  const coolKey = `mailbox:cooloff:${mailboxId}`;
+  const failCount = await redis.incr(failKey);
+  if (failCount === 1) {
+    await redis.expire(failKey, 3600);
+  }
+  const backoffSec = Math.min(900 * Math.pow(2, Math.max(0, failCount - 1)), 7200);
+  await redis.set(coolKey, "1", "EX", backoffSec);
+  logger.warn(
+    { mailboxId, failCount, backoffSec },
+    "[send.agent] Mailbox hit transient failure — cool-off circuit breaker activated"
+  );
 }
 
 async function verifyEmailAddress(email: string): Promise<"VALID" | "INVALID" | "UNKNOWN"> {
@@ -552,28 +878,33 @@ export async function runSendAgent(campaignId: string): Promise<void> {
     include: {
       senderDomain: true,
       senderMailbox: true,
+      senderMailboxes: true,
       createdBy: true,
     },
   });
 
   if (!campaign) throw new Error("Campaign not found");
 
-  let mailbox = campaign.senderMailbox;
-  let domain = campaign.senderDomain;
+  let poolMailboxes = campaign.senderMailboxes;
+  if (poolMailboxes.length === 0 && campaign.senderMailbox) {
+    poolMailboxes = [campaign.senderMailbox];
+  }
 
-  if (!mailbox && !domain) {
+  const domain = campaign.senderDomain;
+
+  if (poolMailboxes.length === 0 && !domain) {
     logger.error(
       {
         campaignId: campaign.id,
         status: campaign.status,
         linkedInAccountId: campaign.linkedInAccountId ?? null,
       },
-      "[send.agent] No email sender configured — likely a scheduler routing bug; verify scan-queued-campaigns has senderMailboxId: { not: null }",
+      "[send.agent] No email sender configured — likely a scheduler routing bug",
     );
     throw new Error("No sender mailbox or domain configured");
   }
 
-  if (!mailbox) {
+  if (poolMailboxes.length === 0) {
     throw new Error(
       "No sender mailbox configured for this campaign. " +
       "Domain-only sending is not currently supported."
@@ -586,58 +917,125 @@ export async function runSendAgent(campaignId: string): Promise<void> {
 
   if (campaign.status === "PAUSED") return;
 
-  const isMailboxMode = !!mailbox;
-  const healthEntityId = mailbox.id;
+  type CachedMailboxState = {
+    health: Awaited<ReturnType<typeof enforceMailboxHealth>>;
+    limits: { warmupLimit: number; effectiveDailyLimit: number; remainingToday: number };
+  };
 
-  let health = isMailboxMode
-    ? await enforceMailboxHealth(healthEntityId)
-    : await enforceDomainHealth(domain!.id);
+  const mailboxStateCache = new Map<string, CachedMailboxState>();
+  const mailboxDomainCache = new Map<string, Awaited<ReturnType<typeof prisma.senderDomain.findFirst>>>();
 
-  if (!health.canSend) {
+  const getMailboxState = async (meta: typeof poolMailboxes[0]): Promise<CachedMailboxState> => {
+    const cached = mailboxStateCache.get(meta.id);
+    if (cached) return cached;
+
+    const isCooledOff = await redis.get(`mailbox:cooloff:${meta.id}`);
+    if (isCooledOff) {
+      const state = {
+        health: { canSend: false, effectiveRateMultiplier: 0, newHealth: meta.health },
+        limits: { warmupLimit: 0, effectiveDailyLimit: 0, remainingToday: 0 },
+      };
+      mailboxStateCache.set(meta.id, state);
+      return state;
+    }
+
+    const health = await enforceMailboxHealth(meta.id);
+    if (!health.canSend) {
+      const state = {
+        health,
+        limits: { warmupLimit: 0, effectiveDailyLimit: 0, remainingToday: 0 },
+      };
+      mailboxStateCache.set(meta.id, state);
+      return state;
+    }
+
+    const effectiveHealth = health.newHealth ?? meta.health;
+    const warmupLimit = getWarmupLimit({
+      dailyLimit: meta.dailyLimit,
+      warmupEnabled: meta.warmupEnabled,
+      createdAt: meta.createdAt,
+      bounceRate: meta.bounceRate,
+      complaintRate: meta.complaintRate,
+      health: effectiveHealth,
+    });
+    const absoluteMax = Math.max(
+      1,
+      parseInt(process.env.SEND_ABSOLUTE_MAX_PER_MAILBOX ?? "500", 10)
+    );
+    const dailyLimit = Math.max(0, Math.min(absoluteMax, meta.dailyLimit));
+    if (meta.dailyLimit > absoluteMax) {
+      logger.warn(
+        { mailboxId: meta.id, configuredLimit: meta.dailyLimit, clampedTo: absoluteMax },
+        "[send.agent] Mailbox dailyLimit exceeds SEND_ABSOLUTE_MAX_PER_MAILBOX ceiling — clamped"
+      );
+    }
+    const effectiveDailyLimit = Math.floor(warmupLimit * health.effectiveRateMultiplier);
+    const effectiveSent = await effectiveCurrentSent(prisma, "SenderMailbox", meta.id);
+    const remainingToday = Math.max(0, Math.min(effectiveDailyLimit, dailyLimit) - effectiveSent);
+    const state = {
+      health,
+      limits: { warmupLimit, effectiveDailyLimit, remainingToday },
+    };
+    mailboxStateCache.set(meta.id, state);
+    return state;
+  };
+
+  const buildActivePool = async (mailboxes: typeof poolMailboxes) => {
+    const pool = [];
+    for (const mb of mailboxes) {
+      const state = await getMailboxState(mb);
+      if (!state.health.canSend) continue;
+      if (state.limits.remainingToday > 0) {
+        pool.push({
+          mailbox: mb,
+          health: state.health,
+          warmupLimit: state.limits.warmupLimit,
+          effectiveDailyLimit: state.limits.effectiveDailyLimit,
+          remainingToday: state.limits.remainingToday,
+        });
+      }
+    }
+    return pool;
+  };
+
+  let activePool = await buildActivePool(poolMailboxes);
+
+  if (activePool.length === 0 && campaign.senderMailboxes.length === 0 && campaign.senderMailbox) {
     logger.warn(
-      { campaignId, oldMailboxId: mailbox.id },
-      "[send.agent] Campaign mailbox is blocked. Attempting automatic failover..."
+      { campaignId, oldMailboxId: campaign.senderMailboxId },
+      "[send.agent] Legacy campaign mailbox is blocked or has no capacity. Attempting automatic failover..."
     );
 
+    const legacyMailbox = campaign.senderMailbox;
+    const legacyState = await getMailboxState(legacyMailbox);
+    const legacyHealth = legacyState.health;
+
     const canRotate = await tryRotateWithCooldown(campaignId);
-    if (!canRotate) {
-      logger.info({ campaignId }, "[send.agent] Health failover skipped — rotation cooldown active");
-    } else {
-      const failoverCandidates = await prisma.senderMailbox.findMany({
+    if (canRotate) {
+      const alternativeMailboxes = await prisma.senderMailbox.findMany({
         where: {
           createdById: campaign.createdById,
           health: { notIn: ["BLOCKED"] },
-          id: { not: mailbox.id },
+          id: { not: legacyMailbox.id },
         },
       });
 
-      failoverCandidates.sort((a, b) =>
+      alternativeMailboxes.sort((a, b) =>
         (HEALTH_PRIORITY[a.health] ?? 3) - (HEALTH_PRIORITY[b.health] ?? 3) ||
         a.currentSent - b.currentSent
       );
 
-      let chosenFailover: { mailbox: (typeof failoverCandidates)[0]; health: typeof health } | null = null;
-      for (const candidate of failoverCandidates) {
-        const candHealth = await enforceMailboxHealth(candidate.id);
-        if (!candHealth.canSend) continue;
-        const effectiveSent = await effectiveCurrentSent(prisma, "SenderMailbox", candidate.id);
-        const warmupLim = getWarmupLimit({
-          dailyLimit: candidate.dailyLimit,
-          warmupEnabled: candidate.warmupEnabled,
-          createdAt: candidate.createdAt,
-          bounceRate: candidate.bounceRate,
-          complaintRate: candidate.complaintRate,
-          health: candidate.health,
-        });
-        const effectiveDailyLim = Math.floor(warmupLim * candHealth.effectiveRateMultiplier);
-        if (Math.max(0, effectiveDailyLim - effectiveSent) < MIN_ROTATION_BATCH) continue;
-        chosenFailover = { mailbox: candidate, health: candHealth };
+      let chosenFailover = null;
+      for (const candidate of alternativeMailboxes) {
+        const candidateState = await getMailboxState(candidate);
+        if (!candidateState.health.canSend) continue;
+        if (candidateState.limits.remainingToday < MIN_ROTATION_BATCH) continue;
+        chosenFailover = { mailbox: candidate, health: candidateState.health, limits: candidateState.limits };
         break;
       }
 
       if (chosenFailover) {
         const alternativeMailbox = chosenFailover.mailbox;
-        const alternativeHealth = chosenFailover.health;
         const alternativeDomainStr = alternativeMailbox.emailAddress.split("@")[1];
         const alternativeDomain = await prisma.senderDomain.findFirst({
           where: {
@@ -650,18 +1048,7 @@ export async function runSendAgent(campaignId: string): Promise<void> {
         const dnsCheck = await validateDomainForFailover(alternativeDomain?.id ?? null, campaignId);
         const mailboxDnsCheck = await validateMailboxForFailover(alternativeMailbox.id, campaignId);
 
-        if (!dnsCheck.valid || !mailboxDnsCheck.valid) {
-          logger.warn(
-            {
-              campaignId,
-              candidateMailboxId: alternativeMailbox.id,
-              candidateDomainId: alternativeDomain?.id,
-              domainDnsReason: dnsCheck.reason,
-              mailboxDnsReason: mailboxDnsCheck.reason,
-            },
-            "[send.agent] Health-failover candidate rejected: DNS invalid — campaign paused",
-          );
-        } else {
+        if (dnsCheck.valid && mailboxDnsCheck.valid) {
           await prisma.campaign.update({
             where: { id: campaignId },
             data: {
@@ -670,53 +1057,46 @@ export async function runSendAgent(campaignId: string): Promise<void> {
             },
           });
 
-          await prisma.deliverabilityEvent
-            .create({
-              data: {
-                type: "MAILBOX_ROTATED",
-                severity: "WARNING",
-                ...(alternativeDomain && { senderDomainId: alternativeDomain.id }),
-                metadata: {
-                  reason: "health_failover",
-                  campaignId,
-                  fromMailboxId: mailbox.id,
-                  toMailboxId: alternativeMailbox.id,
-                  dnsValidated: true,
-                },
+          await prisma.deliverabilityEvent.create({
+            data: {
+              type: "MAILBOX_ROTATED",
+              severity: "INFO",
+              ...(alternativeDomain && { senderDomainId: alternativeDomain.id }),
+              metadata: {
+                reason: !legacyHealth.canSend ? "health_failover" : "capacity_rotation",
+                campaignId,
+                fromMailboxId: legacyMailbox.id,
+                toMailboxId: alternativeMailbox.id,
               },
-            })
-            .catch((err) =>
-              logger.warn({ err, campaignId }, "[send.agent] Non-fatal: deliverabilityEvent write failed"),
-            );
+            },
+          }).catch(() => null);
 
           logger.info(
-            {
-              campaignId,
-              oldMailboxId: mailbox.id,
-              newMailboxId: alternativeMailbox.id,
-              newDomainId: alternativeDomain?.id,
-            },
-            "[send.agent] Successfully failed over campaign to alternative mailbox (DNS validated)",
+            { campaignId, oldMailboxId: legacyMailbox.id, newMailboxId: alternativeMailbox.id },
+            "[send.agent] Successfully failed over legacy campaign to alternative mailbox"
           );
 
-          mailbox = alternativeMailbox;
-          if (alternativeDomain) {
-            domain = alternativeDomain;
-          }
-          health = alternativeHealth;
+          poolMailboxes = [alternativeMailbox];
+          activePool = [{
+            mailbox: alternativeMailbox,
+            health: chosenFailover.health,
+            warmupLimit: chosenFailover.limits.warmupLimit,
+            effectiveDailyLimit: chosenFailover.limits.effectiveDailyLimit,
+            remainingToday: chosenFailover.limits.remainingToday,
+          }];
         }
       }
     }
   }
 
-  if (!health.canSend) {
+  if (activePool.length === 0) {
     await prisma.campaign.update({
       where: { id: campaignId },
       data: { status: "PAUSED", previousStatus: campaign.status },
     });
     logger.warn(
-      { campaignId, healthEntityId: mailbox!.id, isMailboxMode },
-      "[send.agent] Sender blocked and no alternative mailbox available — campaign paused"
+      { campaignId },
+      "[send.agent] No healthy sender mailbox with capacity available — campaign paused"
     );
     return;
   }
@@ -745,149 +1125,11 @@ export async function runSendAgent(campaignId: string): Promise<void> {
     return;
   }
 
-  const senderMeta = mailbox ?? domain!;
-  const getLimits = async (meta: typeof senderMeta, h: typeof health) => {
-    const warmupLimit = getWarmupLimit({
-      dailyLimit: meta.dailyLimit,
-      warmupEnabled: meta.warmupEnabled,
-      createdAt: meta.createdAt,
-      bounceRate: meta.bounceRate,
-      complaintRate: meta.complaintRate,
-      health: meta.health,
-    });
-    const effectiveDailyLimit = Math.floor(warmupLimit * h.effectiveRateMultiplier);
-    const table: "SenderMailbox" | "SenderDomain" = domain && meta.id === domain.id ? "SenderDomain" : "SenderMailbox";
-    const effectiveSent = await effectiveCurrentSent(prisma, table, meta.id);
-    const remainingToday = Math.max(0, effectiveDailyLimit - effectiveSent);
-    const rawBatchSize = Math.min(campaign.dailySendLimit, remainingToday);
-    return { warmupLimit, effectiveDailyLimit, rawBatchSize };
-  };
-
-  const limits = await getLimits(senderMeta, health);
-  let { warmupLimit, effectiveDailyLimit, rawBatchSize } = limits;
-  let effectiveRateMultiplier = health.effectiveRateMultiplier;
+  const totalCampaignCapacityToday = activePool.reduce((sum, item) => sum + item.remainingToday, 0);
+  const rawBatchSize = Math.min(campaign.dailySendLimit, totalCampaignCapacityToday);
 
   if (rawBatchSize === 0) {
-    logger.info(
-      { campaignId, mailboxId: mailbox!.id, currentSent: senderMeta.currentSent },
-      "[send.agent] Mailbox daily sending limit reached. Attempting to rotate to another mailbox with capacity..."
-    );
-
-    const canCapacityRotate = await tryRotateWithCooldown(campaignId);
-    if (!canCapacityRotate) {
-      logger.info({ campaignId }, "[send.agent] Capacity rotation skipped — rotation cooldown active");
-    } else {
-      const alternativeMailboxes = await prisma.senderMailbox.findMany({
-        where: {
-          createdById: campaign.createdById,
-          health: { notIn: ["BLOCKED"] },
-          id: { not: mailbox!.id },
-        },
-      });
-
-      let rotatedMailbox = null;
-      let rotatedDomain = null;
-      let rotatedHealth = null;
-      let rotatedLimits = null;
-
-      for (const alt of alternativeMailboxes) {
-        const altHealth = await enforceMailboxHealth(alt.id);
-        if (!altHealth.canSend) continue;
-        if (altHealth.effectiveRateMultiplier < 0.5) continue;
-
-        const altLimits = await getLimits(alt, altHealth);
-        if (altLimits.rawBatchSize < MIN_ROTATION_BATCH) continue;
-
-        const altDomainStr = alt.emailAddress.split("@")[1];
-        const altDomain = await prisma.senderDomain.findFirst({
-          where: {
-            domain: altDomainStr,
-            createdById: campaign.createdById,
-            health: { notIn: ["BLOCKED"] },
-          },
-        });
-
-        const dnsCheck = await validateDomainForFailover(altDomain?.id ?? null, campaignId);
-        const mailboxDnsCheck = await validateMailboxForFailover(alt.id, campaignId);
-        if (!dnsCheck.valid || !mailboxDnsCheck.valid) {
-          logger.info(
-            {
-              campaignId,
-              candidateMailboxId: alt.id,
-              candidateDomainId: altDomain?.id,
-              domainDnsReason: dnsCheck.reason,
-              mailboxDnsReason: mailboxDnsCheck.reason,
-            },
-            "[send.agent] Capacity-rotation candidate skipped: DNS invalid",
-          );
-          continue;
-        }
-
-        rotatedMailbox = alt;
-        rotatedHealth = altHealth;
-        rotatedLimits = altLimits;
-        rotatedDomain = altDomain;
-        break;
-      }
-
-      if (rotatedMailbox && rotatedHealth && rotatedLimits) {
-        await prisma.campaign.update({
-          where: { id: campaignId },
-          data: {
-            senderMailboxId: rotatedMailbox.id,
-            ...(rotatedDomain && { senderDomainId: rotatedDomain.id }),
-          },
-        });
-
-        await prisma.deliverabilityEvent.create({
-          data: {
-            type: "MAILBOX_ROTATED",
-            severity: "INFO",
-            ...(rotatedDomain && { senderDomainId: rotatedDomain.id }),
-            metadata: {
-              reason: "capacity_rotation",
-              campaignId,
-              fromMailboxId: mailbox!.id,
-              toMailboxId: rotatedMailbox.id,
-            },
-          },
-        }).catch((err) => logger.warn({ err, campaignId }, "[send.agent] Non-fatal: deliverabilityEvent write failed"));
-
-        logger.info(
-          {
-            campaignId,
-            oldMailboxId: mailbox!.id,
-            newMailboxId: rotatedMailbox.id,
-            newDomainId: rotatedDomain?.id,
-          },
-          "[send.agent] Successfully rotated campaign to a mailbox with sending capacity"
-        );
-
-        mailbox = rotatedMailbox;
-        if (rotatedDomain) {
-          domain = rotatedDomain;
-        }
-        health = rotatedHealth;
-        warmupLimit = rotatedLimits.warmupLimit;
-        effectiveDailyLimit = rotatedLimits.effectiveDailyLimit;
-        effectiveRateMultiplier = rotatedHealth.effectiveRateMultiplier;
-        rawBatchSize = rotatedLimits.rawBatchSize;
-      }
-    }
-  }
-
-  if (rawBatchSize === 0) {
-    logger.info(
-      {
-        campaignId,
-        currentSent: mailbox!.currentSent,
-        warmupLimit,
-        effectiveDailyLimit,
-        effectiveRateMultiplier,
-        warmupEnabled: mailbox!.warmupEnabled,
-      },
-      "[send.agent] Daily limit reached and no other mailbox has capacity, skipping batch"
-    );
+    logger.info({ campaignId }, "[send.agent] Daily limit reached, skipping batch");
     return;
   }
 
@@ -912,13 +1154,38 @@ export async function runSendAgent(campaignId: string): Promise<void> {
     ],
   };
 
-  const candidatePool: CandidatePoolItem[] = (await prisma.outreachMessage.findMany({
+  const suppressions = await prisma.suppression.findMany({
+    where: {
+      OR: [
+        { userId: campaign.createdById },
+        ...(campaign.orgId ? [{ orgId: campaign.orgId }] : []),
+      ],
+    },
+    select: { email: true, domain: true },
+  });
+
+  const suppressedEmails = new Set(
+    suppressions.map((s) => s.email?.toLowerCase()).filter((e): e is string => Boolean(e))
+  );
+  const suppressedDomains = new Set(
+    suppressions.map((s) => s.domain?.toLowerCase()).filter((d): d is string => Boolean(d))
+  );
+
+  const rawCandidatePool = await prisma.outreachMessage.findMany({
     where: approvedMessageWhere,
     select: {
       id: true,
       createdAt: true,
+      body: true,
+      subject: true,
+      isFollowUp: true,
+      leadId: true,
       lead: {
         select: {
+          email: true,
+          firstName: true,
+          companyName: true,
+          website: true,
           qualificationScore: true,
           signals: {
             select: { signalType: true, confidence: true, createdAt: true },
@@ -928,7 +1195,20 @@ export async function runSendAgent(campaignId: string): Promise<void> {
     },
     orderBy: { createdAt: "asc" },
     take: rawBatchSize * CANDIDATE_POOL_MULTIPLIER,
-  })) as CandidatePoolItem[];
+  });
+
+  const candidatePool = rawCandidatePool.filter((msg) => {
+    const leadEmail = msg.lead.email?.toLowerCase() ?? "";
+    const leadDomain = leadEmail.includes("@") ? leadEmail.split("@")[1] : "";
+    if (suppressedEmails.has(leadEmail) || (leadDomain && suppressedDomains.has(leadDomain))) {
+      prisma.outreachMessage.update({
+        where: { id: msg.id },
+        data: { deliveryState: DeliveryState.SUPPRESSED, claimToken: null },
+      }).catch(() => null);
+      return false;
+    }
+    return true;
+  }) as CandidatePoolItem[];
 
   if (candidatePool.length === 0) {
     const remaining = await prisma.outreachMessage.count({ where: approvedMessageWhere });
@@ -959,32 +1239,6 @@ export async function runSendAgent(campaignId: string): Promise<void> {
     .map((msg) => ({ id: msg.id, score: scoreMessageForSend(msg) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, rawBatchSize);
-
-  const activeMailboxTable = mailbox ? "SenderMailbox" : "SenderDomain";
-  const activeEntityId = mailbox ? mailbox.id : domain!.id;
-
-  const reservation = await reserveDailyCapacity(
-    prisma,
-    activeMailboxTable,
-    activeEntityId,
-    rawBatchSize,
-    effectiveDailyLimit,
-  );
-
-  if (!reservation) {
-    logger.info(
-      { campaignId, activeEntityId, rawBatchSize, effectiveDailyLimit },
-      "[send.agent] Daily capacity exhausted at reservation time — skipping batch"
-    );
-    return;
-  }
-
-  const reservationPayload = JSON.stringify({ reservedCapacity: rawBatchSize, mailboxId: activeEntityId });
-  await prisma.$executeRaw(Prisma.sql`
-    UPDATE "QueueJob"
-    SET payload = payload || ${reservationPayload}::jsonb
-    WHERE "campaignId" = ${campaignId} AND status = 'ACTIVE'
-  `).catch(() => null);
 
   const selectedIds = scored.map((m) => m.id);
   const claimToken = `worker_${Date.now()}_${randomUUID()}`;
@@ -1017,6 +1271,9 @@ export async function runSendAgent(campaignId: string): Promise<void> {
       lead: {
         select: { email: true, firstName: true, companyName: true, website: true },
       },
+      parentMessage: {
+        select: { externalMessageId: true },
+      },
     },
   });
 
@@ -1027,33 +1284,6 @@ export async function runSendAgent(campaignId: string): Promise<void> {
     });
     return;
   }
-
-  const allEmails = messages
-    .map((m) => m.lead.email)
-    .filter((e): e is string => !!e);
-  const allDomains = [...new Set(allEmails.map((e) => e.split("@")[1]))];
-
-  const suppressionRows = await prisma.suppression.findMany({
-    where: {
-      userId: campaign.createdById,
-      OR: [
-        { email: { in: allEmails } },
-        { domain: { in: allDomains } },
-      ],
-    },
-    select: { email: true, domain: true },
-  });
-
-  const suppressedEmails = new Set(
-    suppressionRows.map((s) => s.email?.toLowerCase()).filter(Boolean) as string[]
-  );
-  const suppressedDomains = new Set(
-    suppressionRows.map((s) => s.domain?.toLowerCase()).filter(Boolean) as string[]
-  );
-  const isSuppressed = (email: string) => {
-    const lower = email.toLowerCase();
-    return suppressedEmails.has(lower) || suppressedDomains.has(lower.split("@")[1]);
-  };
 
   const repliedLeadIds = messages
     .filter((m) => m.isFollowUp)
@@ -1069,67 +1299,43 @@ export async function runSendAgent(campaignId: string): Promise<void> {
   }
 
   const brand = await getBrandSettingsOrDefault(campaign.createdBy.id);
-  const fromAddress = mailbox
-    ? `${brand.senderName} <${mailbox.emailAddress}>`
-    : `${brand.senderName} <outreach@${domain!.domain}>`;
 
-  let provider: ReturnType<typeof createMailProvider> | null = null;
-  let providerInitError: string | null = null;
-
-  try {
-    const rawCreds = decryptCredentials(mailbox!.credentials);
-    provider = createMailProvider(rawCreds, {
-      outlook: {
-        mailboxId: mailbox!.id,
-        redis,
-        onTokenRotation: async (newRefreshToken: string) => {
-          if (rawCreds.type === "OUTLOOK" && newRefreshToken !== rawCreds.refreshToken) {
-            const rotated: OutlookCredentials = { ...rawCreds, refreshToken: newRefreshToken };
-            await prisma.senderMailbox.update({
-              where: { id: mailbox!.id },
-              data: { credentials: encryptJson(rotated) },
-            });
-          }
-        },
-      },
-    });
-  } catch (err) {
-    providerInitError = err instanceof Error ? err.message : "unknown error";
-  }
+  const mxCache = new Map<string, boolean>();
 
   let sent = 0;
   let failed = 0;
+  let consecutiveHardBounces = 0;
+  const sentMailboxIds = new Set<string>();
 
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
 
     if (i % PAUSE_CHECK_INTERVAL === 0) {
-      const [latest, midHealth] = await Promise.all([
-        prisma.campaign.findUnique({ where: { id: campaignId }, select: { status: true } }),
-        enforceMailboxHealth(mailbox!.id),
-      ]);
-
-      if (latest?.status === "PAUSED" || !midHealth.canSend) {
+      const latest = await prisma.campaign.findUnique({ where: { id: campaignId }, select: { status: true } });
+      if (latest?.status === "PAUSED") {
         const remainingIds = messages.slice(i).map((m) => m.id);
         await prisma.outreachMessage.updateMany({
           where: { id: { in: remainingIds }, deliveryState: DeliveryState.SENDING },
           data: { deliveryState: DeliveryState.QUEUED, claimToken: null },
         });
-        if (!midHealth.canSend) {
-          await prisma.campaign.update({
-            where: { id: campaignId },
-            data: { status: "PAUSED", previousStatus: campaign.status },
-          });
-          logger.warn(
-            { campaignId, requeued: remainingIds.length },
-            "[send.agent] Mailbox blocked mid-batch — campaign paused, messages requeued"
-          );
-        } else {
-          logger.info(
-            { campaignId, requeued: remainingIds.length },
-            "[send.agent] Campaign paused mid-batch — messages requeued"
-          );
-        }
+        logger.info(
+          { campaignId, requeued: remainingIds.length },
+          "[send.agent] Campaign paused mid-batch — messages requeued"
+        );
+        return;
+      }
+
+      const circuitResult = await checkBounceCircuitBreaker(campaignId);
+      if (circuitResult === "blocked") {
+        const remainingIds = messages.slice(i).map((m) => m.id);
+        await prisma.outreachMessage.updateMany({
+          where: { id: { in: remainingIds }, deliveryState: DeliveryState.SENDING },
+          data: { deliveryState: DeliveryState.QUEUED, claimToken: null },
+        });
+        logger.warn(
+          { campaignId, requeued: remainingIds.length },
+          "[send.agent] Bounce circuit breaker triggered — campaign paused, messages requeued"
+        );
         return;
       }
     }
@@ -1144,29 +1350,35 @@ export async function runSendAgent(campaignId: string): Promise<void> {
       continue;
     }
 
-    if (isSuppressed(email)) {
+    const dedupKey = `lead:contacted-today:${campaign.createdById}:${email.toLowerCase()}`;
+    const dedupLockKey = `lead:contacted-today-lock:${campaign.createdById}:${email.toLowerCase()}`;
+    const dedupLockToken = `${message.id}:${randomUUID()}`;
+    const acquiredDedupLock = await redis.set(dedupLockKey, dedupLockToken, "EX", 600, "NX");
+    if (!acquiredDedupLock) {
       await prisma.outreachMessage.update({
         where: { id: message.id },
-        data: { deliveryState: DeliveryState.SUPPRESSED, claimToken: null },
+        data: { deliveryState: DeliveryState.QUEUED, claimToken: null, nextRetryAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
       });
       continue;
     }
 
-    if (message.isFollowUp && repliedLeadSet.has(message.leadId)) {
-      await prisma.outreachMessage.update({
-        where: { id: message.id },
-        data: { deliveryState: DeliveryState.SUPPRESSED, claimToken: null },
-      });
-      logger.info(
-        { messageId: message.id, leadId: message.leadId },
-        "[send.agent] Follow-up suppressed — lead replied since message was claimed"
+    const alreadyContacted = await redis.get(dedupKey);
+    if (alreadyContacted) {
+      await redis.eval(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+        1,
+        dedupLockKey,
+        dedupLockToken,
       );
+      await prisma.outreachMessage.update({
+        where: { id: message.id },
+        data: { deliveryState: DeliveryState.QUEUED, claimToken: null, nextRetryAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+      });
       continue;
     }
 
-    const verificationResult = await verifyEmailAddress(message.lead.email ?? "");
+    const verificationResult = await verifyEmailAddress(email ?? "");
     if (verificationResult === "INVALID") {
-      // Mark message as failed and skip delivery to protect domain reputation
       await prisma.outreachMessage.update({
         where: { id: message.id },
         data: {
@@ -1179,47 +1391,255 @@ export async function runSendAgent(campaignId: string): Promise<void> {
       continue;
     }
 
-    const content = parseBody(message.body);
-    const { html, text } = renderEmailTemplate(
-      brand,
-      {
-        subject: message.subject,
-        greeting: content.greeting,
-        opening: content.opening,
-        body: content.body,
-        ctaText: content.ctaText,
-        closing: content.closing,
-        ctaUrl: message.lead.website ?? undefined,
-        messageId: message.id,
-      },
-      { style: (campaign.templateStyle as TemplateStyle | undefined) ?? "BRANDED" },
-    );
-
-    let result: SendResult;
-    if (providerInitError || !provider) {
-      result = {
-        success: false,
-        error: providerInitError ?? "Provider unavailable",
-      };
-    } else {
-      try {
-        result = await provider.sendEmail({
-          to: email,
-          from: fromAddress,
-          subject: message.subject,
-          html,
-          text,
-          headers: buildListUnsubscribeHeaders(message.id) ?? undefined,
-        });
-      } catch (err) {
-        result = {
-          success: false,
-          error: err instanceof Error ? err.message : "unknown error",
-        };
+    const recipientDomain = email.split("@")[1]?.toLowerCase() ?? "";
+    if (recipientDomain) {
+      const mxExists = await hasMxRecord(recipientDomain, mxCache);
+      if (!mxExists) {
+        logger.warn({ messageId: message.id, email, recipientDomain }, "[send.agent] No MX record for recipient domain — marking INVALID");
+        await prisma.$transaction([
+          prisma.outreachMessage.update({
+            where: { id: message.id },
+            data: { deliveryState: DeliveryState.FAILED, lastError: "No MX record for recipient domain", claimToken: null },
+          }),
+          prisma.lead.update({
+            where: { id: message.leadId },
+            data: { emailStatus: EmailStatus.INVALID },
+          }),
+        ]);
+        failed++;
+        continue;
       }
     }
 
+    let chosenMailbox: (typeof activePool)[0]["mailbox"] | null = null;
+    let mailboxDomain: Awaited<ReturnType<typeof prisma.senderDomain.findFirst>> | null = null;
+    let result: SendResult | null = null;
+
+    const maxAttempts = Math.min(3, activePool.length);
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const availableSenders = activePool.filter((item) => item.remainingToday > 0);
+
+      if (availableSenders.length === 0) {
+        break;
+      }
+
+      const target = pickWeightedRandomMailbox(availableSenders);
+
+      const reserved = await reserveDailyCapacity(
+        prisma,
+        "SenderMailbox",
+        target.mailbox.id,
+        1,
+        target.effectiveDailyLimit
+      );
+
+      if (!reserved) {
+        target.remainingToday = 0;
+        continue;
+      }
+
+      target.remainingToday--;
+      const activeMailbox = target.mailbox;
+      chosenMailbox = activeMailbox;
+
+      const mailboxDomainStr = activeMailbox.emailAddress.split("@")[1];
+      mailboxDomain = mailboxDomainCache.get(mailboxDomainStr) ?? null;
+      if (mailboxDomain === null) {
+        mailboxDomain = await prisma.senderDomain.findFirst({
+          where: { domain: mailboxDomainStr, createdById: campaign.createdById },
+        });
+        mailboxDomainCache.set(mailboxDomainStr, mailboxDomain);
+      }
+
+      const fromAddress = `${brand.senderName} <${activeMailbox.emailAddress}>`;
+
+      let provider: ReturnType<typeof createMailProvider> | null = null;
+      let providerInitError: string | null = null;
+
+      try {
+        const rawCreds = decryptMailboxCredentials<MailboxCredentials>(activeMailbox.credentials, `mailbox:${activeMailbox.id}`);
+        provider = createMailProvider(rawCreds, {
+          outlook: {
+            mailboxId: activeMailbox.id,
+            redis,
+            onTokenRotation: async (newRefreshToken: string) => {
+              if (rawCreds.type === "OUTLOOK" && newRefreshToken !== rawCreds.refreshToken) {
+                const rotated = { ...rawCreds, refreshToken: newRefreshToken };
+                await prisma.senderMailbox.update({
+                  where: { id: activeMailbox.id },
+                  data: { credentials: encryptJson(rotated) },
+                });
+              }
+            },
+          },
+        });
+      } catch (err) {
+        providerInitError = err instanceof Error ? err.message : "unknown error";
+      }
+
+      const leadCtx: LeadVariableContext = {
+        firstName: message.lead.firstName,
+        lastName: (message.lead as { lastName?: string | null }).lastName,
+        companyName: message.lead.companyName,
+        website: message.lead.website,
+      };
+
+      const substitutedSubject = replaceTemplateVars(message.subject, leadCtx);
+      const substitutedBody = replaceTemplateVars(message.body, leadCtx);
+
+      const spamScore = scoreSpamRisk(substitutedSubject + " " + substitutedBody);
+      if (spamScore >= 3) {
+        logger.warn(
+          { messageId: message.id, spamScore },
+          "[send.agent] Message flagged by spam keyword scorer — skipping dispatch",
+        );
+        await prisma.outreachMessage.update({
+          where: { id: message.id },
+          data: { deliveryState: DeliveryState.QUEUED, claimToken: null, lastError: `Spam risk score ${spamScore}/20 — content needs revision` },
+        });
+        result = null;
+        break;
+      }
+
+      const content = parseBody(substitutedBody);
+      const { html, text } = renderEmailTemplate(
+        brand,
+        {
+          subject: substitutedSubject,
+          greeting: content.greeting,
+          opening: content.opening,
+          body: content.body,
+          ctaText: content.ctaText,
+          closing: content.closing,
+          ctaUrl: message.lead.website ?? undefined,
+          messageId: message.id,
+        },
+        {
+          style: (campaign.templateStyle as TemplateStyle | undefined) ?? "BRANDED",
+          customTrackingDomain: (mailboxDomain as { customTrackingDomain?: string | null })?.customTrackingDomain ?? undefined,
+        },
+      );
+
+      const sendIntentKey = buildSendIdempotencyKey(message.leadId, message.followUpStep ?? 1, message.id);
+      const sendIntentResult = await createOrRecoverSendIntent({
+        operationId: `send:${campaignId}:${message.id}`,
+        leadId: message.leadId,
+        outreachMessageId: message.id,
+        sequenceStep: message.followUpStep ?? 1,
+        idempotencyKey: sendIntentKey,
+        provider: chosenMailbox.providerType ?? undefined,
+      });
+
+      if (sendIntentResult.alreadyAccepted) {
+        logger.warn({ messageId: message.id, sendIntentKey }, "[send.agent] Skipping duplicate send — SendIntent already ACCEPTED");
+        result = null;
+        break;
+      }
+
+      if (sendIntentResult.requiresReconciliation) {
+        logger.warn({ messageId: message.id, sendIntentKey }, "[send.agent] Skipping send — SendIntent requires reconciliation");
+        result = null;
+        break;
+      }
+
+      if (providerInitError || !provider) {
+        result = { success: false, error: providerInitError ?? "Provider unavailable" };
+      } else {
+        try {
+          const parentExternalId = formatMessageIdHeader(message.parentMessage?.externalMessageId);
+          const mailHeaders = buildListUnsubscribeHeaders(message.id) ?? {};
+
+          emitCampaignEvent({
+            campaignId,
+            type: "lead",
+            jobName: "send-batch",
+            label: "Sending Emails",
+            email,
+            leadStatus: "sending",
+            detail: `Sending to ${email}…`,
+          });
+
+          result = await provider.sendEmail({
+            to: email,
+            from: fromAddress,
+            subject: substitutedSubject,
+            html,
+            text,
+            ...(parentExternalId && {
+              inReplyTo: parentExternalId,
+              references: parentExternalId,
+            }),
+            headers: mailHeaders,
+          });
+        } catch (err) {
+          result = { success: false, error: err instanceof Error ? err.message : "unknown error" };
+        }
+      }
+
+      if (!result.success && isTransientMailboxError(result.error)) {
+        await coolOffMailbox(activeMailbox.id);
+        target.remainingToday = 0;
+        mailboxStateCache.delete(activeMailbox.id);
+        logger.warn(
+          { campaignId, mailboxId: activeMailbox.id, error: result.error },
+          "[send.agent] Transient mailbox rejection — cooling off and failing over to secondary mailbox"
+        );
+        chosenMailbox = null;
+        continue;
+      }
+
+      break;
+    }
+
+    if (!chosenMailbox || !result) {
+      if (!chosenMailbox) {
+        const sendIntentKey = buildSendIdempotencyKey(message.leadId, message.followUpStep ?? 1, message.id);
+        // CAS-predicated write: guards on status = 'DISPATCHING' so a concurrent reconciler
+        // that already transitioned to RECONCILING/terminal is not overwritten.
+        const _unknownCas = await prisma.$executeRaw`
+          UPDATE "SendIntent"
+          SET    "status"       = 'UNKNOWN',
+                 "errorMessage" = ${"All mailbox attempts exhausted — transient failures"},
+                 "updatedAt"    = NOW() AT TIME ZONE 'utc'
+          WHERE  "idempotencyKey" = ${sendIntentKey}
+            AND  "status"         = 'DISPATCHING'
+        `.catch((): number => 0);
+        if (_unknownCas === 0) {
+          logger.warn({ sendIntentKey }, "[send.agent] SendIntent UNKNOWN: 0 rows updated — already settled by another actor");
+        }
+
+        const remainingIds = messages.slice(i).map((m) => m.id);
+        await prisma.outreachMessage.updateMany({
+          where: { id: { in: remainingIds }, deliveryState: DeliveryState.SENDING },
+          data: { deliveryState: DeliveryState.QUEUED, claimToken: null },
+        });
+        logger.info(
+          { campaignId, skipped: remainingIds.length },
+          "[send.agent] Reserved capacity exhausted mid-batch — remaining messages requeued"
+        );
+        break;
+      }
+      continue;
+    }
+
     if (result.success) {
+      const sendIntentKey = buildSendIdempotencyKey(message.leadId, message.followUpStep ?? 1, message.id);
+      // CAS-predicated write: guards on status = 'DISPATCHING'.
+      const _acceptedCas = await prisma.$executeRaw`
+        UPDATE "SendIntent"
+        SET    "status"            = 'ACCEPTED',
+               "providerMessageId" = ${result.externalId ?? ""},
+               "updatedAt"         = NOW() AT TIME ZONE 'utc'
+        WHERE  "idempotencyKey" = ${sendIntentKey}
+          AND  "status"         = 'DISPATCHING'
+      `.catch((err: unknown) => {
+        logger.warn({ err, messageId: message.id }, "[send.agent] Failed to record SendIntent ACCEPTED");
+        return 0 as number;
+      });
+      if (_acceptedCas === 0) {
+        logger.warn({ sendIntentKey, messageId: message.id }, "[send.agent] SendIntent ACCEPTED: 0 rows updated — already settled by another actor");
+      }
+
       await prisma.outreachMessage.update({
         where: { id: message.id },
         data: {
@@ -1227,9 +1647,66 @@ export async function runSendAgent(campaignId: string): Promise<void> {
           sentAt: new Date(),
           externalMessageId: result.externalId,
           claimToken: null,
+          senderMailboxId: chosenMailbox.id,
         },
       });
       sent++;
+      consecutiveHardBounces = 0;
+      sentMailboxIds.add(chosenMailbox.id);
+
+      await logLeadJourneyEvent({
+        leadId: message.leadId,
+        eventType: "EMAIL_SENT",
+        channel: "EMAIL",
+        outreachMessageId: message.id,
+        metadata: { isFollowUp: message.isFollowUp, followUpStep: message.followUpStep ?? undefined },
+      });
+
+      await redis.set(dedupKey, "1", "EX", CROSS_CAMPAIGN_DEDUP_TTL);
+      await redis.eval(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+        1,
+        dedupLockKey,
+        dedupLockToken,
+      );
+
+      emitCampaignEvent({
+        campaignId,
+        type: "lead",
+        jobName: "send-batch",
+        label: "Sending Emails",
+        email,
+        leadStatus: "sent",
+        detail: `Sent → ${email}`,
+        progress: Math.round(((i + 1) / messages.length) * 100),
+      });
+
+      await prisma.senderMailbox.update({
+        where: { id: chosenMailbox.id },
+        data: { totalSent: { increment: 1 } },
+      });
+
+      logAudit({
+        userId: campaign.createdById,
+        action: AUDIT_EVENTS.EMAIL_SENT,
+        entityType: "OutreachMessage",
+        entityId: message.id,
+        metadata: {
+          leadId: message.leadId,
+          email,
+          externalId: result.externalId,
+          mailboxId: chosenMailbox.id,
+          campaignId,
+        },
+      }).catch(() => { });
+
+
+      if (mailboxDomain) {
+        await prisma.senderDomain.update({
+          where: { id: mailboxDomain.id },
+          data: { totalSent: { increment: 1 } },
+        }).catch(() => null);
+      }
 
       if (sent % 3 === 0 || i === messages.length - 1) {
         emitCampaignEvent({
@@ -1245,7 +1722,57 @@ export async function runSendAgent(campaignId: string): Promise<void> {
       const errorMsg = result.error ?? "unknown error";
       const failureType = classifyFailure(errorMsg);
       const isPermanent = failureType === "permanent";
+      const isRepBlock = failureType === "reputation_block";
       const newCount = isPermanent ? MAX_RETRIES : (message.retryCount ?? 0) + 1;
+
+      const sendIntentKey = buildSendIdempotencyKey(message.leadId, message.followUpStep ?? 1, message.id);
+      // CAS-predicated write: guards on status = 'DISPATCHING'.
+      const _failedCas = await prisma.$executeRaw`
+        UPDATE "SendIntent"
+        SET    "status"       = 'FAILED',
+               "errorMessage" = ${errorMsg},
+               "updatedAt"    = NOW() AT TIME ZONE 'utc'
+        WHERE  "idempotencyKey" = ${sendIntentKey}
+          AND  "status"         = 'DISPATCHING'
+      `.catch((err: unknown) => {
+        logger.warn({ err, messageId: message.id }, "[send.agent] Failed to record SendIntent FAILED");
+        return 0 as number;
+      });
+      if (_failedCas === 0) {
+        logger.warn({ sendIntentKey, messageId: message.id }, "[send.agent] SendIntent FAILED: 0 rows updated — already settled by another actor");
+      }
+
+      if (isPermanent) {
+        consecutiveHardBounces++;
+        if (consecutiveHardBounces >= 3) {
+          const remainingIds = messages.slice(i + 1).map((m) => m.id);
+          if (remainingIds.length > 0) {
+            await prisma.outreachMessage.updateMany({
+              where: { id: { in: remainingIds }, deliveryState: DeliveryState.SENDING },
+              data: { deliveryState: DeliveryState.QUEUED, claimToken: null },
+            });
+          }
+          await prisma.campaign.update({
+            where: { id: campaignId },
+            data: { status: "PAUSED" },
+          });
+          logger.warn(
+            { campaignId, consecutiveHardBounces },
+            "[send.agent] Campaign paused by circuit breaker — 3 consecutive hard bounces",
+          );
+          return;
+        }
+      }
+
+      emitCampaignEvent({
+        campaignId,
+        type: "lead",
+        jobName: "send-batch",
+        label: "Sending Emails",
+        email,
+        leadStatus: "failed",
+        detail: `Failed → ${email}: ${errorMsg.slice(0, 80)}`,
+      });
 
       await prisma.outreachMessage.update({
         where: { id: message.id },
@@ -1258,48 +1785,37 @@ export async function runSendAgent(campaignId: string): Promise<void> {
             newCount < MAX_RETRIES
               ? new Date(Date.now() + Math.pow(2, newCount) * 60_000)
               : null,
+          senderMailboxId: chosenMailbox.id,
         },
       });
       failed++;
+
+      await prisma.senderMailbox.update({
+        where: { id: chosenMailbox.id },
+        data: { currentSent: { decrement: 1 } },
+      });
+
+      const cachedState = mailboxStateCache.get(chosenMailbox.id);
+      if (cachedState) cachedState.limits.remainingToday++;
+
+      if (mailboxDomain) {
+        await prisma.senderDomain.update({
+          where: { id: mailboxDomain.id },
+          data: { currentSent: { decrement: 1 } },
+        }).catch(() => null);
+      }
+
+      await redis.eval(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+        1,
+        dedupLockKey,
+        dedupLockToken,
+      );
     }
 
     if (i < messages.length - 1) {
       await sleep(jitterMs());
     }
-  }
-
-  if (sent < rawBatchSize) {
-    const unused = rawBatchSize - sent;
-    if (mailbox) {
-      await prisma.senderMailbox.update({
-        where: { id: mailbox.id },
-        data: { currentSent: { decrement: unused }, totalSent: { increment: sent } },
-      });
-    } else {
-      await prisma.senderDomain.update({
-        where: { id: domain!.id },
-        data: { currentSent: { decrement: unused }, totalSent: { increment: sent } },
-      });
-    }
-  } else if (mailbox) {
-    await prisma.senderMailbox.update({
-      where: { id: mailbox.id },
-      data: { totalSent: { increment: sent } },
-    });
-  } else {
-    await prisma.senderDomain.update({
-      where: { id: domain!.id },
-      data: { totalSent: { increment: sent } },
-    });
-  }
-
-  if (sent > 0) {
-    await Promise.all([
-      mailbox ? recalculateMailboxHealth(mailbox.id) : Promise.resolve(),
-      domain ? recalculateDomainHealth(domain.id) : Promise.resolve(),
-    ]).catch(() => null);
-
-    await CacheService.invalidateVersioned(`version:sender-mailboxes:${campaign.createdById}`).catch(() => null);
   }
 
   const [remainingQueued, remainingSending] = await Promise.all([
@@ -1344,11 +1860,8 @@ export async function runSendAgent(campaignId: string): Promise<void> {
       campaignId,
       sent,
       failed,
-      warmupLimit,
-      effectiveDailyLimit,
-      effectiveRateMultiplier,
-      warmupEnabled: senderMeta.warmupEnabled,
-      isMailboxMode,
+      totalCampaignCapacityToday,
+      rawBatchSize,
     },
     "[send.agent] batch complete"
   );

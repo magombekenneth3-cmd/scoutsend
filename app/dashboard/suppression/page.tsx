@@ -226,7 +226,7 @@ export default function SuppressionPage() {
                                             <td colSpan={5} className="px-4 py-12 text-center">
                                                 <p className="text-sm font-medium text-[var(--text-primary)] mb-1">Failed to load</p>
                                                 <p className="text-xs text-[var(--text-muted)] mb-3">{listError}</p>
-                                                <button onClick={() => fetchList({ search, type: filterType, page })} className="text-xs text-[var(--red)] hover:underline focus-visible:outline-none">Retry</button>
+                                                <button onClick={() => fetchList({ search, type: filterType, page })} className="text-xs text-[var(--red-text)] hover:underline focus-visible:outline-none">Retry</button>
                                             </td>
                                         </tr>
                                     ) : items.length === 0 ? (
@@ -277,7 +277,7 @@ export default function SuppressionPage() {
                                         const p = i + 1;
                                         return (
                                             <button key={p} onClick={() => setPage(p)}
-                                                className={["w-7 h-7 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]", page === p ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]"].join(" ")}>
+                                                className={["w-7 h-7 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]", page === p ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]"].join(" ")}>
                                                 {p}
                                             </button>
                                         );

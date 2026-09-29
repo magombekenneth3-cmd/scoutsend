@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "../../hooks/useToast";
 import { ToastRegion } from "./ToastRegion";
 import { formatDate } from "../../hooks/formatDate";
@@ -26,6 +27,10 @@ interface Message {
     sentAt: string | null;
     openedAt: string | null;
     createdAt: string;
+    clicks?: number;
+    isFollowUp?: boolean;
+    followUpStep?: number | null;
+    diffVector?: { followUpStrategy?: string; strategyReason?: string } | null;
 }
 
 interface MessagesMeta {
@@ -36,36 +41,36 @@ interface MessagesMeta {
 }
 
 const APPROVAL_CFG: Record<ApprovalStatus, { label: string; bg: string; text: string }> = {
-    PENDING:  { label: "Pending",  bg: "bg-amber-400/10",        text: "text-amber-400" },
-    APPROVED: { label: "Approved", bg: "bg-emerald-400/10",      text: "text-emerald-400" },
-    REJECTED: { label: "Rejected", bg: "bg-[var(--red-glow)]",   text: "text-[var(--red)]" },
+    PENDING: { label: "Pending", bg: "bg-amber-400/10", text: "text-amber-400" },
+    APPROVED: { label: "Approved", bg: "bg-emerald-400/10", text: "text-emerald-400" },
+    REJECTED: { label: "Rejected", bg: "bg-[var(--red-glow)]", text: "text-[var(--red-text)]" },
 };
 
 const DELIVERY_CFG: Record<DeliveryState, { label: string; text: string }> = {
-    DRAFT:     { label: "Draft",     text: "text-[var(--text-muted)]" },
-    QUEUED:    { label: "Queued",    text: "text-sky-400" },
-    SENT:      { label: "Sent",      text: "text-sky-400" },
+    DRAFT: { label: "Draft", text: "text-[var(--text-muted)]" },
+    QUEUED: { label: "Queued", text: "text-sky-400" },
+    SENT: { label: "Sent", text: "text-sky-400" },
     DELIVERED: { label: "Delivered", text: "text-sky-300" },
-    OPENED:    { label: "Opened",    text: "text-violet-400" },
-    REPLIED:   { label: "Replied",   text: "text-emerald-400" },
-    BOUNCED:   { label: "Bounced",   text: "text-[var(--red)]" },
-    FAILED:    { label: "Failed",    text: "text-[var(--red)]" },
-    SPAM:      { label: "Spam",      text: "text-orange-400" },
+    OPENED: { label: "Opened", text: "text-violet-400" },
+    REPLIED: { label: "Replied", text: "text-emerald-400" },
+    BOUNCED: { label: "Bounced", text: "text-[var(--red-text)]" },
+    FAILED: { label: "Failed", text: "text-[var(--red-text)]" },
+    SPAM: { label: "Spam", text: "text-orange-400" },
 };
 
 const COMPLIANCE_LABELS: Record<string, { label: string; color: string }> = {
-    MISSING_UNSUBSCRIBE:       { label: "Missing unsubscribe link",         color: "text-[var(--red)] bg-[var(--red-glow)] border-[var(--border-red)]" },
-    GDPR_WARNING:              { label: "GDPR data-processing warning",      color: "text-[var(--red)] bg-[var(--red-glow)] border-[var(--border-red)]" },
-    CASL_WARNING:              { label: "CASL: Canadian region detected",    color: "text-amber-400 bg-amber-400/10 border-amber-400/30" },
-    HIGH_SPAM_RISK:            { label: "High spam risk score",              color: "text-[var(--red)] bg-[var(--red-glow)] border-[var(--border-red)]" },
-    LEGAL_DISCLAIMER_MISSING:  { label: "Legal disclaimer missing",          color: "text-amber-400 bg-amber-400/10 border-amber-400/30" },
+    MISSING_UNSUBSCRIBE: { label: "Missing unsubscribe link", color: "text-[var(--red-text)] bg-[var(--red-glow)] border-[var(--border-red)]" },
+    GDPR_WARNING: { label: "GDPR data-processing warning", color: "text-[var(--red-text)] bg-[var(--red-glow)] border-[var(--border-red)]" },
+    CASL_WARNING: { label: "CASL: Canadian region detected", color: "text-amber-400 bg-amber-400/10 border-amber-400/30" },
+    HIGH_SPAM_RISK: { label: "High spam risk score", color: "text-[var(--red-text)] bg-[var(--red-glow)] border-[var(--border-red)]" },
+    LEGAL_DISCLAIMER_MISSING: { label: "Legal disclaimer missing", color: "text-amber-400 bg-amber-400/10 border-amber-400/30" },
 };
 
 function resolveComplianceLabel(issue: string): { label: string; color: string } {
     if (COMPLIANCE_LABELS[issue]) return COMPLIANCE_LABELS[issue];
     if (issue.startsWith("UNFILLED_PLACEHOLDER:")) {
         const ph = issue.replace("UNFILLED_PLACEHOLDER:", "");
-        return { label: `Unfilled placeholder: ${ph}`, color: "text-[var(--red)] bg-[var(--red-glow)] border-[var(--border-red)]" };
+        return { label: `Unfilled placeholder: ${ph}`, color: "text-[var(--red-text)] bg-[var(--red-glow)] border-[var(--border-red)]" };
     }
     return { label: issue.replace(/_/g, " ").toLowerCase(), color: "text-amber-400 bg-amber-400/10 border-amber-400/30" };
 }
@@ -76,11 +81,11 @@ function ComplianceBanner({ issues, triggers }: { issues: string[]; triggers: st
         <div className="px-5 pt-3 pb-0">
             <div className="rounded-lg border border-[var(--border-red)] bg-[var(--red-glow)] px-3 py-2.5 space-y-2">
                 <div className="flex items-center gap-1.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--red)] flex-shrink-0" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--red-text)] flex-shrink-0" aria-hidden="true">
                         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                         <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
                     </svg>
-                    <span className="text-xs font-semibold text-[var(--red)]">Compliance issues detected</span>
+                    <span className="text-xs font-semibold text-[var(--red-text)]">Compliance issues detected</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                     {issues.map((issue) => {
@@ -103,10 +108,10 @@ function ComplianceBanner({ issues, triggers }: { issues: string[]; triggers: st
 }
 
 function ScoreGauge({ label, score, inverted = false }: { label: string; score: number; inverted?: boolean }) {
-    const good     = inverted ? score <= 20 : score >= 75;
-    const mid      = inverted ? (score > 20 && score <= 45) : (score >= 50 && score < 75);
-    const color    = good ? "text-emerald-400" : mid ? "text-amber-400" : "text-[var(--red)]";
-    const barColor = good ? "bg-emerald-400"   : mid ? "bg-amber-400"   : "bg-[var(--red)]";
+    const good = inverted ? score <= 20 : score >= 75;
+    const mid = inverted ? (score > 20 && score <= 45) : (score >= 50 && score < 75);
+    const color = good ? "text-emerald-400" : mid ? "text-amber-400" : "text-[var(--red-text)]";
+    const barColor = good ? "bg-emerald-400" : mid ? "bg-amber-400" : "bg-[var(--red)]";
     return (
         <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
@@ -176,9 +181,9 @@ function InlineDiff({ before, after }: { before: string; after: string }) {
                     <span
                         key={i}
                         className={
-                            seg.added   ? "bg-emerald-400/20 text-emerald-300 rounded px-0.5" :
-                            seg.removed ? "bg-red-400/20 text-red-300 line-through rounded px-0.5" :
-                            "text-[var(--text-secondary)]"
+                            seg.added ? "bg-emerald-400/20 text-emerald-300 rounded px-0.5" :
+                                seg.removed ? "bg-red-400/20 text-red-300 line-through rounded px-0.5" :
+                                    "text-[var(--text-secondary)]"
                         }
                     >
                         {seg.text}
@@ -197,21 +202,58 @@ function MessageCard({
     onApprove,
     onReject,
     onSend,
+    onSaveError,
 }: {
     message: Message;
     senderEmail: string | null;
     onApprove: (id: string, editedSubject?: string, editedBody?: string) => void;
     onReject: (id: string) => void;
     onSend: (id: string) => void;
+    onSaveError: (message: string) => void;
 }) {
-    const [showDiff, setShowDiff]       = useState(false);
-    const [editing, setEditing]         = useState(false);
+    const [showDiff, setShowDiff] = useState(false);
+    const [editing, setEditing] = useState(false);
     const [editedSubject, setEditedSubject] = useState(message.subject);
-    const [editedBody, setEditedBody]   = useState(message.body);
-    const [saving, setSaving]           = useState(false);
-    const [sending, setSending]         = useState(false);
-    const [viewMode, setViewMode]       = useState<"text" | "mobile" | "desktop">("text");
-    const textareaRef                   = useRef<HTMLTextAreaElement>(null);
+    const [editedBody, setEditedBody] = useState(message.body);
+    const [saving, setSaving] = useState(false);
+    const [sending, setSending] = useState(false);
+    const [viewMode, setViewMode] = useState<"text" | "mobile" | "desktop">("text");
+    const [isPreview, setIsPreview] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const insertVariable = (variable: string) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const before = text.substring(0, start);
+        const after = text.substring(end, text.length);
+        const token = `{{${variable}}}`;
+        const newText = before + token + after;
+        setEditedBody(newText);
+        setTimeout(() => {
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + token.length;
+        }, 0);
+    };
+
+    const renderPreview = (text: string) => {
+        let rendered = text;
+        const replacements: Record<string, string> = {
+            firstName: message.lead.firstName || "",
+            lastName: message.lead.lastName || "",
+            company: message.lead.companyName || "",
+            companyName: message.lead.companyName || "",
+            title: "Prospect",
+            website: "website.com",
+        };
+        Object.entries(replacements).forEach(([key, val]) => {
+            const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "gi");
+            rendered = rendered.replace(regex, val);
+        });
+        return rendered;
+    };
 
     const highlightVariables = (text: string) => {
         const parts = text.split(/(\{\{[^}]+\}\}|\[[^\]]+\])/g);
@@ -221,7 +263,7 @@ function MessageCard({
                 return (
                     <span
                         key={index}
-                        className="inline-block px-1.5 py-0.5 rounded border border-[var(--border-red)] bg-[var(--red-glow)] text-[var(--red)] font-semibold text-xs my-0.5"
+                        className="inline-block px-1.5 py-0.5 rounded border border-[var(--border-red)] bg-[var(--red-glow)] text-[var(--red-text)] font-semibold text-xs my-0.5"
                     >
                         {part}
                     </span>
@@ -233,8 +275,8 @@ function MessageCard({
 
     const approvalCfg = APPROVAL_CFG[message.approvalStatus];
     const deliveryCfg = DELIVERY_CFG[message.deliveryState];
-    const hasEdits    = message.originalBody && message.originalBody !== message.body;
-    const isDirty     = editedSubject !== message.subject || editedBody !== message.body;
+    const hasEdits = message.originalBody && message.originalBody !== message.body;
+    const isDirty = editedSubject !== message.subject || editedBody !== message.body;
     const hasCompliance = (message.complianceIssues?.length ?? 0) > 0 || (message.spamTriggers?.length ?? 0) > 0;
 
     useEffect(() => {
@@ -264,12 +306,26 @@ function MessageCard({
                         ...(editedBody !== message.body && { body: editedBody }),
                     }),
                 });
-                if (!res.ok) throw new Error("Save failed");
+                if (!res.ok) {
+                    const errBody = await res.json().catch(() => null);
+                    const status = res.status;
+                    if (status === 429) {
+                        onSaveError("Too many requests — please wait a moment and try again.");
+                    } else if (status === 409) {
+                        onSaveError("This message has already been approved. Please reload.");
+                    } else if (status === 401 || status === 403) {
+                        onSaveError("You don't have permission to edit this message.");
+                    } else {
+                        onSaveError(errBody?.error ?? "Save failed — please try again.");
+                    }
+                    return; // keep edit mode open; do not call onApprove
+                }
             }
             onApprove(message.id, editedSubject !== message.subject ? editedSubject : undefined, editedBody !== message.body ? editedBody : undefined);
             setEditing(false);
         } catch {
-            // error surfaced via onApprove fallback
+            // Network error or JSON parse failure
+            onSaveError("Unable to save — check your connection and try again.");
         } finally {
             setSaving(false);
         }
@@ -306,8 +362,23 @@ function MessageCard({
                 <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full ${approvalCfg.bg} ${approvalCfg.text}`}>{approvalCfg.label}</span>
                     {message.deliveryState !== "DRAFT" && <span className={`text-xs font-medium ${deliveryCfg.text}`}>{deliveryCfg.label}</span>}
+                    {!!message.clicks && message.clicks > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-400" title={`Clicked ${message.clicks} time${message.clicks === 1 ? "" : "s"}`}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9l10.5-3-3 10.5-2.5-4.5L9 9z" /></svg>
+                            {message.clicks}
+                        </span>
+                    )}
                 </div>
             </div>
+
+            {message.isFollowUp && message.diffVector?.followUpStrategy && (
+                <div
+                    className="px-5 py-2 border-b border-[var(--border)] bg-[var(--surface-2)]/30 text-xs text-[var(--text-muted)]"
+                    title={message.diffVector.strategyReason ?? undefined}
+                >
+                    Follow-up{message.followUpStep ? ` #${message.followUpStep}` : ""} strategy: <span className="text-[var(--text-secondary)] font-medium">{message.diffVector.followUpStrategy}</span>
+                </div>
+            )}
 
             {/* Score gauges */}
             <div className="grid grid-cols-2 gap-4 px-5 py-3 border-b border-[var(--border)] bg-[var(--navy-mid)]">
@@ -325,21 +396,37 @@ function MessageCard({
 
             {/* View Mode Selector Tabs */}
             {!editing && (
-                <div className="flex items-center gap-1 px-5 pt-2 border-b border-[var(--border)] bg-[var(--surface)]">
-                    {(["text", "mobile", "desktop"] as const).map((mode) => (
-                        <button
-                            key={mode}
-                            onClick={() => setViewMode(mode)}
-                            className={[
-                                "px-3 py-1.5 text-xs font-semibold rounded-t-lg border-t border-x transition-all duration-150 cursor-pointer",
-                                viewMode === mode
-                                    ? "bg-[var(--navy-mid)] text-[var(--red)] border-[var(--border)]"
-                                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)] border-transparent"
-                            ].join(" ")}
-                        >
-                            {mode === "text" ? "Raw Text" : mode === "mobile" ? "Mobile View" : "Desktop View"}
-                        </button>
-                    ))}
+                <div className="flex items-center justify-between px-5 pt-2 border-b border-[var(--border)] bg-[var(--surface)]">
+                    <div className="flex items-center gap-1">
+                        {(["text", "mobile", "desktop"] as const).map((mode) => (
+                            <button
+                                key={mode}
+                                onClick={() => setViewMode(mode)}
+                                className={[
+                                    "px-3 py-1.5 text-xs font-semibold rounded-t-lg border-t border-x transition-all duration-150 cursor-pointer",
+                                    viewMode === mode
+                                        ? "bg-[var(--navy-mid)] text-[var(--red-text)] border-[var(--border)]"
+                                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)] border-transparent"
+                                ].join(" ")}
+                            >
+                                {mode === "text" ? "Raw Text" : mode === "mobile" ? "Mobile View" : "Desktop View"}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setIsPreview(!isPreview)}
+                        className={`mb-1 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 flex items-center gap-1.5 cursor-pointer ${isPreview
+                                ? "bg-[var(--red-glow)] text-[var(--red-text)] border-[var(--border-red)]/20 font-bold"
+                                : "bg-[var(--surface-2)] text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--text-muted)]"
+                            }`}
+                    >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        {isPreview ? "Previewing Lead Data" : "Preview with Lead Data"}
+                    </button>
                 </div>
             )}
 
@@ -350,7 +437,7 @@ function MessageCard({
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-widest">AI Edits</span>
-                            <button onClick={() => setShowDiff(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--red)] transition-colors focus-visible:outline-none focus-visible:underline">Hide diff</button>
+                            <button onClick={() => setShowDiff(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--red-text)] transition-colors focus-visible:outline-none focus-visible:underline">Hide diff</button>
                         </div>
                         <InlineDiff before={message.originalBody!} after={message.body} />
                     </div>
@@ -375,7 +462,21 @@ function MessageCard({
                             />
                         </div>
                         <div className="flex flex-col gap-1">
-                            <label className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Body</label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Body</label>
+                                <div className="flex items-center gap-1">
+                                    {(["firstName", "lastName", "company", "title", "website"] as const).map((v) => (
+                                        <button
+                                            key={v}
+                                            type="button"
+                                            onClick={() => insertVariable(v)}
+                                            className="px-2 py-0.5 text-[10px] font-semibold rounded bg-[var(--surface-2)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--red)]/40 hover:text-[var(--red-text)] transition-all cursor-pointer"
+                                        >
+                                            {`{{${v}}}`}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <textarea
                                 ref={textareaRef}
                                 value={editedBody}
@@ -386,7 +487,7 @@ function MessageCard({
                         </div>
                         {isDirty && (
                             <p className="text-[10px] text-amber-400 flex items-center gap-1">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                                 Unsaved edits — approve to save and queue
                             </p>
                         )}
@@ -396,7 +497,7 @@ function MessageCard({
                         {viewMode === "text" && (
                             <>
                                 <div className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed font-sans">
-                                    {highlightVariables(message.body)}
+                                    {isPreview ? renderPreview(message.body) : highlightVariables(message.body)}
                                 </div>
                                 {hasEdits && !showDiff && (
                                     <button onClick={() => setShowDiff(true)} className="text-xs text-sky-400 hover:text-sky-300 inline-flex items-center gap-1 transition-colors focus-visible:outline-none focus-visible:underline">
@@ -412,7 +513,7 @@ function MessageCard({
                                 <div className="h-4 w-28 bg-[var(--surface-2)] mx-auto rounded-b-xl absolute top-0 left-1/2 -translate-x-1/2 z-20" />
                                 <div className="pt-6 pb-4 px-3 flex flex-col gap-2 h-[320px] overflow-y-auto text-[11px] text-[var(--text-secondary)]">
                                     <div className="border-b border-[var(--border)] pb-2 flex items-center gap-1.5">
-                                        <div className="w-5 h-5 rounded-full bg-[var(--red-glow)] text-[var(--red)] font-bold flex items-center justify-center text-[9px] flex-shrink-0">
+                                        <div className="w-5 h-5 rounded-full bg-[var(--red-glow)] text-[var(--red-text)] font-bold flex items-center justify-center text-[9px] flex-shrink-0">
                                             {(senderEmail?.[0] ?? "S").toUpperCase()}
                                         </div>
                                         <div className="min-w-0">
@@ -425,10 +526,10 @@ function MessageCard({
                                         </div>
                                     </div>
                                     <div className="font-bold text-[var(--text-primary)] leading-tight">
-                                        {message.subject}
+                                        {isPreview ? renderPreview(message.subject) : message.subject}
                                     </div>
                                     <div className="whitespace-pre-wrap leading-relaxed font-sans text-[var(--text-secondary)] pt-1">
-                                        {highlightVariables(message.body)}
+                                        {isPreview ? renderPreview(message.body) : highlightVariables(message.body)}
                                     </div>
                                 </div>
                             </div>
@@ -447,10 +548,10 @@ function MessageCard({
                                 <div className="px-4 py-3 border-b border-[var(--border)] flex flex-col gap-1 text-[11px] text-[var(--text-muted)]">
                                     <p><strong className="text-[var(--text-secondary)]">From:</strong> {senderEmail ?? <span className="italic">No sender configured</span>}</p>
                                     <p><strong className="text-[var(--text-secondary)]">To:</strong> {message.lead.email || `${message.lead.firstName ?? "lead"}@${message.lead.companyName.toLowerCase().replace(/\s+/g, "")}.com`}</p>
-                                    <p><strong className="text-[var(--text-secondary)]">Subject:</strong> <span className="text-[var(--text-primary)] font-medium">{message.subject}</span></p>
+                                    <p><strong className="text-[var(--text-secondary)]">Subject:</strong> <span className="text-[var(--text-primary)] font-medium">{isPreview ? renderPreview(message.subject) : message.subject}</span></p>
                                 </div>
                                 <div className="px-4 py-5 whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-secondary)] bg-[var(--surface)] min-h-[160px]">
-                                    {highlightVariables(message.body)}
+                                    {isPreview ? renderPreview(message.body) : highlightVariables(message.body)}
                                 </div>
                             </div>
                         )}
@@ -478,7 +579,7 @@ function MessageCard({
                         <button
                             onClick={() => onReject(message.id)}
                             disabled={saving}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--red)] hover:border-[var(--border-red)] hover:bg-[var(--red-glow)] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] disabled:opacity-40"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--red-text)] hover:border-[var(--border-red)] hover:bg-[var(--red-glow)] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] disabled:opacity-40"
                             aria-label={`Reject message to ${message.lead.companyName}`}
                         >
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
@@ -535,6 +636,62 @@ function MessageCard({
     );
 }
 
+// ── Inline error classification (mirrors replyApi pattern) ──────────────────
+
+type MsgErrorKind =
+    | "RATE_LIMITED"
+    | "UNAUTHORIZED"
+    | "FORBIDDEN"
+    | "SERVER_ERROR"
+    | "UNAVAILABLE"
+    | "NETWORK_ERROR";
+
+interface MsgApiError {
+    kind: MsgErrorKind;
+    retryAfterSeconds: number | null;
+    userMessage: string;
+}
+
+function parseRetryAfter(headers: Headers): number | null {
+    const raw = headers.get("retry-after");
+    if (!raw) return null;
+    const seconds = parseInt(raw, 10);
+    if (Number.isFinite(seconds) && seconds > 0) return Math.min(seconds, 300);
+    const date = Date.parse(raw);
+    if (Number.isFinite(date)) {
+        const diff = Math.ceil((date - Date.now()) / 1000);
+        return diff > 0 ? Math.min(diff, 300) : null;
+    }
+    return null;
+}
+
+function classifyMsgError(status: number, headers: Headers): MsgApiError {
+    switch (status) {
+        case 401:
+            return { kind: "UNAUTHORIZED", retryAfterSeconds: null, userMessage: "Session expired. Please sign in again." };
+        case 403:
+            return { kind: "FORBIDDEN", retryAfterSeconds: null, userMessage: "You don't have permission to view these messages." };
+        case 429: {
+            const retryAfterSeconds = parseRetryAfter(headers) ?? 30;
+            return { kind: "RATE_LIMITED", retryAfterSeconds, userMessage: "Messages are temporarily paused due to high activity." };
+        }
+        case 502:
+        case 503:
+        case 504:
+            return { kind: "UNAVAILABLE", retryAfterSeconds: null, userMessage: "The server is temporarily unavailable." };
+        default:
+            return { kind: "SERVER_ERROR", retryAfterSeconds: null, userMessage: "Something went wrong loading messages. Please try again." };
+    }
+}
+
+const MAX_MSG_AUTO_RETRIES = 3;
+const MSG_BACKOFF_JITTER_MS = 1_000;
+const MSG_UNAVAILABLE_BASE_MS = 5_000;
+
+function withMsgJitter(ms: number): number {
+    return ms + Math.floor(Math.random() * MSG_BACKOFF_JITTER_MS);
+}
+
 type FilterTab = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 
 interface MessagesTabProps {
@@ -543,39 +700,164 @@ interface MessagesTabProps {
 }
 
 export function MessagesTab({ campaignId, onSendComplete }: MessagesTabProps) {
-    const [messages, setMessages]       = useState<Message[]>([]);
-    const [meta, setMeta]               = useState<MessagesMeta>({ total: 0, page: 1, limit: 20, totalPages: 1 });
-    const [loading, setLoading]         = useState(true);
-    const [error, setError]             = useState<string | null>(null);
-    const [filter, setFilter]           = useState<FilterTab>("ALL");
-    const [page, setPage]               = useState(1);
+    const router = useRouter();
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [meta, setMeta] = useState<MessagesMeta>({ total: 0, page: 1, limit: 20, totalPages: 1 });
+    const [initialLoading, setInitialLoading] = useState(true);
+    const [initialError, setInitialError] = useState<MsgApiError | null>(null);
+    const [refreshError, setRefreshError] = useState<MsgApiError | null>(null);
+    const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
+    const [filter, setFilter] = useState<FilterTab>("ALL");
+    const [page, setPage] = useState(1);
     const [senderEmail, setSenderEmail] = useState<string | null>(null);
     const { toasts, addToast, dismiss } = useToast();
     const [statusCounts, setStatusCounts] = useState<{ PENDING: number; APPROVED: number; REJECTED: number }>({
         PENDING: 0, APPROVED: 0, REJECTED: 0,
     });
+    const [bulkApproving, setBulkApproving] = useState(false);
 
-    const fetchMessages = useCallback(async () => {
-        setLoading(true);
-        setError(null);
+    const hasData = messages.length > 0;
+    const inFlightRef = useRef<AbortController | null>(null);
+    const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const retryCountRef = useRef(0);
+    const isInitialRef = useRef(true);
+
+    async function handleApproveAllVisible() {
+        const pendingIds = messages.filter(m => m.approvalStatus === "PENDING").map(m => m.id);
+        if (pendingIds.length === 0) return;
+        setBulkApproving(true);
+        const snapshot = messages;
+        setMessages(prev => prev.map(m => pendingIds.includes(m.id) ? { ...m, approvalStatus: "APPROVED" as ApprovalStatus } : m));
         try {
-            const params = new URLSearchParams({
-                campaignId,
-                page: String(page),
-                limit: "20",
-                ...(filter !== "ALL" && { approvalStatus: filter }),
+            const res = await fetch("/api/outreach-messages/batch-approve", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ campaignId, messageIds: pendingIds }),
             });
-            const res = await fetch(`/api/outreach-messages?${params}`);
-            if (!res.ok) throw new Error(`Server error ${res.status}`);
+            if (!res.ok) throw new Error("Bulk approval failed");
+            addToast("success", `${pendingIds.length} messages approved`);
+            fetchStatusCounts();
+        } catch {
+            setMessages(snapshot);
+            addToast("error", "Bulk approval failed — please try again");
+        } finally {
+            setBulkApproving(false);
+        }
+    }
+
+    const cancelInFlight = useCallback(() => {
+        inFlightRef.current?.abort();
+        inFlightRef.current = null;
+        if (retryTimerRef.current !== null) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
+        }
+        if (countdownTimerRef.current !== null) {
+            clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+        }
+    }, []);
+
+    const fetchMessages = useCallback(async (opts?: { campaignId: string; filter: FilterTab; page: number }) => {
+        const params = new URLSearchParams({
+            campaignId: opts?.campaignId ?? campaignId,
+            page: String(opts?.page ?? page),
+            limit: "20",
+            ...((opts?.filter ?? filter) !== "ALL" && { approvalStatus: opts?.filter ?? filter }),
+        });
+
+        cancelInFlight();
+        const controller = new AbortController();
+        inFlightRef.current = controller;
+
+        const isInitial = isInitialRef.current;
+        if (isInitial) {
+            setInitialLoading(true);
+            setInitialError(null);
+        }
+        setRefreshError(null);
+
+        try {
+            const res = await fetch(`/api/outreach-messages?${params}`, { signal: controller.signal });
+            if (controller.signal.aborted) return;
+            if (!res.ok) {
+                const err = classifyMsgError(res.status, res.headers);
+                if (err.kind === "UNAUTHORIZED") {
+                    router.replace("/auth/login");
+                    return;
+                }
+                if (isInitial && !hasData) {
+                    setInitialError(err);
+                } else {
+                    setRefreshError(err);
+                    scheduleAutoRetry(err);
+                }
+                return;
+            }
             const json = await res.json();
+            if (controller.signal.aborted) return;
             setMessages(json.data);
             setMeta(json.meta);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load messages.");
+            setInitialError(null);
+            setRefreshError(null);
+            retryCountRef.current = 0;
+        } catch {
+            if (controller.signal.aborted) return;
+            const err: MsgApiError = {
+                kind: "NETWORK_ERROR",
+                retryAfterSeconds: null,
+                userMessage: "Unable to reach the server. Check your connection.",
+            };
+            if (isInitial && !hasData) {
+                setInitialError(err);
+            } else {
+                setRefreshError(err);
+                scheduleAutoRetry(err);
+            }
         } finally {
-            setLoading(false);
+            if (!controller.signal.aborted) {
+                setInitialLoading(false);
+                inFlightRef.current = null;
+                isInitialRef.current = false;
+            }
         }
-    }, [campaignId, filter, page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [campaignId, filter, page, cancelInFlight, hasData, router]);
+
+    function scheduleAutoRetry(err: MsgApiError) {
+        if (retryCountRef.current >= MAX_MSG_AUTO_RETRIES) return;
+        const isTransient = err.kind === "RATE_LIMITED" || err.kind === "UNAVAILABLE" || err.kind === "NETWORK_ERROR";
+        if (!isTransient) return;
+
+        let delayMs: number;
+        if (err.kind === "RATE_LIMITED" && err.retryAfterSeconds !== null) {
+            delayMs = withMsgJitter(err.retryAfterSeconds * 1000);
+        } else {
+            const backoff = MSG_UNAVAILABLE_BASE_MS * Math.pow(2, retryCountRef.current);
+            delayMs = withMsgJitter(Math.min(backoff, 60_000));
+        }
+
+        retryCountRef.current += 1;
+        let remaining = Math.ceil(delayMs / 1000);
+        setRetryCountdown(remaining);
+        countdownTimerRef.current = setInterval(() => {
+            remaining -= 1;
+            if (remaining <= 0) {
+                clearInterval(countdownTimerRef.current!);
+                countdownTimerRef.current = null;
+                setRetryCountdown(null);
+            } else {
+                setRetryCountdown(remaining);
+            }
+        }, 1_000);
+
+        retryTimerRef.current = setTimeout(async () => {
+            retryTimerRef.current = null;
+            if (inFlightRef.current) return;
+            await fetchMessages();
+        }, delayMs);
+    }
 
     // Fetch the sender email address once per campaign for the emulator preview
     useEffect(() => {
@@ -587,20 +869,22 @@ export function MessagesTab({ campaignId, onSendComplete }: MessagesTabProps) {
             .catch(() => { /* non-critical */ });
     }, [campaignId]);
 
-    useEffect(() => { fetchMessages(); }, [fetchMessages]);
+    // On campaignId/filter/page change, mark as initial if nothing loaded yet
+    useEffect(() => {
+        retryCountRef.current = 0;
+        fetchMessages();
+        return () => cancelInFlight();
+    }, [campaignId, filter, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchStatusCounts = useCallback(async () => {
         try {
-            const [pRes, aRes, rRes] = await Promise.all([
-                fetch(`/api/outreach-messages?campaignId=${campaignId}&approvalStatus=PENDING&limit=1`),
-                fetch(`/api/outreach-messages?campaignId=${campaignId}&approvalStatus=APPROVED&limit=1`),
-                fetch(`/api/outreach-messages?campaignId=${campaignId}&approvalStatus=REJECTED&limit=1`),
-            ]);
-            const [pData, aData, rData] = await Promise.all([pRes.json(), aRes.json(), rRes.json()]);
+            const res = await fetch(`/api/outreach-messages/counts?campaignId=${encodeURIComponent(campaignId)}`);
+            if (!res.ok) return; // non-critical — stale counts are acceptable
+            const data = await res.json();
             setStatusCounts({
-                PENDING:  pData.meta?.total ?? 0,
-                APPROVED: aData.meta?.total ?? 0,
-                REJECTED: rData.meta?.total ?? 0,
+                PENDING: data.PENDING ?? 0,
+                APPROVED: data.APPROVED ?? 0,
+                REJECTED: data.REJECTED ?? 0,
             });
         } catch {
             // non-critical
@@ -619,7 +903,7 @@ export function MessagesTab({ campaignId, onSendComplete }: MessagesTabProps) {
                     approvalStatus: "APPROVED" as ApprovalStatus,
                     ...(editedSubject ? { subject: editedSubject } : {}),
                     ...(editedBody ? { body: editedBody } : {})
-                  }
+                }
                 : m
         ));
         try {
@@ -672,71 +956,99 @@ export function MessagesTab({ campaignId, onSendComplete }: MessagesTabProps) {
     }
 
     const counts: Record<FilterTab, number> = {
-        ALL:      meta.total,
-        PENDING:  statusCounts.PENDING,
+        ALL: meta.total,
+        PENDING: statusCounts.PENDING,
         APPROVED: statusCounts.APPROVED,
         REJECTED: statusCounts.REJECTED,
     };
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex items-center gap-1 px-6 py-3 border-b border-[var(--border)] bg-[var(--navy-mid)] flex-shrink-0" role="tablist" aria-label="Filter messages">
-                {(["ALL", "PENDING", "APPROVED", "REJECTED"] as FilterTab[]).map((f) => (
+            <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--border)] bg-[var(--navy-mid)] flex-shrink-0">
+                <div className="flex items-center gap-1" role="tablist" aria-label="Filter messages">
+                    {(["ALL", "PENDING", "APPROVED", "REJECTED"] as FilterTab[]).map((f) => (
+                        <button
+                            key={f}
+                            role="tab"
+                            aria-selected={filter === f}
+                            onClick={() => setFilter(f)}
+                            className={[
+                                "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-150",
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
+                                filter === f
+                                    ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]"
+                                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]",
+                            ].join(" ")}
+                        >
+                            {f === "ALL" ? "All" : f.charAt(0) + f.slice(1).toLowerCase()}
+                            <span className={`text-xs tabular-nums rounded-full px-1.5 py-0.5 ${filter === f ? "bg-[var(--red)] text-white" : "bg-[var(--surface-2)] text-[var(--text-muted)]"}`}>
+                                {counts[f]}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+                {messages.some(m => m.approvalStatus === "PENDING") && (
                     <button
-                        key={f}
-                        role="tab"
-                        aria-selected={filter === f}
-                        onClick={() => setFilter(f)}
-                        className={[
-                            "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-150",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
-                            filter === f
-                                ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]"
-                                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]",
-                        ].join(" ")}
+                        onClick={handleApproveAllVisible}
+                        disabled={bulkApproving}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-50 cursor-pointer"
                     >
-                        {f === "ALL" ? "All" : f.charAt(0) + f.slice(1).toLowerCase()}
-                        <span className={`text-xs tabular-nums rounded-full px-1.5 py-0.5 ${filter === f ? "bg-[var(--red)] text-white" : "bg-[var(--surface-2)] text-[var(--text-muted)]"}`}>
-                            {counts[f]}
-                        </span>
+                        {bulkApproving ? (
+                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+                        ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+                        )}
+                        Approve All Visible ({messages.filter(m => m.approvalStatus === "PENDING").length})
                     </button>
-                ))}
+                )}
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
-                {loading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <svg className="animate-spin text-[var(--red)]" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                        </svg>
-                    </div>
-                ) : error ? (
-                    <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-                        <p className="text-sm text-[var(--red)]">{error}</p>
-                        <button onClick={fetchMessages} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] underline">Retry</button>
-                    </div>
-                ) : (
-                    <div className="max-w-3xl mx-auto space-y-4">
-                        {messages.map((m) => (
-                            <MessageCard key={m.id} message={m} senderEmail={senderEmail} onApprove={handleApprove} onReject={handleReject} onSend={handleSend} />
-                        ))}
-                        {messages.length === 0 && (
-                            <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-                                <div className="w-12 h-12 rounded-full bg-[var(--surface-2)] flex items-center justify-center text-[var(--text-muted)]">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
-                                </div>
-                                <p className="text-sm font-medium text-[var(--text-secondary)]">No messages</p>
-                                <p className="text-xs text-[var(--text-muted)]">{filter === "PENDING" ? "All messages have been reviewed" : "Messages will appear here after the generate phase"}</p>
+            {initialLoading ? (
+                <div className="flex items-center justify-center py-20">
+                    <svg className="animate-spin text-[var(--red-text)]" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                </div>
+            ) : initialError ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                    <p className="text-sm text-[var(--red-text)]">{initialError.userMessage}</p>
+                    <button onClick={() => { retryCountRef.current = 0; isInitialRef.current = true; fetchMessages(); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] underline">Retry</button>
+                </div>
+            ) : (
+                <div className="max-w-3xl mx-auto space-y-4">
+                    {refreshError && (
+                        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-[var(--border-red)] bg-[var(--red-glow)] text-[var(--red-text)] text-xs">
+                            <span>{refreshError.userMessage}{retryCountdown !== null ? ` Retrying in ${retryCountdown}s…` : ""}</span>
+                            <button
+                                onClick={() => { cancelInFlight(); retryCountRef.current = 0; setRefreshError(null); setRetryCountdown(null); fetchMessages(); }}
+                                disabled={retryCountdown !== null}
+                                className="flex-shrink-0 underline disabled:no-underline disabled:opacity-50"
+                            >
+                                {retryCountdown !== null ? `${retryCountdown}s` : "Retry now"}
+                            </button>
+                        </div>
+                    )}
+                    {messages.map((m) => (
+                        <MessageCard key={m.id} message={m} senderEmail={senderEmail} onApprove={handleApprove} onReject={handleReject} onSend={handleSend} onSaveError={(msg) => addToast("error", msg)} />
+                    ))}
+                    {messages.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                            <div className="w-12 h-12 rounded-full bg-[var(--surface-2)] flex items-center justify-center text-[var(--text-muted)]">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
                             </div>
-                        )}
-                        {meta.totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-2 pt-4">
-                                <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-muted)] disabled:opacity-40 hover:bg-[var(--surface-2)] transition-colors">← Prev</button>
-                                <span className="text-xs text-[var(--text-muted)]">Page {page} of {meta.totalPages}</span>
-                                <button disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-2)] transition-colors">Next →</button>
-                            </div>
-                        )}
-                    </div>
+                            <p className="text-sm font-medium text-[var(--text-secondary)]">No messages</p>
+                            <p className="text-xs text-[var(--text-muted)]">{filter === "PENDING" ? "All messages have been reviewed" : "Messages will appear here after the generate phase"}</p>
+                        </div>
+                    )}
+                    {meta.totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 pt-4">
+                            <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-muted)] disabled:opacity-40 hover:bg-[var(--surface-2)] transition-colors">← Prev</button>
+                            <span className="text-xs text-[var(--text-muted)]">Page {page} of {meta.totalPages}</span>
+                            <button disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-2)] transition-colors">Next →</button>
+                        </div>
+                    )}
+                </div>
                 )}
             </div>
             <ToastRegion toasts={toasts} onDismiss={dismiss} />

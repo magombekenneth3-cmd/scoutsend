@@ -1,5 +1,8 @@
 "use client";
 
+import React from "react";
+import { motion } from "framer-motion";
+
 interface StatCardProps {
     label: string;
     value: string | number;
@@ -10,23 +13,15 @@ interface StatCardProps {
     accent?: boolean;
 }
 
-export function StatCard({
-    label,
-    value,
-    sub,
-    trend,
-    trendValue,
-    icon,
-    accent = false,
-}: StatCardProps) {
+export function StatCard({ label, value, sub, trend, trendValue, icon, accent = false }: StatCardProps) {
     const trendColor =
         trend === "up"
-            ? "text-emerald-400"
+            ? "bg-emerald-500/10 text-emerald-400"
             : trend === "down"
-                ? "text-red-400"
-                : "text-[var(--text-secondary)]";
+                ? "bg-red-500/10 text-red-400"
+                : "bg-[var(--surface-2)] text-[var(--text-muted)]";
 
-    const trendArrow = trend === "up" ? "↑" : trend === "down" ? "↓" : "→";
+    const trendArrow = trend === "up" ? "↑" : trend === "down" ? "↓" : "";
 
     const accessibleLabel = [
         label,
@@ -36,61 +31,115 @@ export function StatCard({
     ].filter(Boolean).join(", ");
 
     return (
-        <article
+        <motion.article
+            whileHover={{ y: -2, scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
             aria-label={accessibleLabel}
             className={[
-                "relative flex flex-col gap-3 rounded-xl p-5 border transition-all duration-200",
+                "relative flex flex-col gap-2 rounded-xl p-5 border stat-card-premium gradient-border cursor-pointer",
                 "bg-[var(--surface)] border-[var(--border)]",
-                "hover:border-[var(--border-red)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)] hover:-translate-y-0.5",
                 accent ? "ring-1 ring-[var(--red-glow)]" : "",
             ].join(" ")}
-
         >
-            <div className="flex items-start justify-between" aria-hidden="true">
+            {/* Top accent shimmer line */}
+            {accent && (
                 <div
-                    className={[
-                        "flex items-center justify-center w-9 h-9 rounded-lg",
-                        accent
-                            ? "bg-[var(--red-glow)] text-[var(--red)]"
-                            : "bg-[var(--surface-2)] text-[var(--text-secondary)]",
-                    ].join(" ")}
-                >
-                    {icon}
-                </div>
+                    className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--red)] to-transparent opacity-70 rounded-t-xl"
+                    aria-hidden="true"
+                />
+            )}
 
+            <div className="flex items-center justify-between" aria-hidden="true">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    {label}
+                </p>
+                <span className="text-[var(--text-muted)] opacity-50 flex-shrink-0">
+                    {icon}
+                </span>
+            </div>
+
+            <div className="flex items-baseline gap-2" aria-hidden="true">
+                <p className="stat-value text-2xl font-bold text-[var(--text-primary)] font-display tabular-nums leading-none transition-all duration-300">
+                    {value}
+                </p>
                 {trendValue && (
-                    <span
-                        className={`text-xs font-medium tabular-nums ${trendColor} bg-[var(--surface-2)] px-2 py-1 rounded-full`}
-                        aria-hidden="true"
-                    >
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md tabular-nums ${trendColor}`}>
                         {trendArrow} {trendValue}
                     </span>
                 )}
             </div>
 
-            <div aria-hidden="true">
-                <p className="text-2xl font-bold text-[var(--text-primary)] font-display tabular-nums leading-none">
-                    {value}
-                </p>
-                {sub && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1 tabular-nums">
-                        {sub}
-                    </p>
-                )}
-                {trendValue && (
-                    <p className={`text-xs mt-1 tabular-nums ${trendColor}`}>
-                        {trendArrow} {trendValue} vs last 7d
-                    </p>
-                )}
+            <p className="text-[10px] text-[var(--text-muted)] leading-normal" aria-hidden="true">
+                {sub ?? (trendValue ? "compared to previous 7 days" : "active target rate")}
+            </p>
+        </motion.article>
+    );
+}
+
+interface RadialProgressCardProps {
+    label: string;
+    value: number;
+    sub: string;
+    trend?: "up" | "down" | "neutral";
+    trendValue?: string;
+}
+
+export function RadialProgressCard({ label, value, sub, trend, trendValue }: RadialProgressCardProps) {
+    const radius = 18;
+    const circumference = 2 * Math.PI * radius;
+    const clamped = Math.min(100, Math.max(0, value));
+    const strokeDashoffset = circumference - (clamped / 100) * circumference;
+
+    const trendColor =
+        trend === "up"
+            ? "text-emerald-400"
+            : trend === "down"
+                ? "text-red-400"
+                : "text-[var(--text-muted)]";
+
+    const trendArrow = trend === "up" ? "↑" : trend === "down" ? "↓" : "";
+
+    return (
+        <motion.article
+            whileHover={{ y: -2, scale: 1.01 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            aria-label={`${label}: ${value}%. ${sub}${trendValue ? `. ${trendArrow} ${trendValue}` : ""}`}
+            className="card-glass flex items-center gap-4 p-4 stat-card-premium cursor-pointer"
+        >
+            <div className="relative flex-shrink-0 w-12 h-12" aria-hidden="true">
+                <svg viewBox="0 0 48 48" fill="none" className="w-full h-full -rotate-90">
+                    <circle
+                        cx="24" cy="24" r={radius}
+                        stroke="var(--glass-border-hover)"
+                        strokeWidth="3.5"
+                    />
+                    <circle
+                        cx="24" cy="24" r={radius}
+                        stroke="var(--red)"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        style={{ transition: "stroke-dashoffset 0.6s ease-out", filter: "drop-shadow(0 0 4px var(--red-glow))" }}
+                    />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-[var(--text-primary)]">
+                    {clamped}%
+                </span>
             </div>
 
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]" aria-hidden="true">
-                {label}
-            </p>
-
-            {accent && (
-                <div className="absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-[var(--red)] to-transparent opacity-60 rounded-full" aria-hidden="true" />
-            )}
-        </article>
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-[var(--text-primary)] leading-none truncate">{label}</p>
+                    {trendValue && (
+                        <span className={`text-[9px] font-semibold tabular-nums flex-shrink-0 ${trendColor}`}>
+                            {trendArrow} {trendValue}
+                        </span>
+                    )}
+                </div>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1 leading-normal">{sub}</p>
+            </div>
+        </motion.article>
     );
 }

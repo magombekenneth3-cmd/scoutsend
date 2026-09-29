@@ -40,6 +40,9 @@ export interface CreateLearningEventInput {
     diffVector?: DiffVector;
     outcome: LearningOutcome;
     outreachMessageId?: string;
+    orgId?: string;
+    campaignId?: string;
+    userId?: string;
     metadata?: LearningEventMetadata;
 }
 
@@ -54,6 +57,9 @@ export async function createLearningEvent(
             diffVector: (data.diffVector as Prisma.InputJsonValue) ?? Prisma.JsonNull,
             outcome: data.outcome,
             outreachMessageId: data.outreachMessageId,
+            orgId: data.orgId,
+            campaignId: data.campaignId,
+            userId: data.userId,
             metadata: (data.metadata as Prisma.InputJsonValue) ?? Prisma.JsonNull,
         },
     });
@@ -66,6 +72,8 @@ export async function getLearningEvents(
         eventType,
         outcome,
         outreachMessageId,
+        orgId,
+        campaignId,
         pendingOnly,
         from,
         to,
@@ -78,6 +86,8 @@ export async function getLearningEvents(
     const where: Prisma.LearningEventWhereInput = {
         ...(eventType && { eventType }),
         ...(outreachMessageId && { outreachMessageId }),
+        ...(orgId && { orgId }),
+        ...(campaignId && { campaignId }),
         ...(pendingOnly
             ? { outcome: LEARNING_OUTCOMES.PENDING_REVIEW }
             : outcome

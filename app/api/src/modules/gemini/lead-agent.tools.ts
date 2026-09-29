@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import type { AgentOutputType } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { scrapeCompanyText } from "../../lib/scrape";
@@ -14,15 +13,90 @@ const OUTPUT_TYPE_SCHEMA: Record<AgentOutputType, SchemaType> = {
     NUMBER: SchemaType.NUMBER,
 };
 
-function coerceToOutputType(raw: unknown, outputType: AgentOutputType): unknown {
+function coerceToOutputType(
+    raw: unknown,
+    outputType: AgentOutputType,
+): unknown {
     if (outputType === "BOOLEAN") {
-        return raw === true || raw === "true" || raw === 1;
+        if (typeof raw === "boolean") {
+            return raw;
+        }
+
+        if (typeof raw === "string") {
+            const normalized = raw.trim().toLowerCase();
+
+            if (normalized === "true") return true;
+            if (normalized === "false") return false;
+        }
+
+        if (typeof raw === "number") {
+            if (raw === 1) return true;
+            if (raw === 0) return false;
+        }
+
+        return null;
     }
+
     if (outputType === "NUMBER") {
-        const n = Number(raw);
-        return Number.isFinite(n) ? n : null;
+        if (
+            typeof raw === "string" &&
+            raw.trim() === ""
+        ) {
+            return null;
+        }
+
+        const number = Number(raw);
+
+        return Number.isFinite(number) ? number : null;
     }
-    return raw != null ? String(raw) : null;
+
+    if (raw == null) {
+        return null;
+    }
+
+    return typeof raw === "string"
+        ? raw
+        : String(raw);
+}
+
+function normalizeQuery(value: unknown): string | null {
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    const query = value.trim();
+
+    return query.length > 0 ? query : null;
+}
+
+function normalizeUrl(value: unknown): string | null {
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    const raw = value.trim();
+
+    if (!raw) {
+        return null;
+    }
+
+    try {
+        const url = new URL(raw);
+
+        if (url.protocol !== "https:") {
+            return null;
+        }
+
+        return url.toString();
+    } catch {
+        return null;
+    }
+}
+
+function safeToolError(
+    message: string,
+): { error: string } {
+    return { error: message };
 }
 
 export function buildLeadAgentTools(
@@ -34,7 +108,17 @@ export function buildLeadAgentTools(
     let webSearchCount = 0;
     let scrapeCount = 0;
 
-    // Fix #2: removed generic parameter — handler args cast internally instead
+    const incrementToolCallCount = async (): Promise<void> => {
+        await prisma.leadAgentRun.update({
+            where: { id: runId },
+            data: {
+                toolCallCount: {
+                    increment: 1,
+                },
+            },
+        });
+    };
+
     const webSearch: ToolDefinition = {
         declaration: {
             name: "webSearch",
@@ -52,58 +136,107 @@ export function buildLeadAgentTools(
             },
         },
         handler: async (args) => {
-            const { query } = args as { query: string };
-            if (webSearchCount >= MAX_WEB_SEARCH_CALLS) {
-                return { error: "webSearch call limit reached for this run" };
+            const { query: rawQuery } = args as {
+                query?: unknown;
+            };
+
+            const query = normalizeQuery(rawQuery);
+
+            if (!query) {
+                return safeToolError(
+                    "A non-empty search query is required",
+                );
             }
+
+            if (webSearchCount >= MAX_WEB_SEARCH_CALLS) {
+                return safeToolError(
+                    "webSearch call limit reached for this run",
+                );
+            }
+
             webSearchCount++;
-            await prisma.leadAgentRun.update({
-                where: { id: runId },
-                data: { toolCallCount: { increment: 1 } },
-            });
-            const results = await serperSearch(query, "search");
-            return results.map((r) => ({ title: r.title, url: r.link, snippet: r.snippet }));
+
+            try {
+                await incrementToolCallCount();
+
+                const results = await serperSearch(
+                    query,
+                    "search",
+                );
+
+                return results.map((result) => ({
+                    title: result.title,
+                    url: result.link,
+                    snippet: result.snippet,
+                }));
+            } catch {
+                return safeToolError(
+                    "Web search failed",
+                );
+            }
         },
     };
 
-    // Fix #2: removed generic parameter — handler args cast internally instead
     const scrape: ToolDefinition = {
         declaration: {
             name: "scrape",
-            description: "Fetch and extract the readable text content of a public web page.",
+            description:
+                "Fetch and extract the readable text content of a public HTTPS web page.",
             parameters: {
                 type: SchemaType.OBJECT,
                 properties: {
                     url: {
                         type: SchemaType.STRING,
-                        description: "The full HTTPS URL of the page to scrape.",
+                        description:
+                            "The full HTTPS URL of the page to scrape.",
                     },
                 },
                 required: ["url"],
             },
         },
         handler: async (args) => {
-            const { url } = args as { url: string };
+            const { url: rawUrl } = args as {
+                url?: unknown;
+            };
+
+            const url = normalizeUrl(rawUrl);
+
+            if (!url) {
+                return safeToolError(
+                    "A valid HTTPS URL is required",
+                );
+            }
+
             if (scrapeCount >= MAX_SCRAPE_CALLS) {
-                return { error: "scrape call limit reached for this run" };
+                return safeToolError(
+                    "scrape call limit reached for this run",
+                );
             }
+
             scrapeCount++;
-            await prisma.leadAgentRun.update({
-                where: { id: runId },
-                data: { toolCallCount: { increment: 1 } },
-            });
-            const text = await scrapeCompanyText(url);
-            if (!text) {
-                return { error: "Page could not be fetched or contained no extractable text" };
+
+            try {
+                await incrementToolCallCount();
+
+                const text = await scrapeCompanyText(url);
+
+                if (!text) {
+                    return safeToolError(
+                        "Page could not be fetched or contained no extractable text",
+                    );
+                }
+
+                return {
+                    content: text,
+                };
+            } catch {
+                return safeToolError(
+                    "Page scraping failed",
+                );
             }
-            return { content: text };
         },
     };
 
-    // Fix #2: removed generic parameter — handler args cast internally instead
-    // Fix #1: `as any` cast to work around Gemini SDK's overly strict Schema
-    //         discriminated union, which incorrectly requires `properties` on
-    //         non-object schema types (STRING / BOOLEAN / NUMBER).
     const extractField: ToolDefinition = {
         declaration: {
             name: "extractField",
@@ -114,24 +247,50 @@ export function buildLeadAgentTools(
                 properties: {
                     value: {
                         type: OUTPUT_TYPE_SCHEMA[outputType],
-                        description: "The extracted value to record.",
+                        description:
+                            "The extracted value to record.",
                     } as any,
                 },
                 required: ["value"],
             },
         },
         handler: async (args) => {
-            const { value } = args as { value: unknown };
-            const coerced = coerceToOutputType(value, outputType);
-            const payload = JSON.stringify({ [fieldKey]: coerced });
-            await prisma.$executeRaw`
-        UPDATE "Lead"
-        SET "enrichmentData" = COALESCE("enrichmentData", '{}'::jsonb) || ${payload}::jsonb
-        WHERE id = ${leadId}
-      `;
-            return { recorded: true };
+            const { value } = args as {
+                value?: unknown;
+            };
+
+            const coerced = coerceToOutputType(
+                value,
+                outputType,
+            );
+
+            const payload = JSON.stringify({
+                [fieldKey]: coerced,
+            });
+
+            try {
+                await prisma.$executeRaw`
+                    UPDATE "Lead"
+                    SET "enrichmentData" =
+                        COALESCE("enrichmentData", '{}'::jsonb)
+                        || ${payload}::jsonb
+                    WHERE id = ${leadId}
+                `;
+
+                return {
+                    recorded: true,
+                };
+            } catch {
+                return safeToolError(
+                    "Failed to record extracted field",
+                );
+            }
         },
     };
 
-    return [webSearch, scrape, extractField];
+    return [
+        webSearch,
+        scrape,
+        extractField,
+    ];
 }

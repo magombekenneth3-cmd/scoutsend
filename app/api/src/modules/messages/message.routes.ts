@@ -11,6 +11,7 @@ import {
   batchApproveMessages,
   batchRejectMessages,
   sendOutreachMessage,
+  getStatusCountsHandler,
 } from "./message.controller";
 
 const router = Router();
@@ -20,6 +21,7 @@ router.use(authMiddleware);
 router.post("/", createOutreachMessage);
 router.get("/", getOutreachMessages);
 router.get("/chart-stats", getChartStats);
+router.get("/counts", getStatusCountsHandler);
 router.post("/batch-approve", batchApproveMessages);
 router.post("/batch-reject", batchRejectMessages);
 router.get("/:id", getOutreachMessageById);

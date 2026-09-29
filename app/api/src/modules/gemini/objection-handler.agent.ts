@@ -1,6 +1,8 @@
 import pLimit from "p-limit";
 import { prisma } from "../../lib/prisma";
-import { callGemini, extractJSON, MODELS } from "./gemini.client";
+import { MODELS } from "./gemini.client";
+import { callGateway, ObjectionAnalysisSchema, DraftReplyOutputSchema } from "../../lib/llm-gateway";
+import type { ObjectionAnalysisOutput, DraftReplyOutput } from "../../lib/llm-gateway";
 import { logger } from "../../lib/logger";
 import { ReplyIntent, DraftReply } from "./reply.agent";
 import { getWinPatterns, WinPattern } from "../memory/memory.service";
@@ -9,6 +11,9 @@ export type ObjectionCategory =
     | "PRICING"
     | "TIMING"
     | "INCUMBENT_VENDOR"
+    | "SECURITY_COMPLIANCE"
+    | "INTEGRATION_TECHNICAL"
+    | "BRUSH_OFF"
     | "NO_NEED"
     | "DECISION_MAKER"
     | "MORE_INFO"
@@ -19,12 +24,20 @@ const OBJECTION_CATEGORIES: readonly ObjectionCategory[] = [
     "PRICING",
     "TIMING",
     "INCUMBENT_VENDOR",
+    "SECURITY_COMPLIANCE",
+    "INTEGRATION_TECHNICAL",
+    "BRUSH_OFF",
     "NO_NEED",
     "DECISION_MAKER",
     "MORE_INFO",
     "GENERAL_INTEREST",
     "NONE",
 ];
+
+const SENSITIVE_CATEGORIES = new Set<ObjectionCategory>([
+    "PRICING",
+    "SECURITY_COMPLIANCE",
+]);
 
 interface ObjectionAnalysis {
     category: ObjectionCategory;
@@ -35,6 +48,7 @@ interface ObjectionAnalysis {
 export interface ObjectionAwareDraftResult extends DraftReply {
     objectionCategory: ObjectionCategory;
     secondaryObjectionCategory?: ObjectionCategory | null;
+    requiresHumanReview?: boolean;
 }
 
 export type ObjectionFrameworkOverrides = Partial<Record<ObjectionCategory, string>>;
@@ -49,21 +63,27 @@ const MAX_CUSTOM_FRAMEWORK_CHARS = 600;
 
 const OBJECTION_FRAMEWORKS: Record<ObjectionCategory, string> = {
     PRICING:
-        "Acknowledge cost is a real consideration. Reframe around ROI or cost of the problem they already have. Offer a scoped pilot or next step that reduces commitment. Do not include calendar links or specific time slots.",
+        "Acknowledge the budget concern without apologising for the price. Reframe around the cost of the problem they currently have unsolved, not around your product features. Offer a scoped proof-of-value step that reduces commitment. Close with a low-friction asset ask: 'Worth sharing a 1-page ROI breakdown for a company like yours?'",
     TIMING:
-        "Validate their timing concern without accepting it as final. Ask what would need to be true for this to be a priority. Leave the door open with a specific future touchpoint. Do not include calendar links or specific time slots.",
+        "Validate their timing concern without accepting it as final. Ask one open question: what would need to be true for this to become a priority. Anchor a specific future touchpoint. Close with a low-friction nudge: 'Mind if I check back near the end of Q3 when planning opens up?'",
     INCUMBENT_VENDOR:
-        "Don't attack the incumbent. Ask one curious question about what they'd change if they could. Position as additive, not replacement. Do not include calendar links or specific time slots.",
-    DECISION_MAKER:
-        "Acknowledge and ask who the right person is. Offer to help with a brief intro message or one-pager they can forward. Do not include calendar links or specific time slots.",
+        "Do not attack the incumbent — compliment their choice instead. Ask one curious question about what they'd improve if they could. Position as additive or complementary, not a rip-and-replace. Close with a differentiation query: 'Open to seeing how we complement [Vendor] on [specific gap]?'",
+    SECURITY_COMPLIANCE:
+        "Directly affirm the security question without hedging. State relevant certifications (SOC2, GDPR, ISO 27001) in a single clause. Offer to send the compliance documentation package. Close with a resource-delivery offer: 'Happy to send over our SOC2 Type II report and data processing addendum if that helps.'",
+    INTEGRATION_TECHNICAL:
+        "Confirm compatibility directly and concisely — one sentence. Offer the technical specification or an architecture call with an engineer. Close with a confirmation ask: 'Does native [CRM/SSO/API] support address your main concern, or is there a specific integration you'd like to verify?'",
+    BRUSH_OFF:
+        "Match their energy — keep it extremely brief, under 3 sentences. Deliver a single high-value micro-insight relevant to their role or industry that they can act on without a meeting. Close with a micro-insight ask: 'Happy to — would 3 bullet points on how [Persona] teams are solving [Pain] be useful?'",
     NO_NEED:
-        "Thank them for the clarity. Ask one polite question: whether there is a better person in their org this would be relevant to. If they confirm no fit exists, bow out gracefully with no pressure. Keep it very short. Do not include calendar links or specific time slots.",
+        "Thank them for the clarity and be graceful. Ask one soft referral question: is there someone else in their org this would be more relevant to. If they confirm no fit, bow out warmly and leave the door open. Close with a soft permission ask: 'Understood — mind if I keep you posted on updates relevant to [their space]?'",
+    DECISION_MAKER:
+        "Acknowledge and validate that they are not the right person to evaluate this. Ask who owns the problem space directly and offer to help make the introduction easy. Close with a referral request: 'Who on your team manages [Problem Area]? Happy to send something brief they can review in under 2 minutes.'",
     MORE_INFO:
-        "Answer the question directly and concisely — one paragraph max. Then suggest a brief call over the next week or two as the fastest path to address their other questions, asking what works for them.",
+        "Answer the question directly and concisely — one paragraph max, no padding. Then suggest a brief call as the fastest path to address their remaining questions. Close with a clarification ask: 'Does that address what you were looking for, or would it be easier to run through the details on a quick call?'",
     GENERAL_INTEREST:
-        "Match their energy, be warm. Move toward a concrete next step: suggest a brief call over the next week or two, and let them know you'll send a calendar invite accordingly.",
+        "Match their warm energy. Move to a concrete next step immediately. Ask for a specific 15-minute window over the next 1–2 weeks. Close with a commitment CTA: 'Do you have 15 minutes next week for a quick demo — I can work around your schedule.'",
     NONE:
-        "Write a warm, professional reply. Move toward a concrete next step: suggest a brief call over the next week or two, and let them know you'll send a calendar invite accordingly.",
+        "Write a warm, professional reply. Move toward a concrete next step: suggest a brief call over the next week or two and let them know you will send a calendar invite accordingly.",
 };
 
 function isObjectionCategory(value: unknown): value is ObjectionCategory {
@@ -186,6 +206,10 @@ function resolveDraftTimeoutMs(params: { hasWinPatterns: boolean; isHybridObject
     return GEMINI_TIMEOUT_MS + extra;
 }
 
+function shouldForceHumanReview(category: ObjectionCategory, confidence: number): boolean {
+    return SENSITIVE_CATEGORIES.has(category) || confidence < 0.92;
+}
+
 async function detectObjection(params: {
     replyBody: string;
     intent: ReplyIntent;
@@ -193,39 +217,46 @@ async function detectObjection(params: {
 }): Promise<ObjectionAnalysis> {
     const { replyBody, intent, messageId } = params;
 
-    let text: string;
+    let payload: ObjectionAnalysisOutput;
     try {
-        ({ text } = await callGeminiWithResilience(
+        const proposal = await callGeminiWithResilience(
             () =>
-                callGemini({
+                callGateway<ObjectionAnalysisOutput>({
                     agentName: "objection-handler.detector",
                     model: MODELS.REVIEW,
+                    responseMode: "text",
+                    outputSchema: ObjectionAnalysisSchema,
                     systemPrompt: `You are a B2B sales objection analyst. Classify the objection(s) in a prospect's reply.
 
 Return ONLY JSON:
 {
-  "category": one of "PRICING" | "TIMING" | "INCUMBENT_VENDOR" | "NO_NEED" | "DECISION_MAKER" | "MORE_INFO" | "GENERAL_INTEREST" | "NONE",
+  "category": one of "PRICING" | "TIMING" | "INCUMBENT_VENDOR" | "SECURITY_COMPLIANCE" | "INTEGRATION_TECHNICAL" | "BRUSH_OFF" | "NO_NEED" | "DECISION_MAKER" | "MORE_INFO" | "GENERAL_INTEREST" | "NONE",
   "secondaryCategory": one of the same values except "NONE", or null — only set this if a second, genuinely distinct objection is also present,
   "extractedObjection": string — the exact objection in 1 sentence, or empty string if none
 }
 
 Category definitions:
-- PRICING: mentions cost, budget, expensive, can't justify
-- TIMING: not now, bad timing, next quarter, too busy
-- INCUMBENT_VENDOR: already have a solution, using a competitor
-- NO_NEED: don't need this, not relevant, not a priority
-- DECISION_MAKER: not the right person, need to check with someone
-- MORE_INFO: asking a specific question about the product/service
+- PRICING: mentions cost, budget, expensive, can't justify the spend
+- TIMING: not now, bad timing, next quarter, too busy, check back later
+- INCUMBENT_VENDOR: already have a solution, using a competitor (Salesforce, HubSpot, etc.)
+- SECURITY_COMPLIANCE: questions about SOC2, GDPR, ISO 27001, data residency, privacy, legal review
+- INTEGRATION_TECHNICAL: questions about API compatibility, CRM integrations, SSO, tech stack fit
+- BRUSH_OFF: polite dismissal — "send me an email", "not interested right now", vague deflection
+- NO_NEED: don't need this, not relevant to their business, not a priority
+- DECISION_MAKER: not the right person, need to check with someone else, buying committee
+- MORE_INFO: asking a specific question about the product, pricing tiers, or features
 - GENERAL_INTEREST: interested but no specific objection
 - NONE: clear positive with no friction
 
-Most replies carry a single objection — leave secondaryCategory null unless the prospect clearly raises two separate concerns (for example, pricing alongside bad timing).`,
+Most replies carry a single objection — leave secondaryCategory null unless the prospect clearly raises two separate, distinct concerns.`,
                     userPrompt: `Intent: ${intent}\n\nReply:\n${replyBody}`,
+                    proposalContext: { requestFingerprint: messageId },
                     metadata: { messageId },
                     temperature: 0.1,
                 }),
             GEMINI_TIMEOUT_MS,
-        ));
+        );
+        payload = proposal.payload;
     } catch (err) {
         logger.warn(
             { messageId, err: err instanceof Error ? err.message : String(err) },
@@ -234,25 +265,22 @@ Most replies carry a single objection — leave secondaryCategory null unless th
         return { category: "NONE", secondaryCategory: null, extractedObjection: "" };
     }
 
-    const parsed = extractJSON<Record<string, unknown>>(text);
-
-    if (!isValidObjectionCore(parsed)) {
+    if (!isValidObjectionCore(payload)) {
         logger.warn(
             { messageId },
-            "[objection-handler.agent] Invalid ObjectionAnalysis from Gemini — falling back to NONE",
+            "[objection-handler.agent] Invalid ObjectionAnalysis from gateway — falling back to NONE",
         );
         return { category: "NONE", secondaryCategory: null, extractedObjection: "" };
     }
 
-    const category = parsed.category as ObjectionCategory;
-    const extractedObjection = parsed.extractedObjection as string;
-    const rawSecondary = parsed.secondaryCategory;
+    const category = payload.category as ObjectionCategory;
+    const extractedObjection = (payload.extractedObjection as string) ?? "";
+    const rawSecondary = payload.secondaryCategory;
 
     let secondaryCategory: ObjectionCategory | null = null;
     if (
         category !== "NONE" &&
         isObjectionCategory(rawSecondary) &&
-        rawSecondary !== "NONE" &&
         rawSecondary !== category
     ) {
         secondaryCategory = rawSecondary;
@@ -264,6 +292,7 @@ Most replies carry a single objection — leave secondaryCategory null unless th
 async function generateDraftWithFramework(params: {
     objection: ObjectionAnalysis;
     originalSubject: string;
+    originalBody?: string;
     leadFirstName?: string;
     companyName?: string;
     title?: string;
@@ -271,10 +300,12 @@ async function generateDraftWithFramework(params: {
     messageId: string;
     winPatterns?: WinPattern[];
     frameworkOverrides?: ObjectionFrameworkOverrides;
+    threadHistory?: Array<{ role: "prospect" | "sender"; body: string; sentAt?: string }>;
 }): Promise<DraftReply> {
     const {
         objection,
         originalSubject,
+        originalBody,
         leadFirstName,
         companyName,
         title,
@@ -282,6 +313,7 @@ async function generateDraftWithFramework(params: {
         messageId,
         winPatterns,
         frameworkOverrides,
+        threadHistory,
     } = params;
 
     const secondaryCategory = objection.secondaryCategory;
@@ -310,28 +342,38 @@ async function generateDraftWithFramework(params: {
                 .join("\n\n")
             : "";
 
+    const originalBodyBlock = originalBody
+        ? `\n\nOriginal outreach email we sent:\n${originalBody.slice(0, 800)}`
+        : "";
+
+    const threadHistoryBlock = threadHistory && threadHistory.length > 0
+        ? "\n\nPRIOR THREAD HISTORY:\n" +
+          threadHistory.map((t) => `[${t.role.toUpperCase()}]: ${t.body}`).join("\n\n")
+        : "";
+
     const timeoutMs = resolveDraftTimeoutMs({
         hasWinPatterns: Boolean(winPatterns && winPatterns.length > 0),
         isHybridObjection: Boolean(secondaryCategory),
     });
 
-    const { text } = await callGeminiWithResilience(
+    const proposal = await callGeminiWithResilience(
         () =>
-            callGemini({
+            callGateway<DraftReplyOutput>({
                 agentName: "objection-handler.drafter",
                 model: MODELS.REVIEW,
+                responseMode: "text",
+                outputSchema: DraftReplyOutputSchema,
                 systemPrompt: `You are a senior B2B sales rep drafting a reply to a prospect's inbound email.
 
-Rules:
-- Be concise (3–5 sentences max)
-- Warm but professional tone
-- Never mention AI
-- Never start with "I"
-- Never include a calendar scheduling link (presumptuous)
-- Never suggest specific time slots or short timelines (like "tomorrow" or "Monday at 1 PM")
-- Close with this polite timing formula: "Do you have time over the next week or two to learn more? Let me know what works for you and I'll send a calendar invite along accordingly."
-- Apply the response framework provided — it is your strategic guide for this reply
-- If win patterns are provided, let them guide your tone and framing — do not copy them verbatim${winPatternsBlock}
+Hard rules — violating any of these is a failure:
+- Maximum 75 words total in the body
+- Never start a sentence with "I" or "We"
+- Never use AI clichés ("I hope this finds you well", "In today's fast-paced landscape", "Great question")
+- Never include a calendar scheduling link or specific time slots
+- Never be pushy or assumptive — always ask permission before progressing
+- Apply the response framework as your strategic guide
+- Use the CTA style specified in the framework — do not substitute a meeting invite for a low-friction ask
+- If win patterns are provided, use them for tonal inspiration only — do not copy verbatim${winPatternsBlock}
 
 Return ONLY JSON:
 {
@@ -344,10 +386,11 @@ Objection detected: ${objection.extractedObjection || "none"}
 
 Original subject: ${originalSubject}
 Lead: ${leadFirstName ?? "there"} at ${companyName ?? "their company"}
-Their title: ${title ?? "unknown"}
+Their title: ${title ?? "unknown"}${originalBodyBlock}${threadHistoryBlock}
 
 Their reply:
 ${replyBody}`,
+                proposalContext: { requestFingerprint: messageId },
                 metadata: {
                     messageId,
                     objectionCategory: objection.category,
@@ -358,18 +401,18 @@ ${replyBody}`,
         timeoutMs,
     );
 
-    const parsed = extractJSON<DraftReply>(text);
+    const payload = proposal.payload;
 
-    if (!isValidDraftReply(parsed)) {
+    if (!isValidDraftReply(payload)) {
         throw new Error(
-            `[objection-handler.agent] Invalid DraftReply from Gemini for message ${messageId}`,
+            `[objection-handler.agent] Invalid DraftReply from gateway for message ${messageId}`,
         );
     }
 
     return {
-        ...parsed,
-        subject: parsed.subject.trim(),
-        body: parsed.body.trim(),
+        ...payload,
+        subject: payload.subject.trim(),
+        body: payload.body.trim(),
     };
 }
 
@@ -377,25 +420,31 @@ export async function generateObjectionAwareDraftFromContext(params: {
     replyBody: string;
     intent: ReplyIntent;
     originalSubject: string;
+    originalBody?: string;
     leadFirstName?: string;
     companyName?: string;
     title?: string;
     messageId: string;
     targetIndustry?: string;
     targetRegion?: string;
+    confidence?: number;
     frameworkOverrides?: ObjectionFrameworkOverrides;
+    threadHistory?: Array<{ role: "prospect" | "sender"; body: string; sentAt?: string }>;
 }): Promise<ObjectionAwareDraftResult> {
     const {
         replyBody,
         intent,
         originalSubject,
+        originalBody,
         leadFirstName,
         companyName,
         title,
         messageId,
         targetIndustry,
         targetRegion,
+        confidence,
         frameworkOverrides,
+        threadHistory,
     } = params;
 
     const [objection, winPatterns] = await Promise.all([
@@ -416,6 +465,7 @@ export async function generateObjectionAwareDraftFromContext(params: {
     const draft = await generateDraftWithFramework({
         objection,
         originalSubject,
+        originalBody,
         leadFirstName,
         companyName,
         title,
@@ -423,13 +473,17 @@ export async function generateObjectionAwareDraftFromContext(params: {
         messageId,
         winPatterns,
         frameworkOverrides,
+        threadHistory,
     });
+
+    const requiresHumanReview = shouldForceHumanReview(objection.category, confidence ?? 0);
 
     return {
         subject: draft.subject,
         body: draft.body,
         objectionCategory: objection.category,
         secondaryObjectionCategory: objection.secondaryCategory,
+        requiresHumanReview,
     };
 }
 
@@ -501,6 +555,7 @@ export async function generateObjectionAwareDraft(params: {
     const draft = await generateDraftWithFramework({
         objection,
         originalSubject: reply.outreachMessage.subject,
+        originalBody: reply.outreachMessage.body,
         leadFirstName: reply.lead.firstName ?? undefined,
         companyName: reply.lead.companyName,
         title: reply.lead.title ?? undefined,
@@ -539,7 +594,7 @@ export async function runObjectionHandlerForCampaign(
     const replies = await prisma.reply.findMany({
         where: {
             lead: { campaignId },
-            intent: { in: ["POSITIVE", "MEETING_REQUEST", "QUESTION"] },
+            intent: { in: ["POSITIVE", "MEETING_REQUEST", "QUESTION", "NOT_INTERESTED"] },
             requiresHumanReview: true,
             draftBody: null,
             deletedAt: null,

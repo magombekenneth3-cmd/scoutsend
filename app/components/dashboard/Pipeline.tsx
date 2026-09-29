@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { CampaignStatus } from "./badges";
 import { SendChart } from "./SendChart";
 import { DiscoveryRunsPanel } from "./DiscoveryRunsPanel";
+import { apiFetch, apiFetchJson, ApiError } from "@/lib/api-fetch";
 
 const FEED_ITEM_STYLE = `
 @keyframes feedSlideIn {
@@ -11,16 +12,22 @@ const FEED_ITEM_STYLE = `
   to   { opacity: 1; transform: translateY(0); }
 }
 .feed-item { animation: feedSlideIn 0.18s ease-out both; }
+@keyframes leadSpin {
+  to { transform: rotate(360deg); }
+}
+.lead-spin { animation: leadSpin 0.8s linear infinite; }
 `;
 
 interface CampaignSSEEvent {
     campaignId: string;
-    type: "active" | "progress" | "completed" | "failed";
+    type: "active" | "progress" | "completed" | "failed" | "lead";
     jobName: string;
     label: string;
     progress?: number;
     detail?: string;
     count?: number;
+    email?: string;
+    leadStatus?: "sending" | "sent" | "failed";
     timestamp: string;
 }
 
@@ -162,12 +169,10 @@ export function PipelineTab({ campaignId, status, liveEvents = [] }: PipelineTab
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/campaigns/${campaignId}/pipeline-stats`);
-            if (!res.ok) throw new Error(`Server error ${res.status}`);
-            const data: PipelineStats = await res.json();
+            const data = await apiFetchJson<PipelineStats>(`/api/campaigns/${campaignId}/pipeline-stats`);
             setStats(data);
-        } catch {
-            setError("Failed to load pipeline data.");
+        } catch (err) {
+            setError(err instanceof ApiError ? err.message : "Failed to load pipeline data.");
         } finally {
             setLoading(false);
         }
@@ -208,7 +213,7 @@ export function PipelineTab({ campaignId, status, liveEvents = [] }: PipelineTab
                                                 className="absolute top-5 left-1/2 w-full h-px"
                                                 style={{
                                                     background: state === "done"
-                                                        ? "linear-gradient(90deg, var(--red), rgba(233,69,96,0.3))"
+                                                        ? "linear-gradient(90deg, var(--red), var(--red-glow))"
                                                         : "var(--border)",
                                                 }}
                                                 aria-hidden="true"
@@ -220,7 +225,7 @@ export function PipelineTab({ campaignId, status, liveEvents = [] }: PipelineTab
                                                 state === "done"
                                                     ? "bg-[var(--red)] border-[var(--red)] text-white"
                                                     : state === "active"
-                                                        ? "bg-[var(--red-glow)] border-[var(--red)] text-[var(--red)]"
+                                                        ? "bg-[var(--red-glow)] border-[var(--red)] text-[var(--red-text)]"
                                                         : "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)]",
                                             ].join(" ")}
                                             aria-current={state === "active" ? "step" : undefined}
@@ -238,7 +243,7 @@ export function PipelineTab({ campaignId, status, liveEvents = [] }: PipelineTab
                                         </div>
                                         <p className={[
                                             "text-xs font-semibold mt-3",
-                                            state === "active" ? "text-[var(--red)]" : state === "done" ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]",
+                                            state === "active" ? "text-[var(--red-text)]" : state === "done" ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]",
                                         ].join(" ")}>
                                             {phase.label}
                                         </p>
@@ -265,7 +270,7 @@ export function PipelineTab({ campaignId, status, liveEvents = [] }: PipelineTab
                                         <div className={[
                                             "w-7 h-7 rounded-full border flex items-center justify-center flex-shrink-0",
                                             state === "done" ? "bg-[var(--red)] border-[var(--red)] text-white" :
-                                                state === "active" ? "border-[var(--red)] text-[var(--red)]" :
+                                                state === "active" ? "border-[var(--red)] text-[var(--red-text)]" :
                                                     "border-[var(--border)] text-[var(--text-muted)]",
                                         ].join(" ")}>
                                             {state === "done" ? (
@@ -275,7 +280,7 @@ export function PipelineTab({ campaignId, status, liveEvents = [] }: PipelineTab
                                             ) : phase.icon}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className={`text-xs font-semibold ${state === "active" ? "text-[var(--red)]" : state === "done" ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
+                                            <p className={`text-xs font-semibold ${state === "active" ? "text-[var(--red-text)]" : state === "done" ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
                                                 {phase.label}
                                             </p>
                                             <p className="text-xs text-[var(--text-muted)] truncate">{phase.sub}</p>
@@ -294,8 +299,8 @@ export function PipelineTab({ campaignId, status, liveEvents = [] }: PipelineTab
                                     <div className="p-4 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-xl">
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[var(--red)] flex-shrink-0">{phase.icon}</span>
-                                                <p className="text-sm font-semibold text-[var(--red)]">Currently: {phase.label}</p>
+                                                <span className="text-[var(--red-text)] flex-shrink-0">{phase.icon}</span>
+                                                <p className="text-sm font-semibold text-[var(--red-text)]">Currently: {phase.label}</p>
                                             </div>
                                             {liveEvents.length > 0 && (
                                                 <span className="text-[10px] tabular-nums font-mono text-[var(--text-muted)]">{progress}%</span>
@@ -316,32 +321,130 @@ export function PipelineTab({ campaignId, status, liveEvents = [] }: PipelineTab
                                         <p className="text-sm text-[var(--text-secondary)] mt-0.5">{phase.description}</p>
                                     </div>
 
-                                    {liveEvents.length > 0 && (
-                                        <div
-                                            className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden"
-                                            aria-live="polite"
-                                            aria-label="Research activity feed"
-                                        >
-                                            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
-                                                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Live Activity</p>
-                                            </div>
-                                            <ul className="divide-y divide-[var(--border)] max-h-52 overflow-y-auto">
-                                                {liveEvents.map((ev) => (
-                                                    <li
-                                                        key={ev.timestamp}
-                                                        className="feed-item flex items-baseline gap-2.5 px-4 py-2 text-xs"
-                                                    >
-                                                        <span className="text-emerald-400 flex-shrink-0" aria-hidden="true">✓</span>
-                                                        <span className="text-[var(--text-primary)] truncate">{ev.detail}</span>
-                                                        <span className="ml-auto text-[var(--text-muted)] font-mono tabular-nums flex-shrink-0 text-[10px]">
-                                                            {new Date(ev.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                                                        </span>
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                    {liveEvents.length > 0 && (() => {
+                            // Compute progress from the latest progress-type or lead-type event
+                            const latestProgress = liveEvents.find(ev => ev.type === "progress" || (ev.type === "lead" && ev.leadStatus === "sent"));
+                            const pct = latestProgress?.progress ?? liveEvents[0]?.progress ?? 0;
+                            const sentCount = liveEvents.filter(ev => ev.type === "lead" && ev.leadStatus === "sent").length;
+                            const leadEvents = liveEvents.filter(ev => ev.type === "lead");
+                            const hasLeads = leadEvents.length > 0;
+                            return (
+                                <div
+                                    className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden"
+                                    aria-live="polite"
+                                    aria-label="Live send activity"
+                                >
+                                    {/* Console header */}
+                                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] bg-[var(--navy-mid)]/60">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
+                                            <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                                                {hasLeads ? "Live Send Console" : "Live Activity"}
+                                            </p>
+                                        </div>
+                                        {pct > 0 && (
+                                            <span className="text-[10px] tabular-nums font-mono text-[var(--text-muted)]">{pct}%</span>
+                                        )}
+                                    </div>
+
+                                    {/* Progress bar */}
+                                    {pct > 0 && (
+                                        <div className="h-0.5 bg-[var(--surface-2)] w-full">
+                                            <div
+                                                className="h-full bg-[var(--red)] transition-all duration-700"
+                                                style={{ width: `${pct}%` }}
+                                                role="progressbar"
+                                                aria-valuenow={pct}
+                                                aria-valuemax={100}
+                                                aria-label={`Send progress ${pct}%`}
+                                            />
                                         </div>
                                     )}
+
+                                    {/* Per-lead rows */}
+                                    <ul
+                                        className="divide-y divide-[var(--border)] max-h-64 overflow-y-auto flex flex-col"
+                                        style={{ fontFamily: "'JetBrains Mono', 'Fira Code', 'ui-monospace', monospace" }}
+                                    >
+                                        {liveEvents.map((ev) => {
+                                            const isLead = ev.type === "lead";
+                                            const isSending = isLead && ev.leadStatus === "sending";
+                                            const isSent    = isLead && ev.leadStatus === "sent";
+                                            const isFailed  = isLead && ev.leadStatus === "failed";
+                                            return (
+                                                <li
+                                                    key={ev.timestamp + (ev.email ?? ev.detail ?? "")}
+                                                    className="feed-item flex items-center gap-2.5 px-4 py-2 text-[11px] min-w-0"
+                                                >
+                                                    {/* Status icon */}
+                                                    {isSending && (
+                                                        <svg className="lead-spin flex-shrink-0 text-sky-400" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                                                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                                        </svg>
+                                                    )}
+                                                    {isSent && (
+                                                        <svg className="flex-shrink-0 text-emerald-400" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                            <polyline points="20 6 9 17 4 12" />
+                                                        </svg>
+                                                    )}
+                                                    {isFailed && (
+                                                        <svg className="flex-shrink-0 text-red-400" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                                                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                                        </svg>
+                                                    )}
+                                                    {!isLead && (
+                                                        <span className="flex-shrink-0 text-emerald-400" aria-hidden="true">✓</span>
+                                                    )}
+
+                                                    {/* Email + label */}
+                                                    {isLead && ev.email ? (
+                                                        <>
+                                                            <span className={[
+                                                                "truncate flex-1 min-w-0",
+                                                                isSending ? "text-sky-300" : isSent ? "text-emerald-300" : "text-red-300",
+                                                            ].join(" ")}>
+                                                                {ev.email}
+                                                            </span>
+                                                            <span className={[
+                                                                "flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded",
+                                                                isSending ? "bg-sky-400/10 text-sky-400" :
+                                                                isSent    ? "bg-emerald-400/10 text-emerald-400" :
+                                                                            "bg-red-400/10 text-red-400",
+                                                            ].join(" ")}>
+                                                                {isSending ? "sending" : isSent ? "sent" : "failed"}
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-[var(--text-primary)] truncate flex-1">{ev.detail}</span>
+                                                    )}
+
+                                                    {/* Timestamp */}
+                                                    <span className="ml-auto text-[var(--text-muted)] tabular-nums flex-shrink-0 text-[10px]">
+                                                        {new Date(ev.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                                                    </span>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+
+                                    {/* Footer summary */}
+                                    {hasLeads && (
+                                        <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--border)] bg-[var(--navy-mid)]/40">
+                                            <span className="text-[10px] text-[var(--text-muted)]">
+                                                <span className="text-emerald-400 font-semibold">{sentCount}</span> sent in this batch
+                                            </span>
+                                            <span className="text-[10px] text-[var(--text-muted)]">
+                                                {liveEvents.filter(ev => ev.type === "lead" && ev.leadStatus === "failed").length > 0 && (
+                                                    <span className="text-red-400 font-semibold">
+                                                        {liveEvents.filter(ev => ev.type === "lead" && ev.leadStatus === "failed").length} failed
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                                 </div>
                             );
                         })}

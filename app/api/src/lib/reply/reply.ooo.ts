@@ -18,11 +18,13 @@ const OOO_RETURN_PATTERNS: RegExp[] = [
     /(?:back|returning)\s+(?:on\s+)?(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/i,
     /until\s+(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/i,
     /(?:office|desk)\s+(?:from|on)\s+([A-Z][a-z]+\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?)/i,
-    /back\s+(?:next\s+)?(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i,
-    /returning\s+(?:next\s+)?(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i,
-    /(?:back|available|returning)\s+in\s+(\d+)\s+(days?|weeks?)/i,
+    /(?:back|returning|available)\s+(?:on\s+)?(?:next\s+)?(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:\s+after\s+(?:the\s+)?[a-z\s]+)?/i,
+    /(?:back|returning|available)\s+in\s+(\d+)\s+(days?|weeks?)/i,
     /back\s+tomorrow/i,
     /available\s+tomorrow/i,
+    /back\s+(?:next\s+week|early\s+next\s+week|late\s+next\s+week)/i,
+    /back\s+(?:after|following)\s+(?:the\s+)?(?:holiday|vacation|weekend|break|thanksgiving|christmas|new\s+year|labor\s+day|memorial\s+day)/i,
+    /out\s+until\s+further\s+notice/i,
 ];
 
 const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -34,6 +36,25 @@ function resolveRelativeDate(match: RegExpMatchArray): Date | null {
     if (/back\s+tomorrow|available\s+tomorrow/.test(full)) {
         const d = new Date(now);
         d.setDate(d.getDate() + 1);
+        return d;
+    }
+
+    if (/back\s+(?:next\s+week|early\s+next\s+week)/.test(full)) {
+        const d = new Date(now);
+        const daysUntilMonday = (1 + 7 - now.getDay()) % 7 || 7;
+        d.setDate(d.getDate() + daysUntilMonday);
+        return d;
+    }
+
+    if (/back\s+(?:after|following)\s+(?:the\s+)?(?:holiday|vacation|weekend|break|thanksgiving|christmas|new\s+year|labor\s+day|memorial\s+day)/.test(full)) {
+        const d = new Date(now);
+        d.setDate(d.getDate() + 7);
+        return d;
+    }
+
+    if (/out\s+until\s+further\s+notice/.test(full)) {
+        const d = new Date(now);
+        d.setDate(d.getDate() + 14);
         return d;
     }
 
@@ -88,6 +109,8 @@ export async function resolveOOOReturnDate(params: {
 
     try {
         const start = Date.now();
+        const nowIso = new Date().toISOString().split("T")[0];
+        const dayName = DAY_NAMES[new Date().getDay()];
         const { text } = await withTimeout(
             () =>
                 withRetry(() =>
@@ -95,13 +118,13 @@ export async function resolveOOOReturnDate(params: {
                         callGemini({
                             agentName: PROMPT_VERSIONS.OOO_EXTRACTOR,
                             model: MODELS.REVIEW,
-                            systemPrompt: `Extract a return date from an out-of-office email. Today is ${new Date().toISOString().split("T")[0]}.
+                            systemPrompt: `Extract a return date from an out-of-office email. Today is ${nowIso} (${dayName}).
 
 Return ONLY a JSON object: { "returnDate": string | null }
 - returnDate: ISO date string YYYY-MM-DD, or null if unresolvable.
-- Resolve relative phrases: "next Monday" → the actual Monday date, "back in a week" → today +7 days, "back tomorrow" → tomorrow's date, "back in 2 weeks" → today +14 days.
-- If the person says "a few days" or is too vague to resolve to a specific date, return null.
-- Never return a date that has already passed. If the resolved date is in the past, return null.`,
+- Handle complex phrases: "back next Tuesday after the holiday" -> calculate the exact date for next Tuesday, "back after the break" -> today +7 days, "out through next week" -> date of next Monday, "back in 2 weeks" -> today +14 days.
+- If the phrase is vague ("a few days"), resolve to today +4 days.
+- Never return a date in the past. If the resolved date is in the past, return null.`,
                             userPrompt: sanitized,
                             metadata: { messageId },
                             temperature: 0,
@@ -115,13 +138,18 @@ Return ONLY a JSON object: { "returnDate": string | null }
 
         const raw = repairAndParseJSON<unknown>(text);
         const parsed = OOODateSchema.safeParse(raw);
-        if (!parsed.success || !parsed.data.returnDate) return null;
-
-        const date = new Date(parsed.data.returnDate);
-        return !isNaN(date.getTime()) && date > new Date() ? date : null;
+        if (parsed.success && parsed.data.returnDate) {
+            const date = new Date(parsed.data.returnDate);
+            if (!isNaN(date.getTime()) && date > new Date()) return date;
+        }
+        const fallback = new Date();
+        fallback.setDate(fallback.getDate() + 7);
+        return fallback;
     } catch (err) {
         recordMetric("reply.ooo_extractor.error", 0, { messageId });
-        logger.warn({ err, messageId }, "[reply.ooo] OOO date extraction via Gemini failed");
-        return null;
+        logger.warn({ err, messageId }, "[reply.ooo] OOO date extraction via Gemini failed — using 7-day fallback");
+        const fallback = new Date();
+        fallback.setDate(fallback.getDate() + 7);
+        return fallback;
     }
 }

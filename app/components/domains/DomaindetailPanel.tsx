@@ -34,7 +34,7 @@ export function DomainDetailPanel({
     const [detail, setDetail] = useState<SenderDomainDetail | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(true);
     const [editLimit, setEditLimit] = useState(String(domain.dailyLimit));
-    const [editHealth, setEditHealth] = useState<DomainHealth>(domain.health);
+
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -46,7 +46,6 @@ export function DomainDetailPanel({
         setDetail(null);
         setLoadingDetail(true);
         setEditLimit(String(domain.dailyLimit));
-        setEditHealth(domain.health);
         setSaveError(null);
         setConfirmDelete(false);
 
@@ -56,11 +55,14 @@ export function DomainDetailPanel({
             .finally(() => setLoadingDetail(false));
     }, [domain.id, domain.dailyLimit, domain.health]);
 
+    const [verifyResult, setVerifyResult] = useState<DnsVerifyResult | null>(null);
+
     async function handleVerifyDns() {
         setVerifying(true);
         setVerifyError(null);
         try {
             const result: DnsVerifyResult = await verifyDomainDns(domain.id);
+            setVerifyResult(result);
             onUpdated({
                 ...domain,
                 spfValid: result.spfValid,
@@ -86,7 +88,6 @@ export function DomainDetailPanel({
         try {
             const updated = await updateDomain(domain.id, {
                 dailyLimit: limit,
-                health: editHealth,
             });
             onUpdated(updated as SenderDomain);
         } catch (err) {
@@ -108,30 +109,46 @@ export function DomainDetailPanel({
         }
     }
 
+    useEffect(() => {
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.key === "Escape") onClose();
+        }
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [onClose]);
+
     const cfg = HEALTH_CONFIG[domain.health];
     const sentPct = domain.dailyLimit > 0
         ? Math.min(Math.round((domain.currentSent / domain.dailyLimit) * 100), 100)
         : 0;
 
     return (
-        <div className="flex flex-col h-full bg-[var(--surface)] border-l border-[var(--border)] overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] flex-shrink-0">
-                <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} aria-hidden="true" />
-                    <span className="text-sm font-semibold text-[var(--text-primary)] truncate font-mono">
-                        {domain.domain}
-                    </span>
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={onClose}
+        >
+            <div 
+                className="relative w-full max-w-2xl max-h-[85vh] flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--surface-2)] flex-shrink-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cfg.dot}`} aria-hidden="true" />
+                        <span className="text-base font-bold text-[var(--text-primary)] truncate font-mono">
+                            {domain.domain}
+                        </span>
+                        <DomainHealthBadge health={domain.health} size="sm" />
+                    </div>
+                    <button
+                        onClick={onClose}
+                        aria-label="Close modal"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
                 </div>
-                <button
-                    onClick={onClose}
-                    aria-label="Close panel"
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
-                >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                </button>
-            </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
                 <div className="grid grid-cols-2 gap-3">
@@ -188,16 +205,19 @@ export function DomainDetailPanel({
                             label="SPF"
                             type="TXT"
                             host={domain.domain}
-                            value="v=spf1 include:_spf.scoutsend.com ~all"
+                            value="v=spf1 include:<your-mail-provider-spf> ~all"
                             status={domain.spfValid}
-                            helpText="A domain can only have one SPF record. Add the include rather than replacing an existing record — merge the two includes if one already exists."
+                            inconclusive={verifyResult?.inconclusive?.spf}
+                            helpText="Ensure your domain's SPF record includes your sending email provider (e.g. include:_spf.google.com for Google Workspace, include:spf.protection.outlook.com for Office365, or your SMTP server's SPF record). A domain must have exactly one valid SPF TXT record."
                         />
                         <DnsRecordRow
                             label="DKIM"
                             type="TXT"
-                            host={domain.dkimSelector ? `${domain.dkimSelector}._domainkey.${domain.domain}` : "Generating…"}
-                            value={domain.dkimSelector && domain.dkimPublicKey ? `v=DKIM1; k=rsa; p=${domain.dkimPublicKey}` : "Generating…"}
+                            host={domain.dkimSelector ? `${domain.dkimSelector}._domainkey.${domain.domain}` : `${domain.domain} (managed by mail provider)`}
+                            value={domain.dkimSelector && domain.dkimPublicKey ? `v=DKIM1; k=rsa; p=${domain.dkimPublicKey}` : "Configured in Google Workspace, Office 365, or SMTP provider settings"}
                             status={domain.dkimValid}
+                            inconclusive={verifyResult?.inconclusive?.dkim}
+                            helpText="DKIM signatures are managed directly by your email provider (Google Workspace, Office 365, or custom SMTP). If using a custom selector, set dkimSelector on your domain."
                         />
                         <DnsRecordRow
                             label="DMARC"
@@ -205,12 +225,13 @@ export function DomainDetailPanel({
                             host={`_dmarc.${domain.domain}`}
                             value={`v=DMARC1; p=none; rua=mailto:dmarc@${domain.domain}`}
                             status={domain.dmarcValid}
+                            inconclusive={verifyResult?.inconclusive?.dmarc}
                             helpText="p=none is monitor-only — it collects reports without rejecting mail. Once SPF and DKIM pass consistently, tighten to p=quarantine or p=reject."
                         />
                     </div>
 
                     {verifyError && (
-                        <p className="text-xs text-[var(--red)]">{verifyError}</p>
+                        <p className="text-xs text-[var(--red-text)]">{verifyError}</p>
                     )}
 
                     <button
@@ -241,20 +262,8 @@ export function DomainDetailPanel({
                             className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-red)] transition-colors"
                         />
                     </div>
-                    <div>
-                        <label htmlFor="dp-health" className="block text-xs text-[var(--text-secondary)] mb-1.5">Override health status</label>
-                        <select
-                            id="dp-health"
-                            value={editHealth}
-                            onChange={(e) => setEditHealth(e.target.value as DomainHealth)}
-                            className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-red)] transition-colors cursor-pointer"
-                        >
-                            {(["HEALTHY", "WARNING", "DEGRADED", "BLOCKED"] as DomainHealth[]).map((h) => (
-                                <option key={h} value={h}>{HEALTH_CONFIG[h].label}</option>
-                            ))}
-                        </select>
-                    </div>
-                    {saveError && <p className="text-xs text-[var(--red)]">{saveError}</p>}
+
+                    {saveError && <p className="text-xs text-[var(--red-text)]">{saveError}</p>}
                     <button
                         onClick={handleSave}
                         disabled={saving}
@@ -356,5 +365,6 @@ export function DomainDetailPanel({
                 )}
             </div>
         </div>
+    </div>
     );
 }

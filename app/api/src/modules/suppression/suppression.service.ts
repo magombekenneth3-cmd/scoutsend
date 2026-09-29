@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+
 import { prisma } from "../../lib/prisma";
 import {
   createSuppressionSchema,
   checkSuppressionSchema,
   getSuppressionQuerySchema,
 } from "./suppression.schema";
+import { Prisma } from "@prisma/client";
 
 export interface BulkSuppressionResult {
   created: number;
@@ -23,64 +24,55 @@ function entryLabel(entry: z.infer<typeof createSuppressionSchema>): string {
 }
 
 export async function createSuppression(
+  orgId: string,
   userId: string,
   data: z.infer<typeof createSuppressionSchema>
 ) {
   if (data.email) {
     const existing = await prisma.suppression.findUnique({
-      where: { email_userId: { email: data.email, userId } },
+      where: { email_orgId: { email: data.email, orgId } },
     });
     if (existing) throw new Error("Email already suppressed");
   }
-  return prisma.suppression.create({ data: { ...data, userId } });
+  return prisma.suppression.create({ data: { ...data, orgId, userId } });
 }
 
 export async function createSuppressionBulk(
+  orgId: string,
   userId: string,
   entries: z.infer<typeof createSuppressionSchema>[]
 ): Promise<BulkSuppressionResult> {
-  const results = await Promise.allSettled(
-    entries.map((entry) =>
-      prisma.suppression.create({ data: { ...entry, userId } })
-    )
-  );
-
   let created = 0;
-  let skipped = 0;
-  let failed = 0;
-  const skippedDetails: Array<{ index: number; value: string; reason: string }> = [];
   const failedDetails: Array<{ index: number; value: string; reason: string }> = [];
+  const skippedDetails: Array<{ index: number; value: string; reason: string }> = [];
 
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    const value = entryLabel(entries[i]);
-
-    if (result.status === "fulfilled") {
-      created++;
-    } else {
-      const err = result.reason;
-      const isDuplicate =
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === "P2002";
-
-      if (isDuplicate) {
-        skipped++;
-        skippedDetails.push({ index: i, value, reason: "Already suppressed" });
-      } else {
-        failed++;
-        failedDetails.push({
-          index: i,
-          value,
-          reason: err instanceof Error ? err.message : "Unknown error",
-        });
-      }
+  try {
+    const result = await prisma.suppression.createMany({
+      data: entries.map((entry) => ({ ...entry, orgId, userId })),
+      skipDuplicates: true,
+    });
+    created = result.count;
+    const skippedCount = entries.length - created;
+    // We can't know which specific entries were skipped without a second query,
+    // so report the aggregate count only.
+    for (let i = 0; i < skippedCount; i++) {
+      skippedDetails.push({ index: -1, value: "(duplicate)", reason: "Already suppressed" });
     }
+  } catch (err) {
+    // Treat a full-batch failure as all entries failed
+    entries.forEach((entry, i) => {
+      failedDetails.push({
+        index: i,
+        value: entryLabel(entry),
+        reason: err instanceof Error ? err.message : "Unknown error",
+      });
+    });
   }
 
   return {
     created,
-    skipped,
-    failed,
+    skipped: skippedDetails.length,
+    failed: failedDetails.length,
     total: entries.length,
     details: {
       skipped: skippedDetails,
@@ -89,15 +81,16 @@ export async function createSuppressionBulk(
   };
 }
 
+
 export async function getSuppressions(
-  userId: string,
+  orgId: string,
   query: z.infer<typeof getSuppressionQuerySchema>
 ) {
   const { email, domain, source, type, page, limit } = query;
   const skip = (page - 1) * limit;
 
   const where: Prisma.SuppressionWhereInput = {
-    userId,
+    orgId,
     ...(email && { email: { contains: email, mode: "insensitive" } }),
     ...(domain && { domain: { contains: domain, mode: "insensitive" } }),
     ...(source && { source }),
@@ -121,17 +114,17 @@ export async function getSuppressions(
   };
 }
 
-export async function getSuppressionStats(userId: string) {
+export async function getSuppressionStats(orgId: string) {
   const [total, emailCount, domainCount] = await prisma.$transaction([
-    prisma.suppression.count({ where: { userId } }),
-    prisma.suppression.count({ where: { userId, email: { not: null } } }),
-    prisma.suppression.count({ where: { userId, email: null, domain: { not: null } } }),
+    prisma.suppression.count({ where: { orgId } }),
+    prisma.suppression.count({ where: { orgId, email: { not: null } } }),
+    prisma.suppression.count({ where: { orgId, email: null, domain: { not: null } } }),
   ]);
   return { total, emailCount, domainCount };
 }
 
 export async function checkSuppression(
-  userId: string,
+  orgId: string,
   query: z.infer<typeof checkSuppressionSchema>
 ) {
   const { email, domain } = query;
@@ -139,13 +132,13 @@ export async function checkSuppression(
 
   const [emailMatch, domainMatch, emailDomainMatch] = await Promise.all([
     email
-      ? prisma.suppression.findUnique({ where: { email_userId: { email, userId } } })
+      ? prisma.suppression.findUnique({ where: { email_orgId: { email, orgId } } })
       : Promise.resolve(null),
     domain
-      ? prisma.suppression.findFirst({ where: { domain, userId } })
+      ? prisma.suppression.findFirst({ where: { domain, orgId } })
       : Promise.resolve(null),
     emailDomain
-      ? prisma.suppression.findFirst({ where: { domain: emailDomain, userId } })
+      ? prisma.suppression.findFirst({ where: { domain: emailDomain, orgId } })
       : Promise.resolve(null),
   ]);
 
@@ -167,8 +160,8 @@ export async function checkSuppression(
   };
 }
 
-export async function deleteSuppression(userId: string, id: string) {
-  const existing = await prisma.suppression.findFirst({ where: { id, userId } });
+export async function deleteSuppression(orgId: string, id: string) {
+  const existing = await prisma.suppression.findFirst({ where: { id, orgId } });
   if (!existing) throw new Error("Suppression not found or access denied");
   return prisma.suppression.delete({ where: { id } });
 }

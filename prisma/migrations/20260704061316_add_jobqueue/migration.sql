@@ -24,4 +24,4 @@ ALTER TABLE "LeadSignal" ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAUL
 -- ALTER TABLE "QueueJob" ADD COLUMN     "bullJobId" TEXT;
 
 -- CreateIndex
-CREATE UNIQUE INDEX "QueueJob_bullJobId_key" ON "QueueJob"("bullJobId");
+-- CREATE UNIQUE INDEX "QueueJob_bullJobId_key" ON "QueueJob"("bullJobId");

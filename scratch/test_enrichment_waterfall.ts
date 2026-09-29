@@ -109,6 +109,9 @@ async function runTest() {
     throw new Error("No user found in the database. Please seed or create a user first.");
   }
   console.log(`Using test user: ${user.email} (${user.id})`);
+  const orgMembership = await prisma.organizationMember.findFirst({ where: { userId: user.id }, select: { orgId: true } });
+  if (!orgMembership) throw new Error("User has no org membership — seed an org or run the registration flow first.");
+  const orgId = orgMembership.orgId;
 
   // 2. Create test campaign
   const campaign = await prisma.campaign.create({
@@ -116,6 +119,7 @@ async function runTest() {
       name: "Enrichment Test Campaign",
       icpDescription: "Test ICP",
       createdById: user.id,
+      orgId,
     },
   });
   console.log(`Created test campaign: ${campaign.name} (${campaign.id})`);

@@ -6,6 +6,8 @@ import {
     SlidersHorizontal, Sparkles, Building2, Cpu, Plus,
     ExternalLink, AlertCircle, RotateCcw, MapPin, ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { useToast } from "../../hooks/useToast";
+import { ToastRegion } from "./ToastRegion";
 
 const OPTS = {
     titles: ["CTO", "VP Engineering", "VP Product", "Head of Engineering", "Director of Engineering", "Head of Product"],
@@ -43,13 +45,15 @@ const SIZE_BANDS = [
 const empToSize = (n?: number | null): string | null =>
     n ? (SIZE_BANDS.find(b => n >= b.lo && n <= b.hi)?.label ?? null) : null;
 const mapSizeRange = (range: string): string[] => {
-    const [lo, hi] = range.split(",").map(Number);
-    if (isNaN(lo) || isNaN(hi)) return [];
+    const normalized = range.trim().replace(/[–—]/g, "-").replace(/\bto\b/gi, "-");
+    const values = normalized.split(/\s*,\s*|\s*-\s*/).map(Number);
+    if (values.length < 2 || values.some(Number.isNaN)) return [];
+    const [lo, hi] = values;
     return SIZE_BANDS.filter(b => lo <= b.hi && hi >= b.lo).map(b => b.label);
 };
 
 const GEO_RULES: [string[], string][] = [
-    [["united states", "usa", "north america"], "United States"],
+    [["united states", "usa"], "United States"],
     [["united kingdom", "britain"], "United Kingdom"],
     [["europe", "france", "germany", "netherlands", "sweden", "spain", "italy", "denmark"], "Europe"],
     [["asia", "australia", "japan", "singapore", "korea", "india", "china", "apac"], "Asia Pacific"],
@@ -65,9 +69,9 @@ const mapGeo = (s: string): string | null => {
 const SIGNAL_KEYWORD_MAP: Record<string, string[]> = {
     "Hiring": ["hiring", "jobs", "talent", "recrui"],
     "Funding": ["funded", "funding", "series", "investment", "raised", "venture"],
-    "Product Launch": ["product launch", "new product", "release", "shipped"],
+    "Product Launch": ["product launch", "new product", "release", "released", "launched", "shipped"],
     "Leadership Change": ["new ceo", "new cto", "appointed", "leadership", "joined as"],
-    "Expansion": ["expansion", "opened office", "new market", "scaling"],
+    "Expansion": ["expansion", "expanded", "expanding", "opened office", "new market", "scaling"],
     "Tech Adoption": ["integration", "migration", "implemented", "adopted", "deploy"],
 };
 
@@ -95,16 +99,16 @@ const TITLE_KEYWORD_MAP: Record<string, string[]> = {
 };
 
 const mapTitle = (t: string): string | null => {
-    const k = t.toLowerCase();
+    const k = t.trim().toLowerCase();
     return OPTS.titles.find(opt => {
-        const o = opt.toLowerCase();
-        return o === k || k.includes(o) || o.includes(k);
+        const keywords = TITLE_KEYWORD_MAP[opt] ?? [opt.toLowerCase()];
+        return keywords.some(keyword => k === keyword || k.includes(keyword) || keyword.includes(k));
     }) ?? null;
 };
 
 const REGION_APOLLO_MAP: Record<string, string[]> = {
-    "United States": ["United States"],
-    "United Kingdom": ["United Kingdom"],
+    "United States": ["United States", "USA", "US"],
+    "United Kingdom": ["United Kingdom", "UK", "Britain"],
     "Europe": ["France", "Germany", "Netherlands", "Sweden", "Spain", "Italy", "Denmark", "Belgium", "Switzerland", "Austria", "Poland", "Portugal", "Norway", "Finland"],
     "Asia Pacific": ["Australia", "Japan", "Singapore", "South Korea", "India", "China", "New Zealand", "Hong Kong", "Malaysia", "Indonesia"],
     "Latin America": ["Mexico", "Brazil", "Argentina", "Colombia", "Chile", "Peru", "Ecuador"],
@@ -166,7 +170,7 @@ const S = {
     accent: "var(--red)",
     accentDim: "var(--red-dim)",
     accentGlow: "var(--red-glow)",
-    accentFaint: "rgba(233,69,96,0.06)",
+    accentFaint: "var(--red-glow)",
     textPrimary: "var(--text-primary)",
     textSecondary: "var(--text-secondary)",
     textMuted: "var(--text-muted)",
@@ -249,6 +253,7 @@ function Section({ title, icon, opts, sel, onToggle, searchable, aiActive }: Sec
             )}
         </div>
     );
+
 }
 
 interface ApolloOrg {
@@ -275,7 +280,7 @@ interface ApolloOrg {
 }
 
 export interface ICPSearchProps {
-    campaignId: string;
+    campaignId?: string;
     onAddOrgs?: (orgs: ApolloOrg[]) => void;
 }
 
@@ -284,13 +289,14 @@ interface PersonRowProps {
     orgId: string;
     orgName: string;
     org: ApolloOrg;
-    campaignId: string;
+    campaignId?: string;
     onAddOrgs?: (orgs: ApolloOrg[]) => void;
     added: Set<string>;
     setAdded: React.Dispatch<React.SetStateAction<Set<string>>>;
+    onError: (message: string) => void;
 }
 
-function PersonRow({ person, orgId, org, campaignId, onAddOrgs, added, setAdded }: PersonRowProps) {
+function PersonRow({ person, orgId, org, campaignId, onAddOrgs, added, setAdded, onError }: PersonRowProps) {
     const key = `${orgId}::${person.email ?? person.linkedin_url ?? person.first_name}`;
     const isAdded = added.has(key);
     const [isAdding, setIsAdding] = useState(false);
@@ -332,6 +338,7 @@ function PersonRow({ person, orgId, org, campaignId, onAddOrgs, added, setAdded 
             setAdded(p => { const n = new Set(p); n.add(key); return n; });
         } catch (err) {
             console.error("[ICPSearch] addPerson failed:", err);
+            onError(`Failed to add ${fullName || "contact"} — please try again`);
         } finally {
             setIsAdding(false);
         }
@@ -363,25 +370,33 @@ function PersonRow({ person, orgId, org, campaignId, onAddOrgs, added, setAdded 
                 <button
                     onClick={addPerson}
                     disabled={isAdded || isAdding}
-                    style={{ display: "flex", alignItems: "center", gap: 3, padding: "3px 9px", borderRadius: 5, border: `1px solid ${isAdded ? S.greenBorder : S.borderLight}`, background: isAdded ? S.greenBg : S.accentFaint, color: isAdded ? S.green : "var(--red)", fontSize: 10, fontWeight: 600, cursor: isAdded || isAdding ? "default" : "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}
+                    style={{ display: "flex", alignItems: "center", gap: 3, padding: "3px 9px", borderRadius: 5, border: `1px solid ${isAdded ? S.greenBorder : S.borderLight}`, background: isAdded ? S.greenBg : S.accentFaint, color: isAdded ? S.green : "var(--red-text)", fontSize: 10, fontWeight: 600, cursor: isAdded || isAdding ? "default" : "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}
                 >
                     {isAdded ? <><Check size={9} /> Added</> : isAdding ? "Adding…" : <><Plus size={9} /> Add</>}
                 </button>
             </div>
         </div>
     );
+
 }
 
 export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
     const [icp, setIcp] = useState("SaaS and FinTech companies, 50–500 employees. VP Engineering or CTO with active hiring signals and a funding round in the last 90 days.");
     const [icpOpen, setIcpOpen] = useState(true);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [f, setF] = useState<FilterState>({ titles: [], industries: [], sizes: [], regions: [], tech: [], signals: [] });
-    const [sel, setSel] = useState<Set<string>>(new Set());
-    const [added, setAdded] = useState<Set<string>>(new Set());
+    const [f, setF] = useState<FilterState>({
+        titles: [],
+        industries: [],
+        sizes: [],
+        regions: [],
+        tech: [],
+        signals: [],
+    });
+    const [sel, setSel] = useState<Set<string>>(new Set<string>());
+    const [added, setAdded] = useState<Set<string>>(new Set<string>());
     const [sort, setSort] = useState("name");
     const [page, setPage] = useState(1);
-    const [expandedContacts, setExpandedContacts] = useState<Set<string>>(new Set());
+    const [expandedContacts, setExpandedContacts] = useState<Set<string>>(new Set<string>());
     const PER = 10;
 
     const [parsing, setParsing] = useState(false);
@@ -393,6 +408,7 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
     const [refinement, setRefinement] = useState<ICPRefinement | null>(null);
     const [adding, setAdding] = useState<Set<string>>(new Set());
     const [aiFilters, setAiFilters] = useState<Partial<Record<keyof FilterState, boolean>>>({});
+    const { toasts, addToast, dismiss } = useToast();
 
     const tamEstimate = useMemo(() => {
         let base = 250000;
@@ -447,17 +463,31 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
         if ((text.includes("vp") || text.includes("vice president")) && !f.titles.includes("VP Engineering")) suggestions.push({ key: "titles", value: "VP Engineering" });
         if (text.includes("hiring") && !f.signals.includes("Hiring")) suggestions.push({ key: "signals", value: "Hiring" });
         if (text.includes("funding") && !f.signals.includes("Funding")) suggestions.push({ key: "signals", value: "Funding" });
-        if ((text.includes("us") || text.includes("united states") || text.includes("america")) && !f.regions.includes("United States")) suggestions.push({ key: "regions", value: "United States" });
-        if ((text.includes("uk") || text.includes("united kingdom")) && !f.regions.includes("United Kingdom")) suggestions.push({ key: "regions", value: "United Kingdom" });
-        return suggestions.slice(0, 3);
+        if ((/\b(us|usa)\b/.test(text) || text.includes("united states") || text.includes("america")) && !f.regions.includes("United States")) suggestions.push({ key: "regions", value: "United States" });
+        if ((/\buk\b/.test(text) || text.includes("united kingdom") || text.includes("britain")) && !f.regions.includes("United Kingdom")) suggestions.push({ key: "regions", value: "United Kingdom" });
+        if (text.includes("europe") && !f.regions.includes("Europe")) suggestions.push({ key: "regions", value: "Europe" });
+        if ((text.includes("asia pacific") || text.includes("apac")) && !f.regions.includes("Asia Pacific")) suggestions.push({ key: "regions", value: "Asia Pacific" });
+        return suggestions.slice(0, 6);
     }, [icp, f]);
 
     const tog = (key: keyof FilterState) => (val: string) => {
         setF(p => ({ ...p, [key]: p[key].includes(val) ? p[key].filter(v => v !== val) : [...p[key], val] }));
+        setAiFilters(p => ({ ...p, [key]: false }));
+        setSel(new Set<string>());
         setPage(1);
     };
-    const removeChip = (k: keyof FilterState, v: string) => { setF(p => ({ ...p, [k]: p[k].filter(x => x !== v) })); setPage(1); };
-    const clearAll = () => { setF({ titles: [], industries: [], sizes: [], regions: [], tech: [], signals: [] }); setPage(1); };
+    const removeChip = (k: keyof FilterState, v: string) => {
+        setF(p => ({ ...p, [k]: p[k].filter(x => x !== v) }));
+        setAiFilters(p => ({ ...p, [k]: false }));
+        setSel(new Set<string>());
+        setPage(1);
+    };
+    const clearAll = () => {
+        setF({ titles: [], industries: [], sizes: [], regions: [], tech: [], signals: [] });
+        setAiFilters({});
+        setSel(new Set<string>());
+        setPage(1);
+    };
 
     const toggleContactExpand = (orgId: string) => {
         setExpandedContacts(p => {
@@ -480,7 +510,8 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data?.error ?? "Apollo search failed");
-            setOrgs(data.organizations ?? []);
+            if (!Array.isArray(data?.organizations)) throw new Error("Apollo search returned an invalid response");
+            setOrgs(data.organizations);
             setHasSearched(true);
         } catch (err) {
             setSearchError(err instanceof Error ? err.message : "Apollo search failed");
@@ -494,6 +525,8 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
         setParsing(true);
         setParseError(null);
         setSearchError(null);
+        setHasSearched(false);
+        setRefinement(null);
         setOrgs([]);
         setSel(new Set());
         setF({ titles: [], industries: [], sizes: [], regions: [], tech: [], signals: [] });
@@ -507,9 +540,21 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data?.error ?? "ICP parse failed");
-            const r: ICPRefinement = data.refinement;
-            setRefinement(r);
-            const filters = refinementToFilters(r);
+            const r = data?.refinement as Partial<ICPRefinement> | undefined;
+            if (!r || !Array.isArray(r.titleKeywords) || !Array.isArray(r.industries) || !Array.isArray(r.companySizes) || !Array.isArray(r.geographies) || !Array.isArray(r.signals)) {
+                throw new Error("ICP refinement returned an invalid response");
+            }
+            const normalizedRefinement: ICPRefinement = {
+                summary: typeof r.summary === "string" ? r.summary : undefined,
+                titleKeywords: r.titleKeywords,
+                industries: r.industries,
+                companySizes: r.companySizes.filter(cs => cs && typeof cs.range === "string"),
+                geographies: r.geographies,
+                signals: r.signals,
+                queryVariants: Array.isArray(r.queryVariants) ? r.queryVariants : undefined,
+            };
+            setRefinement(normalizedRefinement);
+            const filters = refinementToFilters(normalizedRefinement);
             setF(filters);
             const aiActive: Partial<Record<keyof FilterState, boolean>> = {};
             (Object.keys(filters) as (keyof FilterState)[]).forEach(k => {
@@ -517,7 +562,7 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
             });
             setAiFilters(aiActive);
             setPage(1);
-            await runSearch(r);
+            await runSearch(normalizedRefinement);
         } catch (err) {
             setParseError(err instanceof Error ? err.message : "Failed to parse ICP");
         } finally {
@@ -566,10 +611,11 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
             setAdded(p => { const n = new Set(p); n.add(org.id); return n; });
         } catch (err) {
             console.error("[ICPSearch] addOrg failed:", err);
+            addToast("error", `Failed to add ${org.name || "company"} — please try again`);
         } finally {
             setAdding(p => { const n = new Set(p); n.delete(org.id); return n; });
         }
-    }, [adding, added, campaignId, onAddOrgs]);
+    }, [adding, added, campaignId, onAddOrgs, addToast]);
 
     const addSelected = async () => {
         const toAdd = [...sel].map(id => orgs.find(o => o.id === id)).filter(Boolean) as ApolloOrg[];
@@ -590,8 +636,11 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                 if (!s || !f.sizes.includes(s)) return false;
             }
             if (f.tech.length) {
-                const kws = (org.keywords ?? []).map(k => k.toLowerCase());
-                if (!f.tech.some(t => kws.some(k => k.includes(t.toLowerCase())))) return false;
+                const kws = (org.keywords ?? []).map(k => k.toLowerCase().trim());
+                if (!f.tech.some(t => {
+                    const needle = t.toLowerCase();
+                    return kws.some(k => k.includes(needle) || needle.includes(k));
+                })) return false;
             }
             if (f.titles.length) {
                 const people = org.people ?? [];
@@ -632,8 +681,9 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
             : (a, b) => a.name.localeCompare(b.name));
     }, [orgs, f, sort]);
 
-    const rows = filtered.slice((page - 1) * PER, page * PER);
     const pages = Math.ceil(filtered.length / PER);
+    const safePage = pages > 0 ? Math.min(page, pages) : 1;
+    const rows = filtered.slice((safePage - 1) * PER, safePage * PER);
     const chips = (Object.entries(f) as [keyof FilterState, string[]][]).flatMap(([k, vs]) => vs.map(v => ({ k, v })));
     const allOnPage = rows.length > 0 && rows.every(o => sel.has(o.id));
     const isLoading = parsing || searching;
@@ -650,6 +700,14 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
 
     return (
         <div style={{ display: "flex", height: "100%", fontFamily: "Inter,-apple-system,sans-serif", background: S.bg, overflow: "hidden" }}>
+            <ToastRegion toasts={toasts} onDismiss={dismiss} />
+            <style>{`
+            .icp-keywords { display: flex; }
+            @media (max-width: 1024px) { .icp-keywords { display: none !important; } }
+            @keyframes icpspin { to { transform: rotate(360deg); } }
+            @keyframes addspin { to { transform: rotate(360deg); } }
+        `}</style>
+
 
 
             {/* ── SIDEBAR ── */}
@@ -817,10 +875,10 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                         {chips.map(({ k, v }) => (
                             <span
                                 key={`${k}-${v}`}
-                                style={{ display: "inline-flex", alignItems: "center", gap: 3, background: S.accentGlow, color: "var(--red)", fontSize: 11, fontWeight: 500, padding: "3px 7px", borderRadius: 99, border: `1px solid rgba(233,69,96,0.3)` }}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 3, background: S.accentGlow, color: "var(--red-text)", fontSize: 11, fontWeight: 500, padding: "3px 7px", borderRadius: 99, border: `1px solid var(--border-red)` }}
                             >
                                 {v}
-                                <button onClick={() => removeChip(k, v)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", color: "var(--red)" }}>
+                                <button onClick={() => removeChip(k, v)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", color: "var(--red-text)" }}>
                                     <X size={10} />
                                 </button>
                             </span>
@@ -871,7 +929,7 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                     </button>
                     {rows.length > 0 && (
                         <span style={{ fontSize: 11, color: S.textMuted }}>
-                            {(page - 1) * PER + 1}–{Math.min(page * PER, filtered.length)} of {filtered.length}
+                            {(safePage - 1) * PER + 1}–{Math.min(safePage * PER, filtered.length)} of {filtered.length}
                         </span>
                     )}
                 </div>
@@ -886,12 +944,12 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                         </div>
                     ) : searchError ? (
                         <div style={{ margin: "40px auto", maxWidth: 380, textAlign: "center", padding: 20 }}>
-                            <AlertCircle size={32} color={"var(--red)"} style={{ margin: "0 auto 12px" }} />
+                            <AlertCircle size={32} color={"var(--red-text)"} style={{ margin: "0 auto 12px" }} />
                             <div style={{ fontSize: 14, fontWeight: 600, color: S.textPrimary }}>Apollo search failed</div>
                             <div style={{ fontSize: 12, color: S.textSecondary, marginTop: 6, marginBottom: 16 }}>{searchError}</div>
                             <button
                                 onClick={() => refinement && runSearch(refinement)}
-                                style={{ fontSize: 12, color: "var(--red)", background: S.accentFaint, border: `1px solid var(--border-red)`, borderRadius: 7, padding: "6px 16px", cursor: "pointer" }}
+                                style={{ fontSize: 12, color: "var(--red-text)", background: S.accentFaint, border: `1px solid var(--border-red)`, borderRadius: 7, padding: "6px 16px", cursor: "pointer" }}
                             >
                                 Try again
                             </button>
@@ -910,7 +968,7 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                             {chips.length > 0 && (
                                 <button
                                     onClick={clearAll}
-                                    style={{ marginTop: 14, fontSize: 12, color: "var(--red)", background: S.accentFaint, border: `1px solid var(--border-red)`, borderRadius: 7, padding: "6px 16px", cursor: "pointer" }}
+                                    style={{ marginTop: 14, fontSize: 12, color: "var(--red-text)", background: S.accentFaint, border: `1px solid var(--border-red)`, borderRadius: 7, padding: "6px 16px", cursor: "pointer" }}
                                 >
                                     Clear all filters
                                 </button>
@@ -931,7 +989,7 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                             <div
                                 key={org.id}
                                 className="icp-card"
-                                onClick={() => toggleOrg(org.id)}
+                                onClick={() => !isAdded && toggleOrg(org.id)}
                                 style={{ background: S.bgCard, border: `1px solid ${isSel ? "var(--border-red)" : S.border}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", boxShadow: isSel ? `0 0 0 3px ${S.accentGlow}` : "none", opacity: isAdded ? 0.5 : 1, transition: "all 0.12s" }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -981,7 +1039,8 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                                     </div>
 
                                     {keywords.length > 0 && (
-                                        <div style={{ display: "none", flexWrap: "wrap", gap: 3, maxWidth: 140, justifyContent: "flex-end", flexShrink: 0, ...(typeof window !== "undefined" && window.innerWidth > 1024 ? { display: "flex" } : {}) }}>
+                                        <div className="icp-keywords"
+                                            style={{ display: "flex", flexWrap: "wrap", gap: 3, maxWidth: 140, justifyContent: "flex-end", flexShrink: 0 }}>
                                             {keywords.map(k => (
                                                 <span key={k} style={{ fontSize: 9, background: S.bg, color: S.textMuted, padding: "2px 5px", borderRadius: 4, border: `1px solid ${S.border}`, whiteSpace: "nowrap" }}>
                                                     {k}
@@ -1037,6 +1096,7 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                                                 onAddOrgs={onAddOrgs}
                                                 added={added}
                                                 setAdded={setAdded}
+                                                onError={(msg) => addToast("error", msg)}
                                             />
                                         ))}
                                     </div>
@@ -1051,8 +1111,8 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                     <div style={{ background: S.bgMid, borderTop: `1px solid ${S.border}`, padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, flexShrink: 0 }}>
                         <button
                             onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1}
-                            style={{ padding: "4px 11px", borderRadius: 6, border: `1px solid ${S.borderLight}`, background: "transparent", fontSize: 12, color: page === 1 ? S.textMuted : S.textSecondary, cursor: page === 1 ? "default" : "pointer" }}
+                            disabled={safePage === 1}
+                            style={{ padding: "4px 11px", borderRadius: 6, border: `1px solid ${S.borderLight}`, background: "transparent", fontSize: 12, color: safePage === 1 ? S.textMuted : S.textSecondary, cursor: safePage === 1 ? "default" : "pointer" }}
                         >
                             ← Prev
                         </button>
@@ -1060,15 +1120,15 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
                             <button
                                 key={p}
                                 onClick={() => setPage(p)}
-                                style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${p === page ? S.accent : S.borderLight}`, background: p === page ? S.accent : "transparent", color: p === page ? "white" : S.textSecondary, fontSize: 12, fontWeight: p === page ? 600 : 400, cursor: "pointer" }}
+                                style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${p === safePage ? S.accent : S.borderLight}`, background: p === safePage ? S.accent : "transparent", color: p === safePage ? "white" : S.textSecondary, fontSize: 12, fontWeight: p === safePage ? 600 : 400, cursor: "pointer" }}
                             >
                                 {p}
                             </button>
                         ))}
                         <button
                             onClick={() => setPage(p => Math.min(pages, p + 1))}
-                            disabled={page === pages}
-                            style={{ padding: "4px 11px", borderRadius: 6, border: `1px solid ${S.borderLight}`, background: "transparent", fontSize: 12, color: page === pages ? S.textMuted : S.textSecondary, cursor: page === pages ? "default" : "pointer" }}
+                            disabled={safePage === pages}
+                            style={{ padding: "4px 11px", borderRadius: 6, border: `1px solid ${S.borderLight}`, background: "transparent", fontSize: 12, color: safePage === pages ? S.textMuted : S.textSecondary, cursor: safePage === pages ? "default" : "pointer" }}
                         >
                             Next →
                         </button>
@@ -1077,4 +1137,5 @@ export function ICPSearch({ campaignId, onAddOrgs }: ICPSearchProps) {
             </div>
         </div>
     );
+
 }

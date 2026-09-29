@@ -55,9 +55,11 @@ function assertNotPrivate(addr: string, host: string): void {
 }
 
 export async function assertPublicHttpUrl(raw: string): Promise<URL> {
+  const trimmed = raw.trim();
+  const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   let url: URL;
   try {
-    url = new URL(raw);
+    url = new URL(normalized);
   } catch {
     throw new Error(`Invalid URL: ${raw}`);
   }
@@ -77,9 +79,14 @@ export async function assertPublicHttpUrl(raw: string): Promise<URL> {
     return url;
   }
 
+  const DNS_TIMEOUT_MS = 3_000;
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`DNS timeout for host: ${host}`)), DNS_TIMEOUT_MS)
+  );
+
   const [v4Result, v6Result] = await Promise.allSettled([
-    dns.resolve4(host).catch((): string[] => []),
-    dns.resolve6(host).catch((): string[] => []),
+    Promise.race([dns.resolve4(host).catch((): string[] => []), timeout]),
+    Promise.race([dns.resolve6(host).catch((): string[] => []), timeout]),
   ]);
 
   const addrs = [

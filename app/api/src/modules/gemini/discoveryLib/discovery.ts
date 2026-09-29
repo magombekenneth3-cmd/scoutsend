@@ -40,6 +40,24 @@ export function isPrismaUniqueViolation(err: unknown): boolean {
     );
 }
 
+export function isExpectedLeadDuplicate(err: unknown): boolean {
+    if (
+        !(err instanceof Prisma.PrismaClientKnownRequestError) ||
+        err.code !== "P2002"
+    ) {
+        return false;
+    }
+
+    const target = err.meta?.target;
+    if (Array.isArray(target)) {
+        return target.includes("email") || target.includes("externalId");
+    }
+    if (typeof target === "string") {
+        return target.includes("email") || target.includes("externalId");
+    }
+    return true;
+}
+
 export function icpHash(value: string): string {
     return Buffer.from(value).toString("base64").slice(0, 64);
 }

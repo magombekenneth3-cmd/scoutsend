@@ -1,9 +1,10 @@
 import { prisma } from "../../lib/prisma";
 import { createMailProvider, MailboxCredentials } from "../../lib/mail";
-import { decryptJson, isEncrypted } from "../../lib/mail/crypto";
+import { decryptMailboxCredentials } from "../../lib/mail/crypto";
 import { logger } from "../../lib/logger";
 import { DeliveryState, Prisma } from "@prisma/client";
 import pLimit from "p-limit";
+import { redis } from "../../lib/ioredis";
 
 interface DeliveryPollLimiters {
     mailbox: ReturnType<typeof pLimit>;
@@ -15,10 +16,7 @@ export function createDeliveryPollLimiters(): DeliveryPollLimiters {
     };
 }
 
-function decryptCredentials(raw: unknown): MailboxCredentials {
-    if (isEncrypted(raw)) return decryptJson<MailboxCredentials>(raw as string);
-    return raw as MailboxCredentials;
-}
+
 
 const TERMINAL_STATES: DeliveryState[] = ["BOUNCED", "SPAM", "REPLIED"];
 
@@ -116,18 +114,26 @@ async function recordDeliveryEvent(
         const shouldSuppress = newState === "SPAM" || bounceKind === "HARD";
 
         if (shouldSuppress && recipientEmail) {
-            await prisma.suppression.upsert({
-                where: { email_userId: { email: recipientEmail, userId } },
-                create: {
-                    email: recipientEmail,
-                    reason: newState === "BOUNCED"
-                        ? "Hard bounce — permanent delivery failure"
-                        : "Spam complaint detected via inbox poll",
-                    source: "delivery-poller",
-                    userId,
-                },
-                update: {},
+            const campaignOrg = await prisma.outreachMessage.findUnique({
+                where: { id: outreachMessageId },
+                select: { lead: { select: { campaign: { select: { orgId: true } } } } },
             });
+            const orgId = campaignOrg?.lead?.campaign?.orgId;
+            if (orgId) {
+                await prisma.suppression.upsert({
+                    where: { email_orgId: { email: recipientEmail, orgId } },
+                    create: {
+                        email: recipientEmail,
+                        orgId,
+                        reason: newState === "BOUNCED"
+                            ? "Hard bounce — permanent delivery failure"
+                            : "Spam complaint detected via inbox poll",
+                        source: "delivery-poller",
+                        userId,
+                    },
+                    update: {},
+                });
+            }
         }
 
         await incrementMailboxDeliverabilityRate(mailboxId, newState);
@@ -149,6 +155,8 @@ async function incrementMailboxDeliverabilityRate(
 
         const total = mailbox.totalSent;
         const rateField = event === "BOUNCED" ? "bounceRate" : "complaintRate";
+        const ALLOWED_RATE_FIELDS = new Set(["bounceRate", "complaintRate"]);
+        if (!ALLOWED_RATE_FIELDS.has(rateField)) throw new Error(`[deliverypoll] Invalid rateField: ${rateField}`);
 
         await tx.$executeRaw`
             UPDATE "SenderMailbox"
@@ -195,6 +203,8 @@ async function incrementDomainDeliverabilityRate(
 
         const total = fresh.totalSent;
         const rateField = event === "BOUNCED" ? "bounceRate" : "complaintRate";
+        const ALLOWED_RATE_FIELDS = new Set(["bounceRate", "complaintRate"]);
+        if (!ALLOWED_RATE_FIELDS.has(rateField)) throw new Error(`[deliverypoll] Invalid rateField: ${rateField}`);
 
         await tx.$executeRaw`
             UPDATE "SenderDomain"
@@ -203,6 +213,60 @@ async function incrementDomainDeliverabilityRate(
         `;
     });
 }
+
+/** Redis key prefix for consecutive delivery-poll failure counts per mailbox. */
+const DELIVERY_POLL_FAIL_KEY = (mailboxId: string) => `delivery-poll:fail:${mailboxId}`;
+
+/** Base backoff in ms. Consecutive failures are shifted: 2^n minutes, capped at 64 min. */
+const DELIVERY_POLL_BACKOFF_BASE_MS = 60_000;
+const DELIVERY_POLL_BACKOFF_MAX_FAILURES = 6; // 2^6 = 64 minutes maximum
+
+/**
+ * Returns true if this mailbox should be skipped due to recent consecutive
+ * delivery-poll failures. Uses Redis to track fail-count and last-fail timestamp.
+ */
+async function shouldSkipDeliveryDueToBackoff(mailboxId: string): Promise<boolean> {
+    const raw = await redis.get(DELIVERY_POLL_FAIL_KEY(mailboxId));
+    if (!raw) return false;
+    const { count, lastFailAt } = JSON.parse(raw) as { count: number; lastFailAt: number };
+    const backoffMs = Math.min(
+        Math.pow(2, count) * DELIVERY_POLL_BACKOFF_BASE_MS,
+        Math.pow(2, DELIVERY_POLL_BACKOFF_MAX_FAILURES) * DELIVERY_POLL_BACKOFF_BASE_MS,
+    );
+    const elapsed = Date.now() - lastFailAt;
+    if (elapsed < backoffMs) {
+        logger.info(
+            { mailboxId, failCount: count, backoffMs, remainingMs: backoffMs - elapsed },
+            "[deliveryPoller] Skipping mailbox — within backoff window",
+        );
+        return true;
+    }
+    return false;
+}
+
+/** Record a delivery-poll failure for this mailbox (increments Redis counter). */
+async function recordDeliveryPollFailure(mailboxId: string): Promise<void> {
+    const raw = await redis.get(DELIVERY_POLL_FAIL_KEY(mailboxId));
+    const prev = raw ? (JSON.parse(raw) as { count: number }) : { count: 0 };
+    const next = { count: prev.count + 1, lastFailAt: Date.now() };
+    // TTL of 24 hours; after a day without failures the backoff resets automatically.
+    await redis.set(DELIVERY_POLL_FAIL_KEY(mailboxId), JSON.stringify(next), "EX", 86_400);
+}
+
+/** Clear the delivery-poll backoff counter after a successful poll. */
+async function clearDeliveryPollBackoff(mailboxId: string): Promise<void> {
+    await redis.del(DELIVERY_POLL_FAIL_KEY(mailboxId));
+}
+
+/**
+ * @internal — TEST USE ONLY. Not part of the public API.
+ * Exposes the private backoff helpers so unit tests can exercise them directly
+ * with real Redis in CJS mode (where mock.module() is unavailable).
+ */
+export const _deliveryBackoffTestHelpers =
+    process.env.NODE_ENV === "test"
+        ? { shouldSkipDeliveryDueToBackoff, recordDeliveryPollFailure, clearDeliveryPollBackoff, DELIVERY_POLL_FAIL_KEY }
+        : undefined;
 
 export async function pollMailboxDeliveryEvents(mailboxId: string, limiters: DeliveryPollLimiters = createDeliveryPollLimiters()): Promise<void> {
     void limiters;
@@ -224,69 +288,57 @@ export async function pollMailboxDeliveryEvents(mailboxId: string, limiters: Del
         return;
     }
 
+    // Skip if this mailbox is in an exponential backoff window after consecutive failures.
+    if (await shouldSkipDeliveryDueToBackoff(mailboxId)) return;
+
     const since = mailbox.lastReplyCheckedAt ?? new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const provider = createMailProvider(decryptCredentials(mailbox.credentials));
+    const provider = createMailProvider(decryptMailboxCredentials<MailboxCredentials>(mailbox.credentials, `mailbox:${mailboxId}`));
 
     let inboxMessages: Awaited<ReturnType<typeof provider.fetchReplies>>;
     try {
         inboxMessages = await provider.fetchReplies(since);
-    } catch (err) {
-        logger.error({ err, mailboxId }, "[deliveryPoller] fetchReplies error");
+    } catch (err: unknown) {
+        const safeErr = err instanceof Error
+            ? { message: err.message, name: err.name, code: (err as any).code }
+            : String(err);
+        logger.error({ err: safeErr, mailboxId }, "[deliveryPoller] fetchReplies error");
+        await recordDeliveryPollFailure(mailboxId);
         return;
     }
 
     let bounces = 0;
     let complaints = 0;
 
-    for (const msg of inboxMessages) {
+    const bounceSpamMessages = inboxMessages.filter(
+        (msg) => classifyInboxMessage(msg.fromEmail, msg.subject).type !== "REPLY"
+    );
+
+    const replyToIds = bounceSpamMessages
+        .map((msg) => msg.inReplyToId)
+        .filter((id): id is string => Boolean(id));
+
+    const outreachByExternalId = replyToIds.length > 0
+        ? new Map(
+            (await prisma.outreachMessage.findMany({
+                where: { externalMessageId: { in: replyToIds } },
+                select: { id: true, externalMessageId: true, lead: { select: { email: true } } },
+            })).map((o) => [o.externalMessageId!, o])
+          )
+        : new Map<string, { id: string; lead: { email: string | null } }>();
+
+    for (const msg of bounceSpamMessages) {
         const classification = classifyInboxMessage(msg.fromEmail, msg.subject);
+        const newState: DeliveryState = classification.type === "BOUNCE" ? "BOUNCED" : "SPAM";
+        const bounceKind = classification.type === "BOUNCE" ? classification.kind : null;
 
-        if (classification.type === "BOUNCE" || classification.type === "SPAM") {
-            const newState: DeliveryState = classification.type === "BOUNCE" ? "BOUNCED" : "SPAM";
-            const bounceKind = classification.type === "BOUNCE" ? classification.kind : null;
-
-            if (msg.inReplyToId) {
-                const outreach = await prisma.outreachMessage.findUnique({
-                    where: { externalMessageId: msg.inReplyToId },
-                    select: { id: true, lead: { select: { email: true } } },
-                });
-
-                if (outreach) {
-                    await recordDeliveryEvent(
-                        outreach.id,
-                        newState,
-                        outreach.lead.email,
-                        msg.receivedAt,
-                        mailboxId,
-                        mailbox.createdById,
-                        bounceKind
-                    );
-                    if (newState === "BOUNCED") bounces++;
-                    else complaints++;
-                    continue;
-                }
-            }
-
-            const lead = await prisma.lead.findFirst({
-                where: { email: msg.fromEmail, deletedAt: null },
-                select: {
-                    id: true,
-                    email: true,
-                    outreachMessages: {
-                        where: { deliveryState: { in: ["SENT", "DELIVERED", "OPENED"] } },
-                        orderBy: { sentAt: "desc" },
-                        take: 1,
-                        select: { id: true },
-                    },
-                },
-            });
-
-            if (lead?.outreachMessages[0]) {
+        if (msg.inReplyToId) {
+            const outreach = outreachByExternalId.get(msg.inReplyToId);
+            if (outreach) {
                 await recordDeliveryEvent(
-                    lead.outreachMessages[0].id,
+                    outreach.id,
                     newState,
-                    lead.email,
+                    outreach.lead.email,
                     msg.receivedAt,
                     mailboxId,
                     mailbox.createdById,
@@ -294,7 +346,36 @@ export async function pollMailboxDeliveryEvents(mailboxId: string, limiters: Del
                 );
                 if (newState === "BOUNCED") bounces++;
                 else complaints++;
+                continue;
             }
+        }
+
+        const lead = await prisma.lead.findFirst({
+            where: { email: msg.fromEmail, deletedAt: null },
+            select: {
+                id: true,
+                email: true,
+                outreachMessages: {
+                    where: { deliveryState: { in: ["SENT", "DELIVERED", "OPENED"] } },
+                    orderBy: { sentAt: "desc" },
+                    take: 1,
+                    select: { id: true },
+                },
+            },
+        });
+
+        if (lead?.outreachMessages[0]) {
+            await recordDeliveryEvent(
+                lead.outreachMessages[0].id,
+                newState,
+                lead.email,
+                msg.receivedAt,
+                mailboxId,
+                mailbox.createdById,
+                bounceKind
+            );
+            if (newState === "BOUNCED") bounces++;
+            else complaints++;
         }
     }
 
@@ -302,6 +383,9 @@ export async function pollMailboxDeliveryEvents(mailboxId: string, limiters: Del
         where: { id: mailboxId },
         data: { lastReplyCheckedAt: new Date() },
     });
+
+    // Clear the delivery-poll backoff after a successful fetch and DB write.
+    await clearDeliveryPollBackoff(mailboxId);
 
     if (bounces > 0 || complaints > 0) {
         logger.info({ mailboxId, bounces, complaints }, "[deliveryPoller] delivery events recorded");
@@ -320,8 +404,11 @@ export async function pollAllMailboxDeliveryEvents(): Promise<void> {
     for (const mb of mailboxes) {
         try {
             await limiters.mailbox(() => pollMailboxDeliveryEvents(mb.id, limiters));
-        } catch (err) {
-            logger.error({ err, mailboxId: mb.id }, "[deliveryPoller] uncaught error polling mailbox");
+        } catch (err: unknown) {
+            const safeErr = err instanceof Error
+                ? { message: err.message, name: err.name, code: (err as any).code }
+                : String(err);
+            logger.error({ err: safeErr, mailboxId: mb.id }, "[deliveryPoller] uncaught error polling mailbox");
         }
     }
 }

@@ -197,15 +197,34 @@ export async function getDashboardStats(userId: string) {
                 c."name",
                 c."status",
                 c."createdAt",
-                (SELECT COUNT(*) FROM "Lead" l WHERE l."campaignId" = c."id" AND l."deletedAt" IS NULL) AS "leadsCount",
-                (SELECT COUNT(*) FROM "OutreachMessage" om JOIN "Lead" l ON l."id" = om."leadId" WHERE l."campaignId" = c."id" AND om."deliveryState" IN ('SENT','DELIVERED','OPENED','REPLIED')) AS "sentCount",
-                (SELECT COUNT(*) FROM "OutreachMessage" om JOIN "Lead" l ON l."id" = om."leadId" WHERE l."campaignId" = c."id" AND om."deliveryState" IN ('OPENED','REPLIED')) AS "openedCount",
-                (SELECT COUNT(*) FROM "OutreachMessage" om JOIN "Lead" l ON l."id" = om."leadId" WHERE l."campaignId" = c."id" AND om."deliveryState" = 'REPLIED') AS "repliedCount"
-            FROM "Campaign" c
-            WHERE c."createdById" = ${userId}
-              AND c."deletedAt" IS NULL
-            ORDER BY c."createdAt" DESC
-            LIMIT 10
+                COALESCE(lc.cnt, 0)           AS "leadsCount",
+                COALESCE(agg."sentCount", 0)  AS "sentCount",
+                COALESCE(agg."openedCount", 0) AS "openedCount",
+                COALESCE(agg."repliedCount", 0) AS "repliedCount"
+            FROM (
+                SELECT id, name, status, "createdAt"
+                FROM "Campaign"
+                WHERE "createdById" = ${userId}
+                  AND "deletedAt" IS NULL
+                ORDER BY "createdAt" DESC
+                LIMIT 10
+            ) c
+            LEFT JOIN (
+                SELECT l."campaignId",
+                    COUNT(*)                                                        AS "sentCount",
+                    COUNT(*) FILTER (WHERE om."deliveryState" IN ('OPENED','REPLIED')) AS "openedCount",
+                    COUNT(*) FILTER (WHERE om."deliveryState" = 'REPLIED')            AS "repliedCount"
+                FROM "OutreachMessage" om
+                JOIN "Lead" l ON l."id" = om."leadId"
+                WHERE om."deliveryState" IN ('SENT','DELIVERED','OPENED','REPLIED')
+                GROUP BY l."campaignId"
+            ) agg ON agg."campaignId" = c."id"
+            LEFT JOIN (
+                SELECT "campaignId", COUNT(*) AS cnt
+                FROM "Lead"
+                WHERE "deletedAt" IS NULL
+                GROUP BY "campaignId"
+            ) lc ON lc."campaignId" = c."id"
         `,
 
         prisma.$queryRaw<DomainRow[]>`

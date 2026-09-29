@@ -4,6 +4,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import Link from "next/link";
 import { CsvImportModal } from "@/app/components/CvsModal";
 import { LeadResearchPanel } from "@/app/components/research/LeadResearchPanel";
+import { ScoreIndicator } from "@/app/components/ui/ScoreIndicator";
+import { SignalBadge, ActionBadge, PipelinePill, EmailStatusBadge, CompetitorBadge } from "@/app/components/ui/Badge";
+import { useToast } from "@/app/hooks/useToast";
+import { ToastRegion } from "@/app/components/dashboard/ToastRegion";
 
 /* ─── Types ─── */
 interface Signal {
@@ -85,55 +89,11 @@ async function apiDelete(path: string): Promise<void> {
     if (!res.ok) throw new Error(`API error ${res.status}`);
 }
 
-/* ─── Config maps ─── */
-const ACTION_CFG = {
-    HIGH_PRIORITY: {
-        label: "High Priority",
-        className: "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]",
-        dot: "bg-[var(--red)]",
-        icon: (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-        ),
-    },
-    STANDARD: {
-        label: "Standard",
-        className: "bg-sky-400/10 text-sky-400 border border-sky-400/20",
-        dot: "bg-sky-400",
-        icon: (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                <circle cx="12" cy="12" r="4" />
-            </svg>
-        ),
-    },
-    NURTURE: {
-        label: "Nurture",
-        className: "bg-amber-400/10 text-amber-400 border border-amber-400/20",
-        dot: "bg-amber-400",
-        icon: (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-        ),
-    },
-    DISQUALIFY: {
-        label: "Disqualify",
-        className: "bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)]",
-        dot: "bg-[var(--text-muted)]",
-        icon: (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-        ),
-    },
-};
-
-const PIPELINE_CFG = {
-    PROSPECT: { label: "Prospect", className: "bg-sky-400/10 text-sky-400 border border-sky-400/20" },
-    QUALIFIED: { label: "Qualified", className: "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20" },
-    OUTREACH: { label: "Outreach", className: "bg-violet-400/10 text-violet-400 border border-violet-400/20" },
-    DISQUALIFIED: { label: "Disqualified", className: "bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)]" },
+const ACTION_CFG: Record<string, { label: string; className: string; dot: string }> = {
+    HIGH_PRIORITY: { label: "High Priority", className: "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]", dot: "bg-[var(--red)]" },
+    STANDARD: { label: "Standard", className: "bg-sky-400/10 text-sky-400 border border-sky-400/20", dot: "bg-sky-400" },
+    NURTURE: { label: "Nurture", className: "bg-amber-400/10 text-amber-400 border border-amber-400/20", dot: "bg-amber-400" },
+    DISQUALIFY: { label: "Disqualify", className: "bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)]", dot: "bg-[var(--text-muted)]" },
 };
 
 const SIGNAL_COLORS: Record<string, { bg: string; text: string }> = {
@@ -161,94 +121,57 @@ const STATUS_DOT: Record<string, string> = {
     FAILED: "bg-[var(--red)]",
 };
 
-/* ─── Small reusable components ─── */
-function ScoreBar({ score }: { score: number }) {
-    const displayScore = score <= 1 ? Math.round(score * 100) : Math.round(score);
-    const color = displayScore >= 85 ? "bg-emerald-400" : displayScore >= 65 ? "bg-amber-400" : "bg-[var(--red)]";
-    const textColor = displayScore >= 85 ? "text-emerald-400" : displayScore >= 65 ? "text-amber-400" : "text-[var(--red)]";
-    return (
-        <div className="flex items-center gap-2">
-            <div className="w-14 h-1.5 bg-[var(--surface-2)] rounded-full overflow-hidden flex-shrink-0">
-                <div
-                    className={`h-full rounded-full ${color} transition-all duration-500`}
-                    style={{ width: `${displayScore}%` }}
-                    role="progressbar"
-                    aria-valuenow={displayScore}
-                    aria-valuemax={100}
-                    aria-label="Qualification score"
-                />
-            </div>
-            <span className={`text-xs font-semibold tabular-nums ${textColor}`}>{displayScore}</span>
-        </div>
-    );
-}
-
-function SignalTag({ type, signalType }: { type?: string; signalType?: string }) {
-    const rawType = signalType ?? type ?? "UNKNOWN_SIGNAL";
-    const cfg = SIGNAL_COLORS[rawType] ?? SIGNAL_COLORS.CONTENT;
-    return (
-        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>
-            <span className="w-1 h-1 rounded-full bg-current opacity-70 flex-shrink-0" aria-hidden="true" />
-            {rawType.replace(/_SIGNAL$/, "").replace(/_/g, " ")}
-        </span>
-    );
-}
-
-function ActionBadge({ action }: { action: keyof typeof ACTION_CFG | null }) {
-    if (!action || !ACTION_CFG[action]) return null;
-    const cfg = ACTION_CFG[action];
-    return (
-        <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${cfg.className}`}>
-            {cfg.icon}
-            {cfg.label}
-        </span>
-    );
-}
-
-function PipelinePill({ stage }: { stage: keyof typeof PIPELINE_CFG | null }) {
-    if (!stage || !PIPELINE_CFG[stage]) return null;
-    const cfg = PIPELINE_CFG[stage];
-    return (
-        <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border ${cfg.className}`}>
-            {cfg.label}
-        </span>
-    );
-}
-
-function CompetitorBadge({ tech }: { tech: string[] }) {
-    const label = tech.length > 0
-        ? tech.slice(0, 2).map((t) => t.replace(/_/g, " ")).join(", ") + (tech.length > 2 ? ` +${tech.length - 2}` : "")
-        : "Competitor user";
-    return (
-        <span
-            className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-400/10 text-orange-400 border border-orange-400/25 uppercase tracking-wider whitespace-nowrap"
-            title={`Uses competing tech: ${tech.join(", ") || "unknown"}`}
-        >
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z" />
-            </svg>
-            {label}
-        </span>
-    );
-}
-
-function EmailStatusBadge({ status }: { status: Lead["emailStatus"] }) {
-    const cfgMap = {
-        VERIFIED: { label: "Verified", icon: "✓", className: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" },
-        DELIVERED: { label: "Delivered", icon: "✓", className: "bg-sky-400/10 text-sky-400 border-sky-400/20" },
-        BOUNCED: { label: "Bounced", icon: "✕", className: "bg-[var(--red-glow)] text-[var(--red)] border-[var(--border-red)]" },
-        NOT_ATTEMPTED: { label: "Unverified", icon: "?", className: "bg-[var(--surface-2)] text-[var(--text-muted)] border-[var(--border)]" },
-    };
-    if (!status || !cfgMap[status]) return null;
-    const cfg = cfgMap[status];
-    return (
-        <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${cfg.className}`}>
-            <span className="font-bold">{cfg.icon}</span> {cfg.label}
-        </span>
-    );
-}
 
 /* ─── Stats bar ─── */
+const LeadAvatar = ({ lead, initial }: { lead: Lead; initial: string }) => {
+    const [imgError, setImgError] = useState(false);
+
+    const domain = useMemo(() => {
+        if (!lead.website) return null;
+        try {
+            // Strip protocol and any path/query params
+            const url = lead.website.trim().startsWith("http") ? lead.website.trim() : `https://${lead.website.trim()}`;
+            return new URL(url).hostname;
+        } catch {
+            return null;
+        }
+    }, [lead.website]);
+
+    const colorClass = useMemo(() => {
+        const colors = [
+            "bg-indigo-500/10 text-indigo-600 border-indigo-500/25 dark:text-indigo-400",
+            "bg-violet-500/10 text-violet-600 border-violet-500/25 dark:text-violet-400",
+            "bg-sky-500/10 text-sky-600 border-sky-500/25 dark:text-sky-400",
+            "bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:text-emerald-400",
+            "bg-pink-500/10 text-pink-600 border-pink-500/25 dark:text-pink-400",
+            "bg-amber-500/10 text-amber-600 border-amber-500/25 dark:text-amber-400"
+        ];
+        let hash = 0;
+        const name = lead.companyName || "Lead";
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    }, [lead.companyName]);
+
+    if (domain && !imgError) {
+        return (
+            <img
+                src={`https://www.google.com/s2/favicons?sz=64&domain=${domain}`}
+                onError={() => setImgError(true)}
+                alt=""
+                className="w-8 h-8 rounded-full border border-[var(--border)] bg-[var(--surface-2)] object-contain p-1 flex-shrink-0"
+            />
+        );
+    }
+
+    return (
+        <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-extrabold flex-shrink-0 select-none ${colorClass}`}>
+            {initial}
+        </div>
+    );
+};
+
 function StatsBar({ leads, total }: { leads: Lead[]; total: number }) {
     const hp = leads.filter((l) => l.recommendedAction === "HIGH_PRIORITY").length;
     const scored = leads.filter((l) => l.qualificationScore != null);
@@ -264,71 +187,220 @@ function StatsBar({ leads, total }: { leads: Lead[]; total: number }) {
             label: "High Priority",
             value: hp,
             sub: `${Math.round((hp / Math.max(leads.length, 1)) * 100)}% of view`,
-            color: "text-[var(--red)]",
+            color: "text-[var(--red-text)]",
         },
         {
             label: "Avg Score",
             value: avg,
             sub: "across filtered",
-            color: avg >= 75 ? "text-emerald-400" : avg >= 55 ? "text-amber-400" : "text-[var(--red)]",
+            color: avg >= 80 ? "text-emerald-600 dark:text-emerald-400" : avg >= 60 ? "text-amber-600 dark:text-amber-400" : "text-[var(--red-text)]",
         },
         {
             label: "Replied",
             value: replied,
             sub: `${Math.round((replied / Math.max(leads.length, 1)) * 100)}% reply rate`,
-            color: "text-emerald-400",
+            color: "text-emerald-600 dark:text-emerald-400",
         },
         {
             label: "Email Verified",
             value: verified,
             sub: `${leads.length - verified} unverified`,
-            color: "text-sky-400",
+            color: "text-sky-600 dark:text-sky-400",
         },
     ];
 
     return (
-        <div className="grid grid-cols-5 border-b border-[var(--border)] bg-[var(--navy-mid)]" style={{ borderTop: "none" }}>
-            {stats.map((s, i) => (
+        <div
+            className="flex gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--navy-mid)] overflow-x-auto flex-shrink-0 scrollbar-none"
+            style={{ borderTop: "none" }}
+        >
+            {stats.map((s) => (
                 <div
                     key={s.label}
-                    className={`flex flex-col gap-0.5 px-5 py-3 ${i < 4 ? "border-r border-[var(--border)]" : ""}`}
+                    className="flex flex-col gap-0.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] flex-shrink-0 min-w-[90px] hover:border-[var(--border-red)] transition-all duration-200"
                 >
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{s.label}</span>
-                    <span className={`text-xl font-bold tabular-nums leading-tight ${s.color}`}>{s.value}</span>
-                    <span className="text-[10px] text-[var(--text-muted)]">{s.sub}</span>
+                    <span className="text-[8px] font-semibold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap">{s.label}</span>
+                    <span className={`text-lg font-extrabold tabular-nums leading-tight ${s.color}`}>{s.value}</span>
+                    <span className="text-[9px] text-[var(--text-secondary)] whitespace-nowrap">{s.sub}</span>
                 </div>
             ))}
         </div>
     );
 }
 
-/* ─── Score breakdown mini bars ─── */
-function ScoreBreakdown({ scores }: { scores: BreakdownScores }) {
+
+/* ─── Score Ring ─── */
+function ScoreRing({ score }: { score: number }) {
+    const r = 44;
+    const circ = 2 * Math.PI * r;
+    const pct = Math.min(Math.max(score, 0), 100) / 100;
+    const dash = pct * circ;
+    const color = score >= 80 ? "#34d399" : score >= 60 ? "#fbbf24" : score >= 40 ? "#fb923c" : "#f87171";
+    const glowId = `glow-${score}`;
+    return (
+        <div className="flex flex-col items-center justify-center gap-1">
+            <svg width="112" height="112" viewBox="0 0 112 112" style={{ overflow: "visible" }} aria-label={`Score ${score}`}>
+                <defs>
+                    <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                </defs>
+                <circle cx="56" cy="56" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="8" />
+                <circle
+                    cx="56" cy="56" r={r} fill="none" stroke={color} strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${dash} ${circ}`}
+                    strokeDashoffset={circ * 0.25}
+                    style={{ filter: `url(#${glowId})`, transition: "stroke-dasharray 0.8s cubic-bezier(0.4,0,0.2,1)" }}
+                />
+                <text x="56" y="52" textAnchor="middle" fontSize="22" fontWeight="700" fill={color} fontFamily="inherit">{score}</text>
+                <text x="56" y="66" textAnchor="middle" fontSize="9" fill="var(--text-muted)" fontFamily="inherit" letterSpacing="1">SCORE</text>
+            </svg>
+        </div>
+    );
+}
+
+/* ─── Radar Chart ─── */
+function RadarChart({ scores }: { scores: BreakdownScores }) {
     const dims = [
-        { label: "ICP Match", val: scores.icpMatch },
+        { label: "ICP", val: scores.icpMatch },
         { label: "Intent", val: scores.intentStrength },
         { label: "Funding", val: scores.fundingSignals },
         { label: "Hiring", val: scores.hiringVelocity },
-        { label: "Tech Fit", val: scores.techFit },
+        { label: "Tech", val: scores.techFit },
         { label: "Recency", val: scores.recency },
     ];
+    const n = dims.length;
+    const cx = 80; const cy = 80; const maxR = 60;
+    const angle = (i: number) => (i * 2 * Math.PI) / n - Math.PI / 2;
+    const pt = (i: number, r: number) => [cx + r * Math.cos(angle(i)), cy + r * Math.sin(angle(i))] as [number, number];
+    const rings = [0.25, 0.5, 0.75, 1];
+    const dataPoints = dims.map((d, i) => pt(i, (d.val / 100) * maxR));
+    const polyPoints = dataPoints.map(([x, y]) => `${x},${y}`).join(" ");
     return (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
-            {dims.map((d) => {
-                const color = d.val >= 80 ? "bg-emerald-400" : d.val >= 60 ? "bg-amber-400" : d.val >= 40 ? "bg-orange-400" : "bg-[var(--red)]";
-                const textColor = d.val >= 80 ? "text-emerald-400" : d.val >= 60 ? "text-amber-400" : d.val >= 40 ? "text-orange-400" : "text-[var(--red)]";
+        <svg width="160" height="160" viewBox="0 0 160 160" aria-label="Score radar chart">
+            {rings.map(r => (
+                <polygon key={r} points={dims.map((_, i) => pt(i, r * maxR).join(",")).join(" ")}
+                    fill="none" stroke="var(--border)" strokeWidth="1" />
+            ))}
+            {dims.map((_, i) => {
+                const [x, y] = pt(i, maxR);
+                return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--border)" strokeWidth="1" />;
+            })}
+            <polygon points={polyPoints} fill="rgba(96,165,250,0.15)" stroke="#60a5fa" strokeWidth="1.5" strokeLinejoin="round" />
+            {dataPoints.map(([x, y], i) => (
+                <circle key={i} cx={x} cy={y} r="3" fill="#60a5fa" />
+            ))}
+            {dims.map((d, i) => {
+                const [x, y] = pt(i, maxR + 14);
                 return (
-                    <div key={d.label} className="flex items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                            <div className="text-[10px] text-[var(--text-muted)] mb-1">{d.label}</div>
-                            <div className="h-1 rounded-full bg-[var(--surface-2)] overflow-hidden">
-                                <div className={`h-full rounded-full ${color}`} style={{ width: `${d.val}%` }} />
+                    <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
+                        fontSize="8" fill="var(--text-muted)" fontFamily="inherit">
+                        {d.label}
+                    </text>
+                );
+            })}
+        </svg>
+    );
+}
+
+/* ─── Pipeline Journey Tracker ─── */
+function PipelineTrack({ stage }: { stage: string | null }) {
+    const stages = [
+        { key: "PROSPECT", label: "Prospect", icon: "○" },
+        { key: "ENGAGED", label: "Engaged", icon: "◎" },
+        { key: "HOT", label: "Hot", icon: "●" },
+        { key: "MEETING_BOOKED", label: "Meeting", icon: "◆" },
+        { key: "DISQUALIFIED", label: "Closed", icon: "✗" },
+    ];
+    const activeIdx = stages.findIndex(s => s.key === stage);
+    const isDisq = stage === "DISQUALIFIED";
+    return (
+        <div className="w-full px-1">
+            <div className="relative flex items-center justify-between">
+                <div className="absolute top-3.5 left-0 right-0 h-px bg-[var(--border)]" aria-hidden="true" />
+                <div
+                    className="absolute top-3.5 left-0 h-px bg-sky-400 transition-all duration-700"
+                    style={{ width: activeIdx >= 0 && !isDisq ? `${(activeIdx / (stages.length - 2)) * 100}%` : "0%" }}
+                    aria-hidden="true"
+                />
+                {stages.map((s, i) => {
+                    const done = !isDisq && i < activeIdx;
+                    const active = i === activeIdx;
+                    const disq = isDisq && s.key === "DISQUALIFIED";
+                    return (
+                        <div key={s.key} className="relative flex flex-col items-center gap-1.5 z-10">
+                            <div className={[
+                                "w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all",
+                                done ? "bg-sky-400 border-sky-400 text-white" :
+                                    active && !isDisq ? "bg-sky-400/20 border-sky-400 text-sky-400" :
+                                        disq ? "bg-red-400/20 border-red-400 text-red-400" :
+                                            "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)]",
+                            ].join(" ")}>
+                                {done ? "✓" : s.icon}
                             </div>
+                            <span className={`text-[9px] font-semibold ${active ? "text-sky-400" : disq ? "text-red-400" : done ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"
+                                }`}>{s.label}</span>
                         </div>
-                        <span className={`text-[11px] font-semibold tabular-nums min-w-[24px] text-right ${textColor}`}>{d.val}</span>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+/* ─── Signal Momentum Cards ─── */
+function SignalMomentum({ signals }: { signals: Signal[] }) {
+    if (!signals.length) return (
+        <p className="text-xs text-[var(--text-muted)] py-2">No signals detected yet.</p>
+    );
+    const sorted = [...signals].sort((a, b) => b.confidence - a.confidence).slice(0, 6);
+    return (
+        <div className="flex flex-col gap-2">
+            {sorted.map((sig) => {
+                const rawType = sig.signalType ?? sig.type ?? "UNKNOWN";
+                const cfg = SIGNAL_COLORS[rawType] ?? SIGNAL_COLORS.CONTENT;
+                const pct = Math.round(sig.confidence * 100);
+                const barColor = pct >= 80 ? "bg-emerald-400" : pct >= 60 ? "bg-sky-400" : pct >= 40 ? "bg-amber-400" : "bg-orange-400";
+                return (
+                    <div key={sig.id} className="bg-[var(--surface-2)] rounded-lg px-3 py-2.5 border border-[var(--border)] hover:border-sky-400/30 transition-colors">
+                        <div className="flex items-center justify-between mb-1.5">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${cfg.bg} ${cfg.text}`}>
+                                {rawType.replace(/_SIGNAL$/, "").replace(/_/g, " ")}
+                            </span>
+                            <span className={`text-[11px] font-bold tabular-nums ${pct >= 80 ? "text-emerald-400" : pct >= 60 ? "text-sky-400" : "text-amber-400"}`}>{pct}%</span>
+                        </div>
+                        <p className="text-[11px] text-[var(--text-secondary)] leading-snug mb-2 line-clamp-2">{sig.value}</p>
+                        <div className="h-1 rounded-full bg-[var(--surface)] overflow-hidden">
+                            <div className={`h-full rounded-full ${barColor} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                        </div>
                     </div>
                 );
             })}
+        </div>
+    );
+}
+
+/* ─── Engagement Metrics Row ─── */
+function EngagementMetrics({ lead }: { lead: Lead }) {
+    const msgs = lead._count?.outreachMessages ?? 0;
+    const reps = lead._count?.replies ?? 0;
+    const replyRate = msgs > 0 ? Math.round((reps / msgs) * 100) : 0;
+    const metrics = [
+        { label: "Emails Sent", value: msgs, icon: "✉", color: "text-sky-400" },
+        { label: "Replies", value: reps, icon: "↩", color: reps > 0 ? "text-emerald-400" : "text-[var(--text-muted)]" },
+        { label: "Reply Rate", value: `${replyRate}%`, icon: "◈", color: replyRate >= 30 ? "text-emerald-400" : replyRate >= 10 ? "text-amber-400" : "text-[var(--text-muted)]" },
+    ];
+    return (
+        <div className="grid grid-cols-3 gap-2">
+            {metrics.map(m => (
+                <div key={m.label} className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl px-3 py-3 flex flex-col gap-0.5">
+                    <span className="text-lg">{m.icon}</span>
+                    <span className={`text-xl font-bold tabular-nums ${m.color}`}>{m.value}</span>
+                    <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">{m.label}</span>
+                </div>
+            ))}
         </div>
     );
 }
@@ -485,370 +557,304 @@ function ExpandedRow({ lead, onReenriched }: { lead: Lead; onReenriched?: () => 
 
     return (
         <div className="px-6 py-5">
-                <div className="flex gap-4 border-b border-[var(--border)] mb-4 pb-2">
-                    <button
-                        onClick={() => setActiveTab("overview")}
-                        className={`text-xs font-semibold pb-1.5 focus:outline-none transition-all cursor-pointer ${activeTab === "overview"
-                                ? "text-[var(--text-primary)] border-b-2 border-[var(--red)]"
-                                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                            }`}
-                    >
-                        Overview
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("enrichment")}
-                        className={`text-xs font-semibold pb-1.5 focus:outline-none transition-all cursor-pointer ${activeTab === "enrichment"
-                                ? "text-[var(--text-primary)] border-b-2 border-[var(--red)]"
-                                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                            }`}
-                    >
-                        Enrichment Profile
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("research")}
-                        className={`text-xs font-semibold pb-1.5 focus:outline-none transition-all cursor-pointer ${activeTab === "research"
-                                ? "text-[var(--text-primary)] border-b-2 border-[var(--red)]"
-                                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                            }`}
-                    >
-                        Research
-                    </button>
-                </div>
+            <div className="flex gap-4 border-b border-[var(--border)] mb-4 pb-2">
+                <button
+                    onClick={() => setActiveTab("overview")}
+                    className={`text-xs font-semibold pb-1.5 focus:outline-none transition-all cursor-pointer ${activeTab === "overview"
+                        ? "text-[var(--text-primary)] border-b-2 border-[var(--red)]"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                        }`}
+                >
+                    Overview
+                </button>
+                <button
+                    onClick={() => setActiveTab("enrichment")}
+                    className={`text-xs font-semibold pb-1.5 focus:outline-none transition-all cursor-pointer ${activeTab === "enrichment"
+                        ? "text-[var(--text-primary)] border-b-2 border-[var(--red)]"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                        }`}
+                >
+                    Enrichment Profile
+                </button>
+                <button
+                    onClick={() => setActiveTab("research")}
+                    className={`text-xs font-semibold pb-1.5 focus:outline-none transition-all cursor-pointer ${activeTab === "research"
+                        ? "text-[var(--text-primary)] border-b-2 border-[var(--red)]"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                        }`}
+                >
+                    Research
+                </button>
+            </div>
 
-                {activeTab === "overview" ? (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-fade-in">
-                        {/* Contact */}
-                        <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">Contact</p>
-                                {!editMode && (
-                                    <button
-                                        onClick={() => setEditMode(true)}
-                                        className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer focus-visible:outline-none"
-                                        aria-label="Edit contact details"
-                                    >
-                                        Edit
-                                    </button>
-                                )}
+            {activeTab === "overview" ? (
+                <div className="space-y-5 animate-fade-in">
+                    {/* ── Row 1: Score ring + Radar + Engagement ── */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Score ring + pipeline */}
+                        <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-4 flex flex-col items-center gap-4">
+                            {lead.qualificationScore != null
+                                ? <ScoreRing score={Math.round(lead.qualificationScore)} />
+                                : <div className="h-28 flex items-center justify-center text-xs text-[var(--text-muted)]">Not yet scored</div>}
+                            <div className="w-full">
+                                <p className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-2 text-center">Pipeline Stage</p>
+                                <PipelineTrack stage={lead.pipelineStage} />
                             </div>
-                            {editMode ? (
-                                <div className="space-y-2">
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="First name"
-                                            value={editFields.firstName}
-                                            onChange={e => setEditFields(f => ({ ...f, firstName: e.target.value }))}
-                                            className="text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors"
-                                            aria-label="First name"
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Last name"
-                                            value={editFields.lastName}
-                                            onChange={e => setEditFields(f => ({ ...f, lastName: e.target.value }))}
-                                            className="text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors"
-                                            aria-label="Last name"
-                                        />
-                                    </div>
-                                    <input
-                                        type="email"
-                                        placeholder="Email address"
-                                        value={editFields.email}
-                                        onChange={e => setEditFields(f => ({ ...f, email: e.target.value }))}
-                                        className="w-full text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors"
-                                        aria-label="Email address"
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Job title"
-                                        value={editFields.title}
-                                        onChange={e => setEditFields(f => ({ ...f, title: e.target.value }))}
-                                        className="w-full text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors"
-                                        aria-label="Job title"
-                                    />
-                                    <input
-                                        type="url"
-                                        placeholder="Website"
-                                        value={editFields.website}
-                                        onChange={e => setEditFields(f => ({ ...f, website: e.target.value }))}
-                                        className="w-full text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors"
-                                        aria-label="Website"
-                                    />
-                                    <input
-                                        type="url"
-                                        placeholder="LinkedIn URL"
-                                        value={editFields.linkedinUrl}
-                                        onChange={e => setEditFields(f => ({ ...f, linkedinUrl: e.target.value }))}
-                                        className="w-full text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors"
-                                        aria-label="LinkedIn URL"
-                                    />
-                                    <div className="flex items-center gap-2 pt-1">
-                                        <button
-                                            onClick={handleSaveContact}
-                                            disabled={saveLoading}
-                                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-[var(--red)] text-white disabled:opacity-50 transition-all focus-visible:outline-none cursor-pointer hover:opacity-90"
-                                            aria-label="Save contact details"
-                                        >
-                                            {saveLoading ? (
-                                                <svg className="animate-spin" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
-                                                    <circle cx="12" cy="12" r="10" />
-                                                </svg>
-                                            ) : null}
-                                            {saveLoading ? "Saving..." : "Save Changes"}
-                                        </button>
-                                        <button
-                                            onClick={() => { setEditMode(false); setSaveError(null); }}
-                                            disabled={saveLoading}
-                                            className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none cursor-pointer"
-                                            aria-label="Cancel editing"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                    {saveError && <p className="text-[10px] text-[var(--red)] mt-1">{saveError}</p>}
-                                    {saveSuccess && <p className="text-[10px] text-emerald-400 mt-1">✓ Saved</p>}
-                                </div>
-                            ) : (
-                                <div className="space-y-1.5">
-                                    {lead.email && (
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 text-xs text-sky-400 hover:underline focus-visible:outline-none focus-visible:underline">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                                                    <polyline points="22,6 12,13 2,6" />
-                                                </svg>
-                                                {lead.email}
-                                            </a>
-                                            {lead.emailStatus && <EmailStatusBadge status={lead.emailStatus} />}
-                                        </div>
-                                    )}
-                                    {lead.website && (
-                                        <a href={`https://${lead.website.replace(/^https?:\/\//, "")}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-sky-400 hover:underline focus-visible:outline-none focus-visible:underline">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" />
-                                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                                            </svg>
-                                            {lead.website}
-                                        </a>
-                                    )}
-                                    {lead.linkedinUrl && (
-                                        <a href={lead.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-sky-400 hover:underline focus-visible:outline-none focus-visible:underline">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z" />
-                                                <circle cx="4" cy="4" r="2" />
-                                            </svg>
-                                            LinkedIn profile
-                                        </a>
-                                    )}
-                                    {!lead.email && !lead.website && !lead.linkedinUrl && (
-                                        <p className="text-xs text-[var(--text-muted)]">No contact info — click Edit to add</p>
-                                    )}
-                                    {lead.pipelineStage && (
-                                        <div className="pt-1">
-                                            <PipelinePill stage={lead.pipelineStage} />
-                                        </div>
-                                    )}
-                                    {lead.competitorSignal && (
-                                        <div className="pt-2">
-                                            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-1">Competitor Tech</p>
-                                            <CompetitorBadge tech={lead.competitorTech ?? []} />
-                                            {lead.competitorTech?.length > 0 && (
-                                                <p className="text-[10px] text-orange-400 mt-1.5 leading-relaxed">
-                                                    Displacement opportunity: this company currently uses a competing product.
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-                                    <div className="pt-3 border-t border-[var(--border)] mt-2">
-                                        <button
-                                            onClick={handleReenrich}
-                                            disabled={loading}
-                                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] disabled:opacity-50 transition-all focus-visible:outline-none cursor-pointer"
-                                        >
-                                            {loading ? (
-                                                <svg className="animate-spin" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
-                                                    <circle cx="12" cy="12" r="10" />
-                                                </svg>
-                                            ) : null}
-                                            {loading ? "Enriching..." : "Re-enrich Lead"}
-                                        </button>
-                                        {error && <p className="text-[10px] text-[var(--red)] mt-1">{error}</p>}
-                                        {result && (
-                                            <p className="text-[10px] text-emerald-400 mt-1">
-                                                ✓ Enriched: {result.fieldsAdded?.length ?? 0} fields added
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
-                        {/* Score breakdown */}
-                        <div>
-                            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-3">Score Breakdown</p>
+                        {/* Radar chart */}
+                        <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-4 flex flex-col items-center gap-1">
+                            <p className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-widest self-start mb-1">Score Dimensions</p>
                             {lead.breakdownScores
-                                ? <ScoreBreakdown scores={lead.breakdownScores} />
-                                : <p className="text-xs text-[var(--text-muted)]">Not yet scored</p>}
-                        </div>
-
-                        {/* Evidence triggers */}
-                        <div>
-                            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-3">Evidence</p>
-                            <EvidenceTriggers triggers={lead.evidenceTriggers ?? []} />
-                        </div>
-
-                        {/* Signals + AI reasoning */}
-                        <div>
-                            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-3">
-                                Signals ({lead.signals.length})
-                            </p>
-                            {lead.signals.length === 0 ? (
-                                <p className="text-xs text-[var(--text-muted)]">No signals detected</p>
-                            ) : (
-                                <div className="space-y-1.5 mb-4">
-                                    {lead.signals.map((sig) => {
-                                        const rawType = sig.signalType ?? sig.type ?? "UNKNOWN_SIGNAL";
-                                        const cfg = SIGNAL_COLORS[rawType] ?? SIGNAL_COLORS.CONTENT;
+                                ? <RadarChart scores={lead.breakdownScores} />
+                                : <div className="h-40 flex items-center justify-center text-xs text-[var(--text-muted)]">No breakdown data</div>}
+                            {lead.breakdownScores && (
+                                <div className="grid grid-cols-3 gap-x-4 gap-y-1 w-full mt-1">
+                                    {[
+                                        { label: "ICP", val: lead.breakdownScores.icpMatch },
+                                        { label: "Intent", val: lead.breakdownScores.intentStrength },
+                                        { label: "Funding", val: lead.breakdownScores.fundingSignals },
+                                        { label: "Hiring", val: lead.breakdownScores.hiringVelocity },
+                                        { label: "Tech", val: lead.breakdownScores.techFit },
+                                        { label: "Recency", val: lead.breakdownScores.recency },
+                                    ].map(d => {
+                                        const c = d.val >= 80 ? "text-emerald-400" : d.val >= 60 ? "text-amber-400" : d.val >= 40 ? "text-orange-400" : "text-red-400";
                                         return (
-                                            <div key={sig.id} className="flex items-center gap-2">
-                                                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${cfg.bg} ${cfg.text}`}>
-                                                    {rawType.replace(/_SIGNAL$/, "").replace(/_/g, " ")}
-                                                </span>
-                                                <span className="text-xs text-[var(--text-secondary)] truncate flex-1">{sig.value}</span>
-                                                <span className="text-xs text-[var(--text-muted)] tabular-nums flex-shrink-0">
-                                                    {(sig.confidence * 100).toFixed(0)}%
-                                                </span>
+                                            <div key={d.label} className="flex items-center justify-between">
+                                                <span className="text-[9px] text-[var(--text-muted)]">{d.label}</span>
+                                                <span className={`text-[10px] font-bold tabular-nums ${c}`}>{d.val}</span>
                                             </div>
                                         );
                                     })}
                                 </div>
                             )}
+                        </div>
+
+                        {/* Engagement + contact quick-view */}
+                        <div className="flex flex-col gap-3">
+                            <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-4">
+                                <p className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-3">Engagement</p>
+                                <EngagementMetrics lead={lead} />
+                            </div>
+                            <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-4 flex-1">
+                                <p className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-2">Contact</p>
+                                <div className="space-y-1.5">
+                                    {lead.email && (
+                                        <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 text-xs text-sky-400 hover:underline truncate">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+                                            {lead.email}
+                                        </a>
+                                    )}
+                                    {lead.website && (
+                                        <a href={lead.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-sky-400 hover:underline truncate">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /></svg>
+                                            {lead.website}
+                                        </a>
+                                    )}
+                                    {lead.linkedinUrl && (
+                                        <a href={lead.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-sky-400 hover:underline">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z" /><circle cx="4" cy="4" r="2" /></svg>
+                                            LinkedIn
+                                        </a>
+                                    )}
+                                    {lead.competitorSignal && lead.competitorTech?.length > 0 && (
+                                        <div className="pt-1">
+                                            <span className="text-[9px] font-semibold text-orange-400 uppercase tracking-wider">Competitor Stack</span>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                {lead.competitorTech.map(t => (
+                                                    <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-orange-400/10 text-orange-400 border border-orange-400/20 font-medium">{t}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── Row 2: Signal momentum + Evidence + AI Reasoning + Actions ── */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Signal momentum */}
+                        <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-4">
+                            <p className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-3">Signal Momentum ({lead.signals.length})</p>
+                            <SignalMomentum signals={lead.signals} />
+                        </div>
+
+                        {/* Evidence + AI reasoning + Actions */}
+                        <div className="flex flex-col gap-3">
+                            <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-4 flex-1">
+                                <p className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-3">Evidence Triggers</p>
+                                <EvidenceTriggers triggers={lead.evidenceTriggers ?? []} />
+                            </div>
                             {lead.qualificationReason && (
-                                <div className="pt-3 border-t border-[var(--border)]">
-                                    <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-1.5">AI Reasoning</p>
+                                <div className="bg-sky-400/5 border border-sky-400/20 rounded-2xl p-4">
+                                    <p className="text-[9px] font-semibold text-sky-400 uppercase tracking-widest mb-2">AI Reasoning</p>
                                     <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{lead.qualificationReason}</p>
                                 </div>
                             )}
+                            <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-4">
+                                <p className="text-[9px] font-semibold text-[var(--text-muted)] uppercase tracking-widest mb-3">Actions</p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        onClick={handleReenrich}
+                                        disabled={loading}
+                                        className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] disabled:opacity-50 transition-all focus-visible:outline-none cursor-pointer"
+                                    >
+                                        {loading ? <svg className="animate-spin" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden><circle cx="12" cy="12" r="10" /></svg> : null}
+                                        {loading ? "Enriching..." : "Re-enrich"}
+                                    </button>
+                                    {!editMode && (
+                                        <button onClick={() => setEditMode(true)} className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-all focus-visible:outline-none cursor-pointer">
+                                            Edit Contact
+                                        </button>
+                                    )}
+                                </div>
+                                {error && <p className="text-[10px] text-[var(--red-text)] mt-2">{error}</p>}
+                                {result && <p className="text-[10px] text-emerald-400 mt-2">✓ {result.fieldsAdded?.length ?? 0} fields updated</p>}
+                                {editMode && (
+                                    <div className="space-y-2 mt-3 pt-3 border-t border-[var(--border)]">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <input type="text" placeholder="First name" value={editFields.firstName} onChange={e => setEditFields(f => ({ ...f, firstName: e.target.value }))} className="text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors" aria-label="First name" />
+                                            <input type="text" placeholder="Last name" value={editFields.lastName} onChange={e => setEditFields(f => ({ ...f, lastName: e.target.value }))} className="text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors" aria-label="Last name" />
+                                        </div>
+                                        <input type="email" placeholder="Email" value={editFields.email} onChange={e => setEditFields(f => ({ ...f, email: e.target.value }))} className="w-full text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors" aria-label="Email" />
+                                        <input type="text" placeholder="Job title" value={editFields.title} onChange={e => setEditFields(f => ({ ...f, title: e.target.value }))} className="w-full text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors" aria-label="Job title" />
+                                        <input type="url" placeholder="Website" value={editFields.website} onChange={e => setEditFields(f => ({ ...f, website: e.target.value }))} className="w-full text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors" aria-label="Website" />
+                                        <input type="url" placeholder="LinkedIn URL" value={editFields.linkedinUrl} onChange={e => setEditFields(f => ({ ...f, linkedinUrl: e.target.value }))} className="w-full text-xs px-2 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--red)] transition-colors" aria-label="LinkedIn URL" />
+                                        <div className="flex items-center gap-2 pt-1">
+                                            <button onClick={handleSaveContact} disabled={saveLoading} className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-[var(--red)] text-white disabled:opacity-50 transition-all focus-visible:outline-none cursor-pointer hover:opacity-90" aria-label="Save">
+                                                {saveLoading ? "Saving..." : "Save Changes"}
+                                            </button>
+                                            <button onClick={() => { setEditMode(false); setSaveError(null); }} disabled={saveLoading} className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none cursor-pointer">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                        {saveError && <p className="text-[10px] text-[var(--red-text)]">{saveError}</p>}
+                                        {saveSuccess && <p className="text-[10px] text-emerald-400">✓ Saved</p>}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                ) : activeTab === "enrichment" ? (
-                    <div className="animate-fade-in">
-                        {hasEnrichment ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {/* Company Enrichment */}
-                                {company && (
-                                    <div className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--border)]">
-                                        <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-2">
-                                            <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <rect x="2" y="10" width="20" height="12" rx="2" />
-                                                    <path d="M6 10V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v6" />
-                                                </svg>
-                                                Company Intelligence
-                                            </h4>
-                                        </div>
-                                        <div className="space-y-0.5">
-                                            <InfoRow label="Company Name" value={company.name} entry={company.providerMap?.name} />
-                                            <InfoRow label="Domain" value={company.domain} entry={company.providerMap?.domain} />
-                                            <InfoRow label="Industry" value={company.industry} entry={company.providerMap?.industry} />
-                                            <InfoRow label="Employees" value={company.employeeCount} entry={company.providerMap?.employeeCount} />
-                                            <InfoRow label="Founded Year" value={company.foundedYear} entry={company.providerMap?.foundedYear} />
-                                            <InfoRow label="Total Funding" value={formatCurrency(company.fundingTotalUsd)} entry={company.providerMap?.fundingTotalUsd} />
-                                            <InfoRow label="Country" value={company.country} entry={company.providerMap?.country} />
-                                            <InfoRow label="LinkedIn Company" value={company.linkedinUrl} entry={company.providerMap?.linkedinUrl} />
-                                            {company.description && (
-                                                <div className="pt-3 border-t border-[var(--border)] mt-2 text-xs">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className="text-[var(--text-muted)] font-medium">Description</span>
-                                                        {company.providerMap?.description?.source && <SourceBadge source={company.providerMap.description.source} />}
-                                                    </div>
-                                                    <p className="text-[var(--text-secondary)] leading-relaxed text-[11px]">{company.description}</p>
-                                                </div>
-                                            )}
-                                            {company.techStack && company.techStack.length > 0 && (
-                                                <div className="pt-3 border-t border-[var(--border)] mt-2">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">Technologies</span>
-                                                        {company.providerMap?.techStack?.source && <SourceBadge source={company.providerMap.techStack.source} />}
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {company.techStack.map((tech: string) => (
-                                                            <span
-                                                                key={tech}
-                                                                className="text-[9px] font-medium px-2 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-secondary)] border border-[var(--border)] hover:text-[var(--text-primary)] hover:border-[var(--red-dim)] transition-colors duration-150"
-                                                            >
-                                                                {tech}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
+                </div>
+            ) : activeTab === "enrichment" ? (
+                <div className="animate-fade-in">
+                    {hasEnrichment ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Company Enrichment */}
+                            {company && (
+                                <div className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--border)]">
+                                    <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-2">
+                                        <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <rect x="2" y="10" width="20" height="12" rx="2" />
+                                                <path d="M6 10V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v6" />
+                                            </svg>
+                                            Company Intelligence
+                                        </h4>
                                     </div>
-                                )}
-
-                                {/* Person Enrichment */}
-                                {person && (
-                                    <div className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--border)]">
-                                        <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-2">
-                                            <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                                    <circle cx="12" cy="7" r="4" />
-                                                </svg>
-                                                Contact Intelligence
-                                            </h4>
-                                        </div>
-                                        <div className="space-y-0.5">
-                                            <InfoRow label="First Name" value={person.firstName} entry={person.providerMap?.firstName} />
-                                            <InfoRow label="Last Name" value={person.lastName} entry={person.providerMap?.lastName} />
-                                            <InfoRow label="Email" value={person.email} entry={person.providerMap?.email} />
-                                            <InfoRow label="Phone" value={person.phone} entry={person.providerMap?.phone} />
-                                            <InfoRow label="Job Title" value={person.title} entry={person.providerMap?.title} />
-                                            <InfoRow label="Seniority" value={person.seniority} entry={person.providerMap?.seniority} />
-                                            <InfoRow label="Department" value={person.department} entry={person.providerMap?.department} />
-                                            <InfoRow label="LinkedIn Profile" value={person.linkedinUrl} entry={person.providerMap?.linkedinUrl} />
-                                        </div>
+                                    <div className="space-y-0.5">
+                                        <InfoRow label="Company Name" value={company.name} entry={company.providerMap?.name} />
+                                        <InfoRow label="Domain" value={company.domain} entry={company.providerMap?.domain} />
+                                        <InfoRow label="Industry" value={company.industry} entry={company.providerMap?.industry} />
+                                        <InfoRow label="Employees" value={company.employeeCount} entry={company.providerMap?.employeeCount} />
+                                        <InfoRow label="Founded Year" value={company.foundedYear} entry={company.providerMap?.foundedYear} />
+                                        <InfoRow label="Total Funding" value={formatCurrency(company.fundingTotalUsd)} entry={company.providerMap?.fundingTotalUsd} />
+                                        <InfoRow label="Country" value={company.country} entry={company.providerMap?.country} />
+                                        <InfoRow label="LinkedIn Company" value={company.linkedinUrl} entry={company.providerMap?.linkedinUrl} />
+                                        {company.description && (
+                                            <div className="pt-3 border-t border-[var(--border)] mt-2 text-xs">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-[var(--text-muted)] font-medium">Description</span>
+                                                    {company.providerMap?.description?.source && <SourceBadge source={company.providerMap.description.source} />}
+                                                </div>
+                                                <p className="text-[var(--text-secondary)] leading-relaxed text-[11px]">{company.description}</p>
+                                            </div>
+                                        )}
+                                        {company.techStack && company.techStack.length > 0 && (
+                                            <div className="pt-3 border-t border-[var(--border)] mt-2">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">Technologies</span>
+                                                    {company.providerMap?.techStack?.source && <SourceBadge source={company.providerMap.techStack.source} />}
+                                                </div>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {company.techStack.map((tech: string) => (
+                                                        <span
+                                                            key={tech}
+                                                            className="text-[9px] font-medium px-2 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-secondary)] border border-[var(--border)] hover:text-[var(--text-primary)] hover:border-[var(--red-dim)] transition-colors duration-150"
+                                                        >
+                                                            {tech}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-12 text-center gap-3 bg-[var(--surface)] rounded-xl border border-dashed border-[var(--border)]">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--text-muted)]" aria-hidden="true">
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                </svg>
-                                <div>
-                                    <p className="text-xs font-semibold text-[var(--text-secondary)]">No enrichment details cached</p>
-                                    <p className="text-[11px] text-[var(--text-muted)] max-w-xs mt-1">
-                                        Use the re-enrich button on the overview tab to trigger the multi-provider waterfall pipeline for this lead.
-                                    </p>
                                 </div>
-                                <button
-                                    onClick={handleReenrich}
-                                    disabled={loading}
-                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-[var(--red)] text-white hover:bg-[var(--red-dim)] disabled:opacity-50 transition-all focus-visible:outline-none cursor-pointer"
-                                >
-                                    {loading ? "Enriching..." : "Enrich Lead Now"}
-                                </button>
+                            )}
+
+                            {/* Person Enrichment */}
+                            {person && (
+                                <div className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--border)]">
+                                    <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-2">
+                                        <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                                <circle cx="12" cy="7" r="4" />
+                                            </svg>
+                                            Contact Intelligence
+                                        </h4>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <InfoRow label="First Name" value={person.firstName} entry={person.providerMap?.firstName} />
+                                        <InfoRow label="Last Name" value={person.lastName} entry={person.providerMap?.lastName} />
+                                        <InfoRow label="Email" value={person.email} entry={person.providerMap?.email} />
+                                        <InfoRow label="Phone" value={person.phone} entry={person.providerMap?.phone} />
+                                        <InfoRow label="Job Title" value={person.title} entry={person.providerMap?.title} />
+                                        <InfoRow label="Seniority" value={person.seniority} entry={person.providerMap?.seniority} />
+                                        <InfoRow label="Department" value={person.department} entry={person.providerMap?.department} />
+                                        <InfoRow label="LinkedIn Profile" value={person.linkedinUrl} entry={person.providerMap?.linkedinUrl} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center gap-3 bg-[var(--surface)] rounded-xl border border-dashed border-[var(--border)]">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--text-muted)]" aria-hidden="true">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            </svg>
+                            <div>
+                                <p className="text-xs font-semibold text-[var(--text-secondary)]">No enrichment details cached</p>
+                                <p className="text-[11px] text-[var(--text-muted)] max-w-xs mt-1">
+                                    Use the re-enrich button on the overview tab to trigger the multi-provider waterfall pipeline for this lead.
+                                </p>
                             </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="animate-fade-in">
-                        <LeadResearchPanel
-                            leadId={lead.id}
-                            leadName={[lead.firstName, lead.lastName].filter(Boolean).join(" ") || "Prospect"}
-                            companyName={lead.companyName}
-                        />
-                    </div>
-                )}
+                            <button
+                                onClick={handleReenrich}
+                                disabled={loading}
+                                className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-[var(--red)] text-white hover:bg-[var(--red-dim)] disabled:opacity-50 transition-all focus-visible:outline-none cursor-pointer"
+                            >
+                                {loading ? "Enriching..." : "Enrich Lead Now"}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="animate-fade-in">
+                    <LeadResearchPanel
+                        leadId={lead.id}
+                        leadName={[lead.firstName, lead.lastName].filter(Boolean).join(" ") || "Prospect"}
+                        companyName={lead.companyName}
+                    />
+                </div>
+            )}
         </div>
     );
 }
 
 function LeadDetailModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void; onSaved: () => void }) {
     const dialogRef = useRef<HTMLDialogElement>(null);
+    const [visible, setVisible] = useState(false);
     const name = lead.firstName ? `${lead.firstName} ${lead.lastName ?? ""}`.trim() : null;
     const initial = (lead.firstName?.[0] ?? lead.companyName[0]).toUpperCase();
     const actionCfg = lead.recommendedAction ? ACTION_CFG[lead.recommendedAction] : null;
@@ -856,26 +862,41 @@ function LeadDetailModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () =
     useEffect(() => {
         const el = dialogRef.current;
         if (el && !el.open) el.showModal();
+        requestAnimationFrame(() => setVisible(true));
     }, []);
+
+    const handleClose = useCallback(() => {
+        setVisible(false);
+        setTimeout(onClose, 300);
+    }, [onClose]);
 
     function handleCancel(e: React.SyntheticEvent) {
         e.preventDefault();
-        onClose();
-    }
-
-    function handleBackdrop(e: React.MouseEvent<HTMLDialogElement>) {
-        if (e.target === dialogRef.current) onClose();
+        handleClose();
     }
 
     return (
         <dialog
             ref={dialogRef}
             onCancel={handleCancel}
-            onClick={handleBackdrop}
             aria-labelledby="lead-detail-modal-title"
-            className="modal-panel m-auto w-full max-w-5xl bg-transparent p-4 backdrop:bg-black/70 backdrop:backdrop-blur-md"
+            className="sheet-panel"
         >
-            <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "90vh" }}>
+            <div
+                className={[
+                    "absolute inset-0 bg-black/45 backdrop-blur-xs transition-opacity duration-300",
+                    visible ? "opacity-100" : "opacity-0",
+                ].join(" ")}
+                onClick={handleClose}
+                aria-hidden="true"
+            />
+            <div
+                className={[
+                    "absolute top-0 right-0 h-full w-full max-w-4xl bg-[var(--surface)] border-l border-[var(--border)] flex flex-col shadow-2xl",
+                    "transition-transform duration-300 ease-in-out",
+                    visible ? "translate-x-0" : "translate-x-full",
+                ].join(" ")}
+            >
                 <div className="flex items-center gap-4 px-6 pt-6 pb-5 border-b border-[var(--border)] flex-shrink-0">
                     <div
                         className="w-11 h-11 rounded-xl border border-[var(--border)] flex items-center justify-center text-sm font-bold flex-shrink-0 select-none"
@@ -937,7 +958,7 @@ function LeadDetailModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () =
                             </a>
                         )}
                         <button
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
                             aria-label="Close lead details"
                         >
@@ -957,6 +978,135 @@ function LeadDetailModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () =
 }
 
 /* ─── Skeleton ─── */
+/* ─── Mobile lead card ─── */
+function MobileLeadCard({
+    lead,
+    isSelected,
+    onSelect,
+    onExpand,
+    onDelete,
+}: {
+    lead: Lead;
+    isSelected: boolean;
+    onSelect: () => void;
+    onExpand: () => void;
+    onDelete: () => void;
+}) {
+    const name = lead.firstName ? `${lead.firstName} ${lead.lastName ?? ""}`.trim() : null;
+    const initial = (lead.firstName?.[0] ?? lead.companyName[0]).toUpperCase();
+    const actionCfg = lead.recommendedAction ? ACTION_CFG[lead.recommendedAction] : null;
+    const score = lead.qualificationScore;
+    const scoreColor = score == null ? "text-[var(--text-muted)]" : score >= 80 ? "text-emerald-400" : score >= 60 ? "text-amber-400" : score >= 40 ? "text-orange-400" : "text-[var(--red-text)]";
+
+    return (
+        <div
+            className={`relative border-b border-[var(--border)] px-3 py-3 transition-colors duration-100 ${isSelected ? "bg-sky-400/5" : "bg-[var(--navy-mid)] active:bg-[var(--surface-2)]"
+                }`}
+        >
+            {/* Selection strip */}
+            {isSelected && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--red)]" aria-hidden="true" />}
+
+            <div className="flex items-start gap-3">
+                {/* Checkbox */}
+                <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={onSelect}
+                    aria-label={`Select ${lead.companyName}`}
+                    className="accent-[var(--red)] cursor-pointer mt-1 flex-shrink-0"
+                />
+
+                {/* Avatar */}
+                <LeadAvatar lead={lead} initial={initial} />
+
+                {/* Main content */}
+                <div className="flex-1 min-w-0">
+                    {/* Row 1: name + score */}
+                    <div className="flex items-baseline justify-between gap-2">
+                        <div className="min-w-0">
+                            {name && <p className="text-sm font-semibold text-[var(--text-primary)] truncate leading-tight">{name}</p>}
+                            <p className={`truncate ${name ? "text-xs text-[var(--text-muted)]" : "text-sm font-semibold text-[var(--text-primary)]"} leading-tight`}>{lead.companyName}</p>
+                        </div>
+                        {/* Score badge */}
+                        {score != null && (
+                            <span className={`text-base font-extrabold tabular-nums flex-shrink-0 ${scoreColor}`}>{Math.round(score)}</span>
+                        )}
+                    </div>
+
+                    {/* Row 2: action + pipeline + signals */}
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        {actionCfg && (
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${actionCfg.className}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${actionCfg.dot}`} />
+                                {actionCfg.label}
+                            </span>
+                        )}
+                        {lead.pipelineStage && (
+                            <PipelinePill stage={lead.pipelineStage} />
+                        )}
+                        {lead.signals.slice(0, 2).map((s) => (
+                            <SignalBadge key={s.id} type={s.type} signalType={s.signalType} />
+                        ))}
+                        {lead.signals.length > 2 && (
+                            <span className="text-[9px] text-[var(--text-muted)] font-semibold">+{lead.signals.length - 2}</span>
+                        )}
+                        {lead.competitorSignal && (
+                            <CompetitorBadge tech={lead.competitorTech ?? []} />
+                        )}
+                    </div>
+
+                    {/* Row 3: campaign + date */}
+                    <div className="flex items-center justify-between mt-1">
+                        <div className="flex items-center gap-1 min-w-0">
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[lead.campaign.status] ?? "bg-[var(--text-muted)]"}`} aria-hidden="true" />
+                            <span className="text-[10px] text-[var(--text-secondary)] truncate">{lead.campaign.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            {lead._count.replies > 0 && (
+                                <span className="text-[10px] text-emerald-400 font-semibold tabular-nums">{lead._count.replies} rep</span>
+                            )}
+                            <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
+                                {new Date(lead.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Expand chevron */}
+                <button
+                    onClick={onExpand}
+                    aria-label={`View details for ${lead.companyName}`}
+                    className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function MobileSkeletonCard() {
+    return (
+        <div className="border-b border-[var(--border)] px-3 py-3" aria-hidden="true">
+            <div className="flex items-start gap-3">
+                <div className="h-4 w-4 bg-[var(--surface-2)] rounded animate-pulse mt-1 flex-shrink-0" />
+                <div className="h-8 w-8 bg-[var(--surface-2)] rounded-full animate-pulse flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                    <div className="h-3 w-32 bg-[var(--surface-2)] rounded animate-pulse" />
+                    <div className="h-2.5 w-20 bg-[var(--surface-2)] rounded animate-pulse" />
+                    <div className="flex gap-1">
+                        <div className="h-4 w-16 bg-[var(--surface-2)] rounded-full animate-pulse" />
+                        <div className="h-4 w-12 bg-[var(--surface-2)] rounded-full animate-pulse" />
+                    </div>
+                </div>
+                <div className="h-8 w-8 bg-[var(--surface-2)] rounded-lg animate-pulse flex-shrink-0" />
+            </div>
+        </div>
+    );
+}
+
 function SkeletonRow() {
     return (
         <tr className="border-b border-[var(--border)]" aria-hidden="true">
@@ -1060,7 +1210,7 @@ function DeleteModal({
         >
             <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 w-full shadow-2xl">
                 <div className="flex items-start gap-4 mb-5">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--red-glow)] flex items-center justify-center text-[var(--red)] flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--red-glow)] flex items-center justify-center text-[var(--red-text)] flex-shrink-0">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             <polyline points="3 6 5 6 21 6" />
                             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -1126,7 +1276,7 @@ function SortButton({
             {label}
             <svg
                 width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                className={`transition-all duration-150 ${active ? "text-[var(--red)]" : "opacity-0 group-hover:opacity-50"} ${active && sortDir === "asc" ? "rotate-180" : ""}`}
+                className={`transition-all duration-150 ${active ? "text-[var(--red-text)]" : "opacity-0 group-hover:opacity-50"} ${active && sortDir === "asc" ? "rotate-180" : ""}`}
                 aria-hidden="true"
             >
                 <polyline points="6 9 12 15 18 9" />
@@ -1220,7 +1370,7 @@ function AddLeadSheet({
         return (
             <div>
                 <label htmlFor={id} className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">
-                    {label}{opts?.required && <span className="text-[var(--red)] ml-1" aria-label="required">*</span>}
+                    {label}{opts?.required && <span className="text-[var(--red-text)] ml-1" aria-label="required">*</span>}
                 </label>
                 <input
                     id={id}
@@ -1235,7 +1385,7 @@ function AddLeadSheet({
                     autoComplete={opts?.type === "email" ? "email" : "off"}
                     className={inputCls(key as string)}
                 />
-                {err && <p id={errId} role="alert" className="mt-1 text-[11px] text-[var(--red)]">{err}</p>}
+                {err && <p id={errId} role="alert" className="mt-1 text-[11px] text-[var(--red-text)]">{err}</p>}
             </div>
         );
     }
@@ -1273,7 +1423,7 @@ function AddLeadSheet({
                 <form onSubmit={handleSubmit} noValidate className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
                     <div>
                         <label htmlFor="field-campaign" className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">
-                            Campaign <span className="text-[var(--red)]" aria-label="required">*</span>
+                            Campaign <span className="text-[var(--red-text)]" aria-label="required">*</span>
                         </label>
                         <select
                             id="field-campaign"
@@ -1288,7 +1438,7 @@ function AddLeadSheet({
                             {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                         {fieldErrors.campaignId && (
-                            <p id="field-campaign-error" role="alert" className="mt-1 text-[11px] text-[var(--red)]">{fieldErrors.campaignId}</p>
+                            <p id="field-campaign-error" role="alert" className="mt-1 text-[11px] text-[var(--red-text)]">{fieldErrors.campaignId}</p>
                         )}
                     </div>
                     {field("Company Name", "companyName", { required: true, placeholder: "Acme Corp" })}
@@ -1301,7 +1451,7 @@ function AddLeadSheet({
                     {field("Website", "website", { placeholder: "https://acme.com" })}
                     {field("LinkedIn URL", "linkedinUrl", { placeholder: "https://linkedin.com/in/…" })}
                     {serverError && (
-                        <p role="alert" className="text-xs text-[var(--red)] bg-[var(--red-glow)] border border-[var(--border-red)] px-3 py-2 rounded-lg">
+                        <p role="alert" className="text-xs text-[var(--red-text)] bg-[var(--red-glow)] border border-[var(--border-red)] px-3 py-2 rounded-lg">
                             {serverError}
                         </p>
                     )}
@@ -1336,8 +1486,9 @@ export default function LeadsPage() {
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [campaignFilter, setCampaignFilter] = useState<string>("");
-    // New filters
     const [actionFilter, setActionFilter] = useState<string>("");
+    const [pipelineStageFilter, setPipelineStageFilter] = useState<string>("");
+    const [emailStatusFilter, setEmailStatusFilter] = useState<string>("");
     const [minScore, setMinScore] = useState(0);
     const [competitorOnly, setCompetitorOnly] = useState(false);
     const [page, setPage] = useState(1);
@@ -1358,6 +1509,40 @@ export default function LeadsPage() {
         localStorage.setItem("leads-density", val);
     };
 
+    const [colWidths, setColWidths] = useState({
+        lead: 250,
+        campaign: 150,
+        score: 80,
+        action: 130,
+        pipeline: 120,
+        signals: 220,
+        added: 120,
+    });
+
+    const startResize = useCallback((e: React.MouseEvent, colName: keyof typeof colWidths) => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startWidth = colWidths[colName];
+
+        const doDrag = (dragEvent: MouseEvent) => {
+            const deltaX = dragEvent.clientX - startX;
+            setColWidths((prev) => ({
+                ...prev,
+                [colName]: Math.max(60, startWidth + deltaX),
+            }));
+        };
+
+        const stopDrag = () => {
+            document.body.style.cursor = "";
+            document.removeEventListener("mousemove", doDrag);
+            document.removeEventListener("mouseup", stopDrag);
+        };
+
+        document.body.style.cursor = "col-resize";
+        document.addEventListener("mousemove", doDrag);
+        document.addEventListener("mouseup", stopDrag);
+    }, [colWidths]);
+
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
     const [detailLead, setDetailLead] = useState<Lead | null>(null);
@@ -1365,8 +1550,26 @@ export default function LeadsPage() {
     const [showAddSheet, setShowAddSheet] = useState(false);
     const [showCsvImport, setShowCsvImport] = useState(false);
 
+    const [editingCell, setEditingCell] = useState<{ leadId: string; field: "firstName" | "lastName" | "title" | "pipelineStage" } | null>(null);
+    const [inlineVal, setInlineVal] = useState("");
+
     const [enriching, setEnriching] = useState(false);
-    const [toast, setToast] = useState<string | null>(null);
+    const { toasts, addToast, dismiss } = useToast();
+
+    async function handleInlineUpdate(leadId: string, field: string, value: string) {
+        setEditingCell(null);
+        try {
+            const res = await fetch(`/api/leads/${leadId}`, {
+                method: "PATCH",
+                headers: authHeaders(),
+                body: JSON.stringify({ [field]: value.trim() || null }),
+            });
+            if (!res.ok) throw new Error("Inline update failed");
+            loadLeads();
+        } catch {
+            addToast("error", "Failed to update lead inline");
+        }
+    }
 
     async function handleEnrich() {
         setEnriching(true);
@@ -1378,16 +1581,108 @@ export default function LeadsPage() {
             });
             if (!res.ok) throw new Error("Bulk enrichment failed");
             const json = await res.json();
-            setToast(`${json.fieldsAdded} fields added across ${json.succeeded} leads`);
+            addToast("success", `${json.fieldsAdded} fields added across ${json.succeeded} leads`);
             setSelectedIds(new Set());
             loadLeads();
-            setTimeout(() => setToast(null), 4000);
         } catch {
-            setToast("Enrichment failed — check logs");
-            setTimeout(() => setToast(null), 4000);
+            addToast("error", "Enrichment failed — check logs");
         } finally {
             setEnriching(false);
         }
+    }
+
+    async function handleBulkStage(stage: string) {
+        const selectedLeads = leads.filter(l => selectedIds.has(l.id));
+        const campaignId = selectedLeads[0]?.campaign?.id;
+        if (!campaignId) {
+            addToast("info", "No leads selected");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/leads/bulk/stage", {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    campaignId,
+                    leadIds: Array.from(selectedIds),
+                    pipelineStage: stage
+                }),
+            });
+            if (!res.ok) throw new Error("Bulk stage update failed");
+            const json = await res.json();
+            addToast("success", `Updated stage to ${stage} for ${json.updated} leads`);
+            setSelectedIds(new Set());
+            loadLeads();
+        } catch {
+            addToast("error", "Failed to update stage");
+        }
+    }
+
+    async function handleBulkDelete() {
+        const selectedLeads = leads.filter(l => selectedIds.has(l.id));
+        const campaignId = selectedLeads[0]?.campaign?.id;
+        if (!campaignId) {
+            addToast("info", "No leads selected");
+            return;
+        }
+
+        if (!window.confirm(`Are you sure you want to delete and suppress the ${selectedIds.size} selected leads?`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/leads/bulk/suppress", {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    campaignId,
+                    leadIds: Array.from(selectedIds),
+                }),
+            });
+            if (!res.ok) throw new Error("Bulk delete failed");
+            const json = await res.json();
+            addToast("success", `Successfully deleted ${json.deleted} and suppressed ${json.suppressed} leads`);
+            setSelectedIds(new Set());
+            loadLeads();
+        } catch {
+            addToast("error", "Failed to delete leads");
+        }
+    }
+
+    function handleExportCSV() {
+        const selectedLeads = leads.filter(l => selectedIds.has(l.id));
+        if (selectedLeads.length === 0) {
+            addToast("info", "No leads selected");
+            return;
+        }
+
+        const headers = ["First Name", "Last Name", "Email", "Title", "Company Name", "Website", "LinkedIn URL", "Score", "Stage"];
+        const rows = selectedLeads.map(l => [
+            l.firstName ?? "",
+            l.lastName ?? "",
+            l.email ?? "",
+            l.title ?? "",
+            l.companyName,
+            l.website ?? "",
+            l.linkedinUrl ?? "",
+            l.qualificationScore ?? "",
+            l.pipelineStage ?? "",
+        ]);
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `scoutsend_leads_export_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     useEffect(() => {
@@ -1415,6 +1710,8 @@ export default function LeadsPage() {
                 ...(campaignFilter && { campaignId: campaignFilter }),
                 ...(debouncedSearch && { search: debouncedSearch }),
                 ...(actionFilter && { recommendedAction: actionFilter }),
+                ...(pipelineStageFilter && { pipelineStage: pipelineStageFilter }),
+                ...(emailStatusFilter && { emailStatus: emailStatusFilter }),
                 ...(minScore > 0 && { minScore: String(minScore) }),
                 ...(competitorOnly && { competitorSignal: "true" }),
             });
@@ -1426,7 +1723,7 @@ export default function LeadsPage() {
         } finally {
             setLoading(false);
         }
-    }, [campaignFilter, campaigns, page, debouncedSearch, actionFilter, minScore, competitorOnly]);
+    }, [campaignFilter, campaigns, page, debouncedSearch, actionFilter, pipelineStageFilter, emailStatusFilter, minScore, competitorOnly]);
 
     useEffect(() => { loadLeads(); }, [loadLeads]);
 
@@ -1464,46 +1761,46 @@ export default function LeadsPage() {
         finally { setIsDeleting(false); }
     }
 
-    const hasFilters = Boolean(debouncedSearch || campaignFilter || actionFilter || minScore > 0 || competitorOnly);
+    const hasFilters = Boolean(debouncedSearch || campaignFilter || actionFilter || pipelineStageFilter || emailStatusFilter || minScore > 0 || competitorOnly);
     const activeCampaignId = campaignFilter || campaigns[0]?.id || "";
 
     return (
         <>
             <div className="flex flex-col h-full overflow-hidden">
                 {/* ── Header ── */}
-                <header className="flex items-center justify-between h-16 px-6 border-b border-[var(--border)] bg-[var(--navy-mid)] flex-shrink-0">
-                    <div>
-                        <h1 className="text-base font-semibold font-display text-[var(--text-primary)] leading-none">Leads</h1>
-                        <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                            {loading ? "Loading…" : `${meta.total.toLocaleString()} total`}
-                        </p>
+                <header className="flex items-center justify-between h-11 pl-14 lg:pl-6 pr-4 border-b border-[var(--border)] bg-[var(--navy-mid)] flex-shrink-0">
+                    <div className="flex items-baseline gap-2 min-w-0">
+                        <h1 className="text-sm font-semibold font-display text-[var(--text-primary)] leading-none truncate">Leads</h1>
+                        <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">
+                            {loading ? "…" : `${meta.total.toLocaleString()} total`}
+                        </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
                             aria-label="Notifications"
-                            className="relative flex items-center justify-center w-9 h-9 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                            className="relative flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
                             </svg>
                         </button>
                         <button
                             onClick={() => setShowCsvImport(true)}
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                            className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
                         >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
                             </svg>
-                            Import CSV
+                            <span className="hidden md:inline">Import CSV</span>
                         </button>
                         <button
                             onClick={() => setShowAddSheet(true)}
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-[var(--red)] text-white hover:bg-[var(--red-dim)] active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--navy-mid)]"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-[var(--red)] text-white hover:bg-[var(--red-dim)] active:scale-[0.97] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--navy-mid)]"
                         >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                             </svg>
-                            Add Lead
+                            <span className="hidden sm:inline">Add Lead</span>
                         </button>
                     </div>
                 </header>
@@ -1512,127 +1809,170 @@ export default function LeadsPage() {
                 {!loading && <StatsBar leads={leads} total={meta.total} />}
 
                 {/* ── Filters ── */}
-                <div className="flex items-center gap-2.5 px-6 py-3 border-b border-[var(--border)] bg-[var(--navy-mid)] flex-shrink-0 flex-wrap">
-                    {/* Search */}
-                    <div className="relative flex-1 min-w-[200px] max-w-sm">
-                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <input
-                            type="search"
-                            placeholder="Search name, company, email…"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            aria-label="Search leads"
-                            className="w-full pl-9 pr-4 py-2 text-sm bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-red)] focus:ring-1 focus:ring-[var(--red)] transition-colors duration-150"
-                        />
-                    </div>
+                <div className="flex flex-col gap-0 border-b border-[var(--border)] bg-[var(--navy-mid)] flex-shrink-0">
+                    {/* Row 1: search + selects (always visible) */}
+                    <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
+                        {/* Search */}
+                        <div className="relative flex-1 min-w-[140px]">
+                            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input
+                                type="search"
+                                placeholder="Search name, company, email…"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                aria-label="Search leads"
+                                className="w-full pl-8 pr-3 py-1.5 text-xs bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-red)] focus:ring-1 focus:ring-[var(--red)] transition-colors duration-150"
+                            />
+                        </div>
 
-                    {/* Campaign */}
-                    <div className="relative">
-                        <select
-                            value={campaignFilter}
-                            onChange={(e) => { setCampaignFilter(e.target.value); setPage(1); }}
-                            aria-label="Filter by campaign"
-                            className="appearance-none pl-3 pr-8 py-2 text-sm bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-red)] focus:ring-1 focus:ring-[var(--red)] transition-colors duration-150 cursor-pointer"
+                        {/* Campaign */}
+                        <div className="relative">
+                            <select
+                                value={campaignFilter}
+                                onChange={(e) => { setCampaignFilter(e.target.value); setPage(1); }}
+                                aria-label="Filter by campaign"
+                                className="appearance-none pl-2.5 pr-7 py-1.5 text-xs bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-red)] focus:ring-1 focus:ring-[var(--red)] transition-colors duration-150 cursor-pointer"
+                            >
+                                <option value="">All campaigns</option>
+                                {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                            <svg className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </div>
+
+                        {/* Action filter */}
+                        <div className="relative">
+                            <select
+                                value={actionFilter}
+                                onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
+                                aria-label="Filter by recommended action"
+                                className="appearance-none pl-2.5 pr-7 py-1.5 text-xs bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-red)] focus:ring-1 focus:ring-[var(--red)] transition-colors duration-150 cursor-pointer"
+                            >
+                                <option value="">All actions</option>
+                                <option value="HIGH_PRIORITY">⚡ High Priority</option>
+                                <option value="STANDARD">Standard</option>
+                                <option value="NURTURE">Nurture</option>
+                                <option value="DISQUALIFY">Disqualify</option>
+                            </select>
+                            <svg className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </div>
+
+                        {/* Pipeline Stage filter */}
+                        <div className="relative">
+                            <select
+                                value={pipelineStageFilter}
+                                onChange={(e) => { setPipelineStageFilter(e.target.value); setPage(1); }}
+                                aria-label="Filter by pipeline stage"
+                                className="appearance-none pl-2.5 pr-7 py-1.5 text-xs bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-red)] focus:ring-1 focus:ring-[var(--red)] transition-colors duration-150 cursor-pointer"
+                            >
+                                <option value="">All stages</option>
+                                <option value="PROSPECT">Prospect</option>
+                                <option value="ENGAGED">Engaged</option>
+                                <option value="HOT">Hot</option>
+                                <option value="MEETING_BOOKED">Meeting Booked</option>
+                                <option value="DISQUALIFIED">Disqualified</option>
+                            </select>
+                            <svg className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </div>
+
+                        {/* Email Status filter */}
+                        <div className="relative">
+                            <select
+                                value={emailStatusFilter}
+                                onChange={(e) => { setEmailStatusFilter(e.target.value); setPage(1); }}
+                                aria-label="Filter by email status"
+                                className="appearance-none pl-2.5 pr-7 py-1.5 text-xs bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-red)] focus:ring-1 focus:ring-[var(--red)] transition-colors duration-150 cursor-pointer"
+                            >
+                                <option value="">All email status</option>
+                                <option value="FOUND">Email Found</option>
+                                <option value="NOT_FOUND">Email Not Found</option>
+                                <option value="NOT_ATTEMPTED">Not Attempted</option>
+                                <option value="PENDING">Pending Verification</option>
+                            </select>
+                            <svg className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </div>
+
+                        {/* Score slider */}
+                        <div className="flex items-center gap-1.5 flex-shrink-0" aria-label="Minimum score filter">
+                            <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">Score ≥</span>
+                            <input
+                                type="range" min={0} max={100} step={5} value={minScore}
+                                onChange={(e) => { setMinScore(Number(e.target.value)); setPage(1); }}
+                                className="w-20 accent-[var(--red)]"
+                                aria-label={`Minimum score: ${minScore}`}
+                            />
+                            <span className={`text-[10px] font-semibold tabular-nums min-w-[20px] ${minScore > 0 ? "text-[var(--red-text)]" : "text-[var(--text-muted)]"}`}>
+                                {minScore > 0 ? minScore : "—"}
+                            </span>
+                        </div>
+
+                        {/* Competitor toggle */}
+                        <button
+                            onClick={() => { setCompetitorOnly(v => !v); setPage(1); }}
+                            aria-pressed={competitorOnly}
+                            aria-label="Show competitor users only"
+                            title="Show leads using competitor products"
+                            className={[
+                                "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1.5 rounded-lg border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 whitespace-nowrap",
+                                competitorOnly
+                                    ? "bg-orange-400/15 border-orange-400/40 text-orange-400"
+                                    : "bg-[var(--surface)] border-[var(--border)] text-[var(--text-muted)] hover:border-orange-400/30 hover:text-orange-400",
+                            ].join(" ")}
                         >
-                            <option value="">All campaigns</option>
-                            {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                    </div>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z" />
+                            </svg>
+                            <span className="hidden sm:inline">Competitor users</span>
+                            <span className="sm:hidden">Competitors</span>
+                        </button>
 
-                    {/* Action filter — NEW */}
-                    <div className="relative">
-                        <select
-                            value={actionFilter}
-                            onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
-                            aria-label="Filter by recommended action"
-                            className="appearance-none pl-3 pr-8 py-2 text-sm bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-red)] focus:ring-1 focus:ring-[var(--red)] transition-colors duration-150 cursor-pointer"
-                        >
-                            <option value="">All actions</option>
-                            <option value="HIGH_PRIORITY">⚡ High Priority</option>
-                            <option value="STANDARD">Standard</option>
-                            <option value="NURTURE">Nurture</option>
-                            <option value="DISQUALIFY">Disqualify</option>
-                        </select>
-                        <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                    </div>
+                        {hasFilters && (
+                            <button
+                                onClick={() => { setSearch(""); setCampaignFilter(""); setActionFilter(""); setPipelineStageFilter(""); setEmailStatusFilter(""); setMinScore(0); setCompetitorOnly(false); setPage(1); }}
+                                className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--red-text)] transition-colors duration-150 focus-visible:outline-none focus-visible:underline"
+                                aria-label="Clear all filters"
+                            >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                                Clear
+                            </button>
+                        )}
 
-                    {/* Score slider — NEW */}
-                    <div className="flex items-center gap-2" aria-label="Minimum score filter">
-                        <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">Score ≥</span>
-                        <input
-                            type="range" min={0} max={100} step={5} value={minScore}
-                            onChange={(e) => { setMinScore(Number(e.target.value)); setPage(1); }}
-                            className="w-24 accent-[var(--red)]"
-                            aria-label={`Minimum score: ${minScore}`}
-                        />
-                        <span className={`text-xs font-semibold tabular-nums min-w-[24px] ${minScore > 0 ? "text-[var(--red)]" : "text-[var(--text-muted)]"}`}>
-                            {minScore > 0 ? minScore : "—"}
+                        <div className="flex items-center gap-0.5 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-0.5 ml-auto flex-shrink-0">
+                            <button
+                                onClick={() => changeDensity("comfortable")}
+                                aria-label="Comfortable layout"
+                                className={`p-1.5 rounded transition-all duration-150 cursor-pointer ${density === "comfortable" ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]/20" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
+                            >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={() => changeDensity("compact")}
+                                aria-label="Compact layout"
+                                className={`p-1.5 rounded transition-all duration-150 cursor-pointer ${density === "compact" ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]/20" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
+                            >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <line x1="3" y1="4" x2="21" y2="4" /><line x1="3" y1="8" x2="21" y2="8" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="16" x2="21" y2="16" /><line x1="3" y1="20" x2="21" y2="20" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <span className="text-[10px] text-[var(--text-muted)] tabular-nums whitespace-nowrap">
+                            {loading ? "…" : `${sorted.length.toLocaleString()} leads`}
                         </span>
                     </div>
-
-                    {/* Competitor filter toggle */}
-                    <button
-                        onClick={() => { setCompetitorOnly(v => !v); setPage(1); }}
-                        aria-pressed={competitorOnly}
-                        aria-label="Show competitor users only"
-                        title="Show leads using competitor products"
-                        className={[
-                            "inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400",
-                            competitorOnly
-                                ? "bg-orange-400/15 border-orange-400/40 text-orange-400"
-                                : "bg-[var(--surface)] border-[var(--border)] text-[var(--text-muted)] hover:border-orange-400/30 hover:text-orange-400",
-                        ].join(" ")}
-                    >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z" />
-                        </svg>
-                        Competitor users
-                    </button>
-
-                    {hasFilters && (
-                        <button
-                            onClick={() => { setSearch(""); setCampaignFilter(""); setActionFilter(""); setMinScore(0); setCompetitorOnly(false); setPage(1); }}
-                            className="flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--red)] transition-colors duration-150 focus-visible:outline-none focus-visible:underline"
-                            aria-label="Clear all filters"
-                        >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                            Clear
-                        </button>
-                    )}
-
-                    <div className="flex items-center gap-0.5 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg p-0.5 ml-auto">
-                        <button
-                            onClick={() => changeDensity("comfortable")}
-                            aria-label="Comfortable layout"
-                            className={`p-1.5 rounded transition-all duration-150 cursor-pointer ${density === "comfortable" ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]/20" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
-                        >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-                            </svg>
-                        </button>
-                        <button
-                            onClick={() => changeDensity("compact")}
-                            aria-label="Compact layout"
-                            className={`p-1.5 rounded transition-all duration-150 cursor-pointer ${density === "compact" ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]/20" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
-                        >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <line x1="3" y1="4" x2="21" y2="4" /><line x1="3" y1="8" x2="21" y2="8" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="16" x2="21" y2="16" /><line x1="3" y1="20" x2="21" y2="20" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <span className="text-xs text-[var(--text-muted)] tabular-nums whitespace-nowrap">
-                        {loading ? "…" : `${sorted.length.toLocaleString()} leads`}
-                    </span>
                 </div>
 
                 {/* ── Bulk action bar ── */}
@@ -1640,10 +1980,26 @@ export default function LeadsPage() {
                     <div className="flex items-center gap-3 px-6 py-2.5 bg-sky-400/5 border-b border-sky-400/20 flex-shrink-0" role="toolbar" aria-label="Bulk actions">
                         <span className="text-xs font-semibold text-sky-400">{selectedIds.size} selected</span>
                         <div className="h-3 w-px bg-[var(--border)]" aria-hidden="true" />
-                        <button className="text-xs font-medium px-3 py-1.5 rounded-lg bg-sky-400/10 text-sky-400 border border-sky-400/20 hover:bg-sky-400/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
-                            Move to Campaign
-                        </button>
-                        <button className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)] hover:bg-[var(--red-glow)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]">
+                        <select
+                            onChange={async (e) => {
+                                const stage = e.target.value;
+                                if (!stage) return;
+                                await handleBulkStage(stage);
+                                e.target.value = "";
+                            }}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-sky-400/10 text-sky-400 border border-sky-400/20 hover:bg-sky-400/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 cursor-pointer"
+                        >
+                            <option value="" className="bg-[var(--navy-mid)] text-[var(--text-primary)]">Update Stage...</option>
+                            <option value="PROSPECT" className="bg-[var(--navy-mid)] text-[var(--text-primary)]">Prospect</option>
+                            <option value="ENGAGED" className="bg-[var(--navy-mid)] text-[var(--text-primary)]">Engaged</option>
+                            <option value="HOT" className="bg-[var(--navy-mid)] text-[var(--text-primary)]">Hot</option>
+                            <option value="MEETING_BOOKED" className="bg-[var(--navy-mid)] text-[var(--text-primary)]">Meeting Booked</option>
+                            <option value="DISQUALIFIED" className="bg-[var(--navy-mid)] text-[var(--text-primary)]">Disqualified</option>
+                        </select>
+                        <button
+                            onClick={handleBulkDelete}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)] hover:bg-[var(--red-glow)]/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                        >
                             Delete Selected
                         </button>
                         <button
@@ -1653,7 +2009,10 @@ export default function LeadsPage() {
                         >
                             {enriching ? "Enriching..." : "Enrich Selected"}
                         </button>
-                        <button className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]">
+                        <button
+                            onClick={handleExportCSV}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                        >
                             Export CSV
                         </button>
                         <button
@@ -1666,216 +2025,338 @@ export default function LeadsPage() {
                     </div>
                 )}
 
-                {/* ── Table ── */}
+                {/* ── Table (desktop) / Cards (mobile) ── */}
                 <div className="flex-1 overflow-auto">
                     {error ? (
                         <div className="flex items-center justify-center py-20">
                             <div className="flex flex-col items-center gap-3 text-center">
-                                <div className="w-12 h-12 rounded-full bg-[var(--red-glow)] flex items-center justify-center text-[var(--red)]">
+                                <div className="w-12 h-12 rounded-full bg-[var(--red-glow)] flex items-center justify-center text-[var(--red-text)]">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                                         <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
                                     </svg>
                                 </div>
                                 <p className="text-sm font-medium text-[var(--text-secondary)]">{error}</p>
-                                <button onClick={loadLeads} className="text-xs text-[var(--red)] hover:underline focus-visible:outline-none focus-visible:underline">Retry</button>
+                                <button onClick={loadLeads} className="text-xs text-[var(--red-text)] hover:underline focus-visible:outline-none focus-visible:underline">Retry</button>
                             </div>
                         </div>
                     ) : (
-                        <table className="w-full text-left" aria-label="Leads table">
-                            <thead className="sticky top-0 z-10 bg-[var(--navy-mid)] border-b border-[var(--border)]">
-                                <tr>
-                                    <th scope="col" className="px-4 py-3 w-8">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.size === sorted.length && sorted.length > 0}
-                                            onChange={selectAll}
-                                            aria-label="Select all leads"
-                                            className="accent-[var(--red)] cursor-pointer"
-                                        />
-                                    </th>
-                                    <th scope="col" className="px-2 py-3 w-8" aria-label="Expand row" />
-                                    <th scope="col" className="px-4 py-3">
-                                        <SortButton field="companyName" label="Lead" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 hidden md:table-cell">
-                                        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Campaign</span>
-                                    </th>
-                                    <th scope="col" className="px-4 py-3">
-                                        <SortButton field="qualificationScore" label="Score" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
-                                    </th>
-                                    <th scope="col" className="px-4 py-3">
-                                        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Action</span>
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 hidden lg:table-cell">
-                                        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Pipeline</span>
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 hidden xl:table-cell">
-                                        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Signals</span>
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-center hidden lg:table-cell">
-                                        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Msg</span>
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-center hidden lg:table-cell">
-                                        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Rep</span>
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 hidden xl:table-cell">
-                                        <SortButton field="createdAt" label="Added" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 w-16" aria-label="Row actions" />
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <>
+                            {/* ── Mobile card list (hidden on md+) ── */}
+                            <div className="md:hidden">
                                 {loading
-                                    ? [...Array(8)].map((_, i) => <SkeletonRow key={i} />)
+                                    ? [...Array(8)].map((_, i) => <MobileSkeletonCard key={i} />)
                                     : sorted.length === 0
-                                        ? <tr><td colSpan={12}><EmptyState hasFilters={hasFilters} /></td></tr>
-                                        : sorted.map((lead) => {
-                                            const isSelected = selectedIds.has(lead.id);
-                                            const name = lead.firstName ? `${lead.firstName} ${lead.lastName ?? ""}`.trim() : null;
-                                            const initial = (lead.firstName?.[0] ?? lead.companyName[0]).toUpperCase();
-                                            const actionCfg = lead.recommendedAction ? ACTION_CFG[lead.recommendedAction] : null;
+                                        ? <EmptyState hasFilters={hasFilters} />
+                                        : sorted.map((lead) => (
+                                            <MobileLeadCard
+                                                key={lead.id}
+                                                lead={lead}
+                                                isSelected={selectedIds.has(lead.id)}
+                                                onSelect={() => toggleSelect(lead.id)}
+                                                onExpand={() => setDetailLead(lead)}
+                                                onDelete={() => setDeleteTarget(lead)}
+                                            />
+                                        ))
+                                }
+                            </div>
 
-                                            return (
-                                                <React.Fragment key={lead.id}>
-                                                    <tr className={`group border-b border-[var(--border)] transition-colors duration-100 ${isSelected ? "bg-sky-400/5" : "hover:bg-[var(--surface-2)]"}`}>
-                                                        {/* Checkbox */}
-                                                        <td className="px-4 py-3">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isSelected}
-                                                                onChange={() => toggleSelect(lead.id)}
-                                                                aria-label={`Select ${lead.companyName}`}
-                                                                className="accent-[var(--red)] cursor-pointer"
-                                                            />
-                                                        </td>
-                                                        {/* Open detail modal */}
-                                                        <td className="px-2 py-3">
-                                                            <button
-                                                                onClick={() => setDetailLead(lead)}
-                                                                aria-label={`View details for ${lead.companyName}`}
-                                                                className="flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
-                                                            >
-                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                                    <polyline points="9 18 15 12 9 6" />
-                                                                </svg>
-                                                            </button>
-                                                        </td>
-                                                        {/* Lead identity */}
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex items-center gap-3">
-                                                                <div
-                                                                    className="w-8 h-8 rounded-full border border-[var(--border)] flex items-center justify-center text-xs font-bold flex-shrink-0 select-none"
-                                                                    style={{
-                                                                        background: actionCfg
-                                                                            ? undefined
-                                                                            : "linear-gradient(135deg, var(--navy-deep), var(--surface-2))",
-                                                                    }}
-                                                                    aria-hidden="true"
-                                                                >
-                                                                    {actionCfg ? (
-                                                                        <span className={`${actionCfg.className.match(/text-[^\s]+/)?.[0] ?? "text-[var(--text-secondary)]"}`}>{initial}</span>
-                                                                    ) : (
-                                                                        <span className="text-[var(--text-secondary)]">{initial}</span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    {name && <p className="text-sm font-medium text-[var(--text-primary)] truncate leading-none mb-0.5">{name}</p>}
-                                                                    <p className={`truncate ${name ? "text-xs text-[var(--text-muted)]" : "text-sm font-medium text-[var(--text-primary)]"}`}>{lead.companyName}</p>
-                                                                    {lead.title && <p className="text-xs text-[var(--text-muted)] truncate">{lead.title}</p>}
-                                                                    {lead.competitorSignal && (
-                                                                        <div className="mt-1">
-                                                                            <CompetitorBadge tech={lead.competitorTech ?? []} />
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        {/* Campaign */}
-                                                        <td className="px-4 py-3 max-w-[160px] hidden md:table-cell">
-                                                            <Link href={`/dashboard/campaigns/${lead.campaign.id}`} className="group/link flex items-center gap-1.5 min-w-0" title={lead.campaign.name}>
-                                                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[lead.campaign.status] ?? "bg-[var(--text-muted)]"}`} aria-hidden="true" />
-                                                                <span className="text-xs text-[var(--text-secondary)] truncate group-hover/link:text-[var(--red)] transition-colors duration-150">
-                                                                    {lead.campaign.name}
-                                                                </span>
-                                                            </Link>
-                                                        </td>
-                                                        {/* Score */}
-                                                        <td className="px-4 py-3">
-                                                            {lead.qualificationScore != null
-                                                                ? <ScoreBar score={lead.qualificationScore} />
-                                                                : <span className="text-xs text-[var(--text-muted)]">—</span>}
-                                                        </td>
-                                                        {/* Action badge */}
-                                                        <td className="px-4 py-3">
-                                                            {lead.recommendedAction
-                                                                ? <ActionBadge action={lead.recommendedAction} />
-                                                                : <span className="text-xs text-[var(--text-muted)]">—</span>}
-                                                        </td>
-                                                        {/* Pipeline */}
-                                                        <td className="px-4 py-3 hidden lg:table-cell">
-                                                            {lead.pipelineStage
-                                                                ? <PipelinePill stage={lead.pipelineStage} />
-                                                                : <span className="text-xs text-[var(--text-muted)]">—</span>}
-                                                        </td>
-                                                        {/* Signals */}
-                                                        <td className="px-4 py-3 hidden xl:table-cell">
-                                                            <div className="flex flex-wrap gap-1">
-                                                                {lead.signals.slice(0, 2).map((s) => (
-                                                                    <SignalTag key={s.id} type={s.type} signalType={s.signalType} />
-                                                                ))}
-                                                                {lead.signals.length > 2 && (
-                                                                    <span className="text-xs text-[var(--text-muted)]">+{lead.signals.length - 2}</span>
-                                                                )}
-                                                                {lead.signals.length === 0 && <span className="text-xs text-[var(--text-muted)]">—</span>}
-                                                            </div>
-                                                        </td>
-                                                        {/* Messages */}
-                                                        <td className="px-4 py-3 text-center hidden lg:table-cell">
-                                                            <span className="text-sm text-[var(--text-secondary)] tabular-nums">{lead._count.outreachMessages}</span>
-                                                        </td>
-                                                        {/* Replies */}
-                                                        <td className="px-4 py-3 text-center hidden lg:table-cell">
-                                                            <span className={`text-sm tabular-nums font-medium ${lead._count.replies > 0 ? "text-emerald-400" : "text-[var(--text-muted)]"}`}>
-                                                                {lead._count.replies}
-                                                            </span>
-                                                        </td>
-                                                        {/* Added date */}
-                                                        <td className="px-4 py-3 text-xs text-[var(--text-muted)] tabular-nums whitespace-nowrap hidden xl:table-cell">
-                                                            {new Date(lead.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                                                        </td>
-                                                        {/* Row actions */}
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                                                                <Link
-                                                                    href={`/dashboard/campaigns/${lead.campaign.id}?tab=leads&lead=${lead.id}`}
-                                                                    aria-label={`View ${lead.companyName} in campaign`}
-                                                                    className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
-                                                                >
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                                                                        <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-                                                                    </svg>
-                                                                </Link>
+                            {/* ── Desktop table (hidden below md) ── */}
+                            <table className="hidden md:table w-full text-left table-fixed" style={{ tableLayout: "fixed", minWidth: "1200px" }} aria-label="Leads table">
+                                <thead className="sticky top-0 z-10 bg-[var(--navy-mid)] border-b border-[var(--border)]">
+                                    <tr>
+                                        <th scope="col" className="px-4 py-3" style={{ width: "40px" }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.size === sorted.length && sorted.length > 0}
+                                                onChange={selectAll}
+                                                aria-label="Select all leads"
+                                                className="accent-[var(--red)] cursor-pointer"
+                                            />
+                                        </th>
+                                        <th scope="col" className="px-2 py-3" style={{ width: "36px" }} aria-label="Expand row" />
+
+                                        <th scope="col" className="px-4 py-3 relative group" style={{ width: `${colWidths.lead}px` }}>
+                                            <SortButton field="companyName" label="Lead" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                                            <div
+                                                onMouseDown={(e) => startResize(e, "lead")}
+                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize select-none hover:bg-[var(--red)]/40 active:bg-[var(--red)] transition-colors z-20"
+                                                aria-hidden="true"
+                                            />
+                                        </th>
+
+                                        <th scope="col" className="px-4 py-3 hidden md:table-cell relative group" style={{ width: `${colWidths.campaign}px` }}>
+                                            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Campaign</span>
+                                            <div
+                                                onMouseDown={(e) => startResize(e, "campaign")}
+                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize select-none hover:bg-[var(--red)]/40 active:bg-[var(--red)] transition-colors z-20"
+                                                aria-hidden="true"
+                                            />
+                                        </th>
+
+                                        <th scope="col" className="px-4 py-3 relative group" style={{ width: `${colWidths.score}px` }}>
+                                            <SortButton field="qualificationScore" label="Score" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                                            <div
+                                                onMouseDown={(e) => startResize(e, "score")}
+                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize select-none hover:bg-[var(--red)]/40 active:bg-[var(--red)] transition-colors z-20"
+                                                aria-hidden="true"
+                                            />
+                                        </th>
+
+                                        <th scope="col" className="px-4 py-3 relative group" style={{ width: `${colWidths.action}px` }}>
+                                            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Action</span>
+                                            <div
+                                                onMouseDown={(e) => startResize(e, "action")}
+                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize select-none hover:bg-[var(--red)]/40 active:bg-[var(--red)] transition-colors z-20"
+                                                aria-hidden="true"
+                                            />
+                                        </th>
+
+                                        <th scope="col" className="px-4 py-3 hidden lg:table-cell relative group" style={{ width: `${colWidths.pipeline}px` }}>
+                                            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Pipeline</span>
+                                            <div
+                                                onMouseDown={(e) => startResize(e, "pipeline")}
+                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize select-none hover:bg-[var(--red)]/40 active:bg-[var(--red)] transition-colors z-20"
+                                                aria-hidden="true"
+                                            />
+                                        </th>
+
+                                        <th scope="col" className="px-4 py-3 hidden xl:table-cell relative group" style={{ width: `${colWidths.signals}px` }}>
+                                            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Signals</span>
+                                            <div
+                                                onMouseDown={(e) => startResize(e, "signals")}
+                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize select-none hover:bg-[var(--red)]/40 active:bg-[var(--red)] transition-colors z-20"
+                                                aria-hidden="true"
+                                            />
+                                        </th>
+
+                                        <th scope="col" className="px-4 py-3 text-center hidden lg:table-cell" style={{ width: "50px" }}>
+                                            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Msg</span>
+                                        </th>
+
+                                        <th scope="col" className="px-4 py-3 text-center hidden lg:table-cell" style={{ width: "50px" }}>
+                                            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Rep</span>
+                                        </th>
+
+                                        <th scope="col" className="px-4 py-3 hidden xl:table-cell relative group" style={{ width: `${colWidths.added}px` }}>
+                                            <SortButton field="createdAt" label="Added" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                                            <div
+                                                onMouseDown={(e) => startResize(e, "added")}
+                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize select-none hover:bg-[var(--red)]/40 active:bg-[var(--red)] transition-colors z-20"
+                                                aria-hidden="true"
+                                            />
+                                        </th>
+
+                                        <th scope="col" className="px-4 py-3" style={{ width: "72px" }} aria-label="Row actions" />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {loading
+                                        ? [...Array(8)].map((_, i) => <SkeletonRow key={i} />)
+                                        : sorted.length === 0
+                                            ? <tr><td colSpan={12}><EmptyState hasFilters={hasFilters} /></td></tr>
+                                            : sorted.map((lead) => {
+                                                const isSelected = selectedIds.has(lead.id);
+                                                const name = lead.firstName ? `${lead.firstName} ${lead.lastName ?? ""}`.trim() : null;
+                                                const initial = (lead.firstName?.[0] ?? lead.companyName[0]).toUpperCase();
+                                                const actionCfg = lead.recommendedAction ? ACTION_CFG[lead.recommendedAction] : null;
+
+                                                return (
+                                                    <React.Fragment key={lead.id}>
+                                                        <tr className={`group border-b border-[var(--border)] transition-colors duration-100 ${isSelected ? "bg-sky-400/5" : "hover:bg-[var(--surface-2)]"}`}>
+                                                            {/* Checkbox */}
+                                                            <td className="px-4 py-3">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    onChange={() => toggleSelect(lead.id)}
+                                                                    aria-label={`Select ${lead.companyName}`}
+                                                                    className="accent-[var(--red)] cursor-pointer"
+                                                                />
+                                                            </td>
+                                                            {/* Open detail modal */}
+                                                            <td className="px-2 py-3">
                                                                 <button
-                                                                    onClick={() => setDeleteTarget(lead)}
-                                                                    aria-label={`Delete ${lead.companyName}`}
-                                                                    className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--text-muted)] hover:text-[var(--red)] hover:bg-[var(--red-glow)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                                                                    onClick={() => setDetailLead(lead)}
+                                                                    aria-label={`View details for ${lead.companyName}`}
+                                                                    className="flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
                                                                 >
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                                        <polyline points="3 6 5 6 21 6" />
-                                                                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                                                                        <path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                                        <polyline points="9 18 15 12 9 6" />
                                                                     </svg>
                                                                 </button>
-                                                            </div>
-                                                        </td>
-                                                </tr>
-                                                </React.Fragment>
-                                            );
-                                        })}
-                            </tbody>
-                        </table>
+                                                            </td>
+                                                            {/* Lead identity — double-click name or title to edit inline */}
+                                                            <td className="px-4 py-3 group/cell">
+                                                                <div className="flex items-center gap-3">
+                                                                    <LeadAvatar lead={lead} initial={initial} />
+                                                                    <div className="min-w-0 flex-1">
+                                                                        {/* Name row */}
+                                                                        {editingCell?.leadId === lead.id && editingCell.field === "firstName" ? (
+                                                                            <input
+                                                                                autoFocus
+                                                                                className="w-full text-sm font-medium bg-[var(--surface)] border border-[var(--red)] rounded px-1.5 py-0.5 text-[var(--text-primary)] focus:outline-none mb-0.5"
+                                                                                value={inlineVal}
+                                                                                onChange={e => setInlineVal(e.target.value)}
+                                                                                onBlur={() => handleInlineUpdate(lead.id, "firstName", inlineVal)}
+                                                                                onKeyDown={e => { if (e.key === "Enter") handleInlineUpdate(lead.id, "firstName", inlineVal); if (e.key === "Escape") setEditingCell(null); }}
+                                                                                aria-label="Edit first name"
+                                                                            />
+                                                                        ) : (
+                                                                            name && (
+                                                                                <p
+                                                                                    className="text-sm font-medium text-[var(--text-primary)] truncate leading-none mb-0.5 cursor-text"
+                                                                                    onDoubleClick={() => { setEditingCell({ leadId: lead.id, field: "firstName" }); setInlineVal(lead.firstName ?? ""); }}
+                                                                                    title="Double-click to edit name"
+                                                                                >
+                                                                                    {name}
+                                                                                </p>
+                                                                            )
+                                                                        )}
+                                                                        <p className={`truncate ${name ? "text-xs text-[var(--text-muted)]" : "text-sm font-medium text-[var(--text-primary)]"}`}>{lead.companyName}</p>
+                                                                        {/* Title row */}
+                                                                        {editingCell?.leadId === lead.id && editingCell.field === "title" ? (
+                                                                            <input
+                                                                                autoFocus
+                                                                                className="w-full text-xs bg-[var(--surface)] border border-[var(--red)] rounded px-1.5 py-0.5 text-[var(--text-muted)] focus:outline-none mt-0.5"
+                                                                                value={inlineVal}
+                                                                                onChange={e => setInlineVal(e.target.value)}
+                                                                                onBlur={() => handleInlineUpdate(lead.id, "title", inlineVal)}
+                                                                                onKeyDown={e => { if (e.key === "Enter") handleInlineUpdate(lead.id, "title", inlineVal); if (e.key === "Escape") setEditingCell(null); }}
+                                                                                aria-label="Edit job title"
+                                                                            />
+                                                                        ) : (
+                                                                            <p
+                                                                                className="text-xs text-[var(--text-muted)] truncate cursor-text"
+                                                                                onDoubleClick={() => { setEditingCell({ leadId: lead.id, field: "title" }); setInlineVal(lead.title ?? ""); }}
+                                                                                title="Double-click to edit title"
+                                                                            >
+                                                                                {lead.title ?? <span className="opacity-30 italic">no title</span>}
+                                                                            </p>
+                                                                        )}
+                                                                        {lead.competitorSignal && (
+                                                                            <div className="mt-1">
+                                                                                <CompetitorBadge tech={lead.competitorTech ?? []} />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            {/* Campaign */}
+                                                            <td className="px-4 py-3 max-w-[160px] hidden md:table-cell">
+                                                                <Link href={`/dashboard/campaigns/${lead.campaign.id}`} className="group/link flex items-center gap-1.5 min-w-0" title={lead.campaign.name}>
+                                                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[lead.campaign.status] ?? "bg-[var(--text-muted)]"}`} aria-hidden="true" />
+                                                                    <span className="text-xs text-[var(--text-secondary)] truncate group-hover/link:text-[var(--red-text)] transition-colors duration-150">
+                                                                        {lead.campaign.name}
+                                                                    </span>
+                                                                </Link>
+                                                            </td>
+                                                            {/* Score */}
+                                                            <td className="px-4 py-3">
+                                                                {lead.qualificationScore != null ? (
+                                                                    <ScoreIndicator score={lead.qualificationScore} />
+                                                                ) : (
+                                                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--text-muted)]">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
+                                                                        Enriching...
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            {/* Action badge */}
+                                                            <td className="px-4 py-3">
+                                                                {lead.recommendedAction
+                                                                    ? <ActionBadge action={lead.recommendedAction} />
+                                                                    : <span className="text-xs text-[var(--text-muted)]">—</span>}
+                                                            </td>
+                                                            {/* Pipeline — click the pill to edit inline */}
+                                                            <td className="px-4 py-3 hidden lg:table-cell">
+                                                                {editingCell?.leadId === lead.id && editingCell.field === "pipelineStage" ? (
+                                                                    <select
+                                                                        autoFocus
+                                                                        className="text-xs bg-[var(--surface)] border border-[var(--red)] rounded px-1.5 py-1 text-[var(--text-primary)] focus:outline-none cursor-pointer"
+                                                                        defaultValue={lead.pipelineStage ?? ""}
+                                                                        onChange={e => handleInlineUpdate(lead.id, "pipelineStage", e.target.value)}
+                                                                        onBlur={() => setEditingCell(null)}
+                                                                        aria-label="Edit pipeline stage"
+                                                                    >
+                                                                        <option value="">— clear —</option>
+                                                                        <option value="PROSPECT">Prospect</option>
+                                                                        <option value="ENGAGED">Engaged</option>
+                                                                        <option value="HOT">Hot</option>
+                                                                        <option value="MEETING_BOOKED">Meeting Booked</option>
+                                                                        <option value="DISQUALIFIED">Disqualified</option>
+                                                                    </select>
+                                                                ) : (
+                                                                    <div
+                                                                        onClick={() => setEditingCell({ leadId: lead.id, field: "pipelineStage" })}
+                                                                        className="cursor-pointer"
+                                                                        title="Click to edit stage"
+                                                                    >
+                                                                        {lead.pipelineStage
+                                                                            ? <PipelinePill stage={lead.pipelineStage} />
+                                                                            : <span className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">— set stage</span>}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            {/* Signals */}
+                                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {lead.signals.slice(0, 2).map((s) => (
+                                                                        <SignalBadge key={s.id} type={s.type} signalType={s.signalType} />
+                                                                    ))}
+                                                                    {lead.signals.length > 2 && (
+                                                                        <span className="text-xs text-[var(--text-muted)]">+{lead.signals.length - 2}</span>
+                                                                    )}
+                                                                    {lead.signals.length === 0 && <span className="text-xs text-[var(--text-muted)]">—</span>}
+                                                                </div>
+                                                            </td>
+                                                            {/* Messages */}
+                                                            <td className="px-4 py-3 text-center hidden lg:table-cell">
+                                                                <span className="text-sm text-[var(--text-secondary)] tabular-nums">{lead._count.outreachMessages}</span>
+                                                            </td>
+                                                            {/* Replies */}
+                                                            <td className="px-4 py-3 text-center hidden lg:table-cell">
+                                                                <span className={`text-sm tabular-nums font-medium ${lead._count.replies > 0 ? "text-emerald-400" : "text-[var(--text-muted)]"}`}>
+                                                                    {lead._count.replies}
+                                                                </span>
+                                                            </td>
+                                                            {/* Added date */}
+                                                            <td className="px-4 py-3 text-xs text-[var(--text-muted)] tabular-nums whitespace-nowrap hidden xl:table-cell">
+                                                                {new Date(lead.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                                            </td>
+                                                            {/* Row actions */}
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                                                    <Link
+                                                                        href={`/dashboard/campaigns/${lead.campaign.id}?tab=leads&lead=${lead.id}`}
+                                                                        aria-label={`View ${lead.companyName} in campaign`}
+                                                                        className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                                                                    >
+                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                                                            <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                                                                        </svg>
+                                                                    </Link>
+                                                                    <button
+                                                                        onClick={() => setDeleteTarget(lead)}
+                                                                        aria-label={`Delete ${lead.companyName}`}
+                                                                        className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--text-muted)] hover:text-[var(--red-text)] hover:bg-[var(--red-glow)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                                                                    >
+                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                                            <polyline points="3 6 5 6 21 6" />
+                                                                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                                                            <path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    </React.Fragment>
+                                                );
+                                            })}
+                                </tbody>
+                            </table>
+                        </>
                     )}
                 </div>
 
@@ -1905,7 +2386,7 @@ export default function LeadsPage() {
                                         className={[
                                             "w-8 h-8 text-xs rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
                                             page === p
-                                                ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)] font-medium"
+                                                ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)] font-medium"
                                                 : "border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]",
                                         ].join(" ")}
                                     >
@@ -1958,13 +2439,7 @@ export default function LeadsPage() {
                 />
             )}
 
-            {toast && (
-                <div className="fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-2xl flex items-center gap-2 text-sm text-[var(--text-primary)] animate-in fade-in slide-in-from-bottom-5 duration-300">
-                    <span className="text-emerald-400 font-bold">✓</span>
-                    <span>{toast}</span>
-                    <button onClick={() => setToast(null)} className="ml-2 text-[var(--text-muted)] hover:text-[var(--text-primary)]">✕</button>
-                </div>
-            )}
+            <ToastRegion toasts={toasts} onDismiss={dismiss} />
         </>
     );
 }

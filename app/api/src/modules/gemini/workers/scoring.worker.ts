@@ -1,24 +1,37 @@
 import { Worker } from "bullmq";
+import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
-import { createRedisConnection } from "../../../lib/ioredis";
+import { redisConnectionOptions } from "../../../lib/ioredis";
 import { QUEUE_POLICY } from "../queue-policy";
 import { wireWorkerEvents } from "../worker-runtime";
 import { logger } from "../../../lib/logger";
+import { parseJobData } from "../../../lib/job-validation";
 import { runLeadScoringAgent, runBulkLeadScoringAgent, runBatchLeadScoringAgent } from "../lead-scoring.agent";
 import { enqueueEnrichmentBatches } from "../email-enrichment.queue";
+import { warmHarvestApiCache } from "../../../lib/providers/apify-linkedin.provider";
 
 const policy = QUEUE_POLICY.leadScoring;
+
+const scoreLeadSchema = z.object({
+  leadId: z.string().min(1),
+  campaignId: z.string().min(1),
+  icpDescription: z.string(),
+});
+const scoreLeadBatchSchema = z.object({
+  leadIds: z.array(z.string().min(1)).min(1),
+  campaignId: z.string().min(1),
+  icpDescription: z.string(),
+});
+const campaignIdOnlySchema = z.object({
+  campaignId: z.string().min(1),
+});
 
 async function processJob(job: import("bullmq").Job) {
   const log = logger.child({ jobId: job.id, jobName: job.name, correlationId: job.data?.correlationId });
 
   switch (job.name) {
     case "score-lead": {
-      const { leadId, campaignId, icpDescription } = job.data as {
-        leadId: string;
-        campaignId: string;
-        icpDescription: string;
-      };
+      const { leadId, campaignId, icpDescription } = parseJobData(scoreLeadSchema, job);
       log.info({ leadId, campaignId }, "[scoring.worker] score-lead start");
       await runLeadScoringAgent(leadId, icpDescription);
       const scored = await prisma.lead.findUnique({
@@ -28,16 +41,21 @@ async function processJob(job: import("bullmq").Job) {
       if (!scored || scored.recommendedAction === "DISQUALIFY" || (scored.qualificationScore !== null && scored.qualificationScore < 0.40)) {
         return { leadId, disqualified: true };
       }
+      // Warm the HarvestAPI LinkedIn cache before the enrich-lead-batch job
+      // runs. Non-blocking so scoring latency is not affected. No-op if
+      // APIFY_API_KEY is absent or the URL is already cached.
+      if (scored) {
+        const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { linkedinUrl: true } });
+        if (lead?.linkedinUrl) {
+          warmHarvestApiCache([lead.linkedinUrl]).catch(() => {});
+        }
+      }
       await enqueueEnrichmentBatches([leadId], campaignId);
       return { leadId };
     }
 
     case "score-lead-batch": {
-      const { leadIds, campaignId, icpDescription } = job.data as {
-        leadIds: string[];
-        campaignId: string;
-        icpDescription: string;
-      };
+      const { leadIds, campaignId, icpDescription } = parseJobData(scoreLeadBatchSchema, job);
       log.info({ campaignId, leadCount: leadIds.length }, "[scoring.worker] score-lead-batch start");
       const qualifiedLeadIds: string[] = [];
       for (const leadId of leadIds) {
@@ -55,20 +73,28 @@ async function processJob(job: import("bullmq").Job) {
         }
       }
       if (qualifiedLeadIds.length > 0) {
+        // Warm LinkedIn cache fire-and-forget before enrichment batch
+        prisma.lead.findMany({
+          where: { id: { in: qualifiedLeadIds }, linkedinUrl: { not: null } },
+          select: { linkedinUrl: true },
+        }).then((rows) => {
+          const urls = rows.map(r => r.linkedinUrl!).filter(Boolean);
+          if (urls.length > 0) warmHarvestApiCache(urls).catch(() => {});
+        }).catch(() => {});
         await enqueueEnrichmentBatches(qualifiedLeadIds, campaignId);
       }
       return { campaignId, total: leadIds.length, qualified: qualifiedLeadIds.length };
     }
 
     case "run-bulk-scoring": {
-      const { campaignId } = job.data as { campaignId: string };
+      const { campaignId } = parseJobData(campaignIdOnlySchema, job);
       log.info({ campaignId }, "[scoring.worker] run-bulk-scoring start");
       const result = await runBulkLeadScoringAgent(campaignId);
       return { campaignId, ...result };
     }
 
     case "rescore-after-icp-refinement": {
-      const { campaignId } = job.data as { campaignId: string };
+      const { campaignId } = parseJobData(campaignIdOnlySchema, job);
       log.info({ campaignId }, "[scoring.worker] rescore-after-icp-refinement start");
 
       const campaign = await prisma.campaign.findUnique({
@@ -124,7 +150,7 @@ async function processJob(job: import("bullmq").Job) {
 }
 
 export const scoringWorker = new Worker(policy.queueName, processJob, {
-  connection: createRedisConnection(),
+  connection: redisConnectionOptions,
   concurrency: policy.concurrency,
   lockDuration: policy.lockDuration,
 });

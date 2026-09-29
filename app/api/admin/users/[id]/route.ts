@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 
+const API_BASE = process.env.INTERNAL_API_URL ?? "http://127.0.0.1:8080";
+
 export async function DELETE(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
     const { id } = await params;
-    const res = await fetch(`${process.env.API_BASE_URL}/admin/users/${id}`, {
+    const res = await fetch(`${API_BASE}/admin/users/${id}`, {
         method: "DELETE",
         headers: { cookie: req.headers.get("cookie") ?? "" },
     });

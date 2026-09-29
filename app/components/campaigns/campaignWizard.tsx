@@ -88,11 +88,18 @@ export interface Campaign {
     sendWindowDays?: number[];
     timezone?: string | null;
     leads?: { id: string }[];
+    queueJobs?: { errorMessage: string | null }[];
     createdAt: string;
     updatedAt: string;
 }
 
 type WizardStep = "describe" | "refine" | "results" | "cost" | "launch";
+
+interface ProvenStat {
+    metric: string;
+    value: string;
+    context: string;
+}
 
 const STEPS: WizardStep[] = ["describe", "refine", "results", "cost", "launch"];
 const STEP_LABELS: Record<WizardStep, { title: string; subtitle: string }> = {
@@ -128,7 +135,7 @@ function ChipRemovable({ label, onRemove }: { label: string; onRemove: () => voi
             {label}
             <button
                 onClick={onRemove}
-                className="text-[var(--text-muted)] hover:text-[var(--red)] transition-colors ml-0.5 focus-visible:outline-none"
+                className="text-[var(--text-muted)] hover:text-[var(--red-text)] transition-colors ml-0.5 focus-visible:outline-none"
                 aria-label={`Remove ${label}`}
             >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
@@ -156,7 +163,7 @@ function ChipAdd({ onAdd, placeholder }: { onAdd: (v: string) => void; placehold
         return (
             <button
                 onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.focus(), 30); }}
-                className="inline-flex items-center gap-1 px-2.5 py-1 bg-[var(--surface)] border border-dashed border-[var(--border)] rounded-full text-xs text-[var(--text-muted)] hover:border-[var(--border-red)] hover:text-[var(--red)] transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-[var(--surface)] border border-dashed border-[var(--border)] rounded-full text-xs text-[var(--text-muted)] hover:border-[var(--border-red)] hover:text-[var(--red-text)] transition-colors"
             >
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                     <line x1="12" y1="5" x2="12" y2="19" />
@@ -210,7 +217,7 @@ function WizardProgress({ current }: { current: WizardStep }) {
                                 done
                                     ? "bg-[var(--red)] text-white shadow-[0_0_10px_var(--red-glow)]"
                                     : active
-                                        ? "bg-[var(--navy-mid)] border-2 border-[var(--red)] text-[var(--red)] shadow-[0_0_15px_var(--red-glow)] scale-110"
+                                        ? "bg-[var(--navy-mid)] border-2 border-[var(--red)] text-[var(--red-text)] shadow-[0_0_15px_var(--red-glow)] scale-110"
                                         : "bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-muted)]"
                             ].join(" ")}>
                                 {active && (
@@ -226,7 +233,7 @@ function WizardProgress({ current }: { current: WizardStep }) {
                             </div>
                             <span className={[
                                 "text-[10px] font-semibold tracking-wider uppercase mt-2 transition-colors duration-200",
-                                active ? "text-[var(--red)]" : done ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"
+                                active ? "text-[var(--red-text)]" : done ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"
                             ].join(" ")}>
                                 {label.title}
                             </span>
@@ -358,7 +365,7 @@ function SummaryLine({ label, value, highlight }: { label: string; value: string
     return (
         <div className="flex items-start justify-between gap-4 py-2 border-b border-[var(--border)] last:border-0">
             <span className="text-xs text-[var(--text-muted)] flex-shrink-0">{label}</span>
-            <span className={`text-xs font-medium text-right ${highlight ? "text-[var(--red)]" : "text-[var(--text-primary)]"}`}>
+            <span className={`text-xs font-medium text-right ${highlight ? "text-[var(--red-text)]" : "text-[var(--text-primary)]"}`}>
                 {value}
             </span>
         </div>
@@ -381,6 +388,9 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
     // ── step 1: describe ──
     const [campaignName, setCampaignName] = useState("");
     const [icpText, setIcpText] = useState("");
+    const [businessDescription, setBusinessDescription] = useState("");
+    const [valueProposition, setValueProposition] = useState("");
+    const [provenStats, setProvenStats] = useState<ProvenStat[]>([]);
 
     // ── step 2: refine ──
     const [refinement, setRefinement] = useState<ICPRefinement | null>(null);
@@ -423,6 +433,9 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
             setStep("describe");
             setCampaignName("");
             setIcpText("");
+            setBusinessDescription("");
+            setValueProposition("");
+            setProvenStats([]);
             setRefinement(null);
             setRefining(false);
             setRefineError(null);
@@ -532,6 +545,9 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                 followUpMaxSteps: Math.max(0, Number(followUpMaxSteps) || 2),
                 timezone: timezone || "UTC",
                 enrichmentData: refinement,
+                businessDescription: businessDescription.trim() || null,
+                valueProposition: valueProposition.trim() || null,
+                provenStats: provenStats.filter(s => s.metric.trim() && s.value.trim() && s.context.trim()),
             };
             if (senderDomainId) campaignBody.senderDomainId = senderDomainId;
             if (senderMailboxId) campaignBody.senderMailboxId = senderMailboxId;
@@ -720,7 +736,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
 
                             <div>
                                 <label className={labelCls} htmlFor="wiz-name">
-                                    Campaign name <span className="text-[var(--red)]">*</span>
+                                    Campaign name <span className="text-[var(--red-text)]">*</span>
                                 </label>
                                 <input
                                     ref={nameRef}
@@ -736,7 +752,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
 
                             <div>
                                 <label className={labelCls} htmlFor="wiz-icp">
-                                    ICP description <span className="text-[var(--red)]">*</span>
+                                    ICP description <span className="text-[var(--red-text)]">*</span>
                                 </label>
                                 <textarea
                                     id="wiz-icp"
@@ -755,11 +771,91 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                                         <button
                                             key={t}
                                             onClick={() => setIcpText(t)}
-                                            className="text-xs px-2.5 py-1 bg-[var(--surface-2)] border border-[var(--border)] rounded-full text-[var(--text-secondary)] hover:border-[var(--border-red)] hover:text-[var(--red)] transition-colors"
+                                            className="text-xs px-2.5 py-1 bg-[var(--surface-2)] border border-[var(--border)] rounded-full text-[var(--text-secondary)] hover:border-[var(--border-red)] hover:text-[var(--red-text)] transition-colors"
                                         >
                                             {t}
                                         </button>
                                     ))}
+                                </div>
+                            </div>
+
+                            <div className="border-t border-[var(--border)] pt-5 space-y-4">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-[var(--text-primary)]">Copywriting Intelligence</h4>
+                                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
+                                        Optional but powerful — the AI injects these into every email it writes for this campaign.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className={labelCls} htmlFor="wiz-biz-desc">
+                                        What your company actually does
+                                        <span className="ml-1.5 text-[10px] font-normal text-[var(--text-muted)] normal-case tracking-normal">(grounds the pitch)</span>
+                                    </label>
+                                    <textarea
+                                        id="wiz-biz-desc"
+                                        rows={2}
+                                        className={`${inputCls} resize-none leading-relaxed`}
+                                        placeholder="e.g. We help B2B sales teams replace manual SDR work with AI-generated, personalised cold emails using real intent signals."
+                                        value={businessDescription}
+                                        onChange={e => setBusinessDescription(e.target.value)}
+                                        maxLength={2000}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={labelCls} htmlFor="wiz-value-prop">
+                                        Your value proposition
+                                        <span className="ml-1.5 text-[10px] font-normal text-[var(--text-muted)] normal-case tracking-normal">(in your own words)</span>
+                                    </label>
+                                    <textarea
+                                        id="wiz-value-prop"
+                                        rows={2}
+                                        className={`${inputCls} resize-none leading-relaxed`}
+                                        placeholder="e.g. We save outbound teams 6+ hours/week of research. Customers see 2–4× higher reply rates vs generic sequences."
+                                        value={valueProposition}
+                                        onChange={e => setValueProposition(e.target.value)}
+                                        maxLength={1000}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={labelCls}>
+                                        Proven stats
+                                        <span className="ml-1.5 text-[10px] font-normal text-[var(--text-muted)] normal-case tracking-normal">
+                                            Real numbers only — AI cites these verbatim. Leave empty to use qualitative language.
+                                        </span>
+                                    </label>
+                                    <div className="space-y-2">
+                                        {provenStats.length === 0 && (
+                                            <p className="text-xs text-[var(--text-muted)] italic">No proof points yet.</p>
+                                        )}
+                                        {provenStats.map((stat, idx) => (
+                                            <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
+                                                <input type="text" placeholder="Metric" value={stat.metric}
+                                                    onChange={e => setProvenStats(provenStats.map((s, i) => i === idx ? { ...s, metric: e.target.value } : s))}
+                                                    className={inputCls} aria-label={`Stat ${idx + 1} metric`} />
+                                                <input type="text" placeholder="Value" value={stat.value}
+                                                    onChange={e => setProvenStats(provenStats.map((s, i) => i === idx ? { ...s, value: e.target.value } : s))}
+                                                    className={inputCls} aria-label={`Stat ${idx + 1} value`} />
+                                                <input type="text" placeholder="Context" value={stat.context}
+                                                    onChange={e => setProvenStats(provenStats.map((s, i) => i === idx ? { ...s, context: e.target.value } : s))}
+                                                    className={inputCls} aria-label={`Stat ${idx + 1} context`} />
+                                                <button type="button" onClick={() => setProvenStats(provenStats.filter((_, i) => i !== idx))}
+                                                    className="p-1.5 rounded hover:bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--red-text)] transition-colors" aria-label={`Remove stat ${idx + 1}`}>
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {provenStats.length < 5 && (
+                                            <button type="button"
+                                                onClick={() => setProvenStats([...provenStats, { metric: "", value: "", context: "" }])}
+                                                className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--red-text)] hover:text-white transition-colors">
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                                                Add proof point ({provenStats.length}/5)
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -770,7 +866,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                         <div className="p-6 space-y-5">
                             {refining ? (
                                 <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-                                    <div className="w-12 h-12 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red)]">
+                                    <div className="w-12 h-12 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red-text)]">
                                         <Spinner size={20} />
                                     </div>
                                     <p className="text-sm font-semibold text-[var(--text-primary)]">Analyzing your ICP…</p>
@@ -779,7 +875,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                             ) : refineError ? (
                                 <div className="flex flex-col items-center gap-3 py-14 text-center">
                                     <div className="p-3 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-xl">
-                                        <p className="text-sm text-[var(--red)]">{refineError}</p>
+                                        <p className="text-sm text-[var(--red-text)]">{refineError}</p>
                                     </div>
                                     <button onClick={() => setStep("describe")} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
                                         ← Edit description
@@ -851,7 +947,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                         <div className="p-6 space-y-4">
                             {searching ? (
                                 <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-                                    <div className="w-12 h-12 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red)]">
+                                    <div className="w-12 h-12 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] flex items-center justify-center text-[var(--red-text)]">
                                         <Spinner size={20} />
                                     </div>
                                     <p className="text-sm font-semibold text-[var(--text-primary)]">Searching Apollo…</p>
@@ -860,7 +956,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                             ) : searchError ? (
                                 <div className="flex flex-col items-center gap-4 py-14 text-center">
                                     <div className="p-3 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-xl max-w-xs">
-                                        <p className="text-sm font-semibold text-[var(--red)] mb-1">Apollo unavailable</p>
+                                        <p className="text-sm font-semibold text-[var(--red-text)] mb-1">Apollo unavailable</p>
                                         <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{searchError}</p>
                                     </div>
                                     <p className="text-xs text-[var(--text-muted)] max-w-[260px] leading-relaxed">
@@ -892,7 +988,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {n > 0 && (
-                                                <span className="text-xs font-medium px-2.5 py-1 bg-[var(--red-glow)] border border-[var(--border-red)] text-[var(--red)] rounded-full">
+                                                <span className="text-xs font-medium px-2.5 py-1 bg-[var(--red-glow)] border border-[var(--border-red)] text-[var(--red-text)] rounded-full">
                                                     {n} selected
                                                 </span>
                                             )}
@@ -1018,7 +1114,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                                         <p className="text-sm font-semibold text-[var(--text-primary)]">Total estimate</p>
                                         <p className="text-xs text-[var(--text-muted)]">for {n} {n === 1 ? "company" : "companies"}</p>
                                     </div>
-                                    <p className="text-xl font-bold text-[var(--red)]">${costTotal.toFixed(2)}</p>
+                                    <p className="text-xl font-bold text-[var(--red-text)]">${costTotal.toFixed(2)}</p>
                                 </div>
                             </div>
 
@@ -1073,7 +1169,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                                     {domains.length === 0 && (
                                         <p className="mt-1 text-xs text-[var(--text-muted)]">
                                             No sender domains.{" "}
-                                            <Link href="/dashboard/domains" className="text-[var(--red)] hover:underline">Add one →</Link>
+                                            <Link href="/dashboard/domains" className="text-[var(--red-text)] hover:underline">Add one →</Link>
                                         </p>
                                     )}
                                 </div>
@@ -1096,7 +1192,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                                     {mailboxes.length === 0 && (
                                         <p className="mt-1 text-xs text-[var(--text-muted)]">
                                             No mailboxes.{" "}
-                                            <Link href="/settings/accounts" className="text-[var(--red)] hover:underline">Add one →</Link>
+                                            <Link href="/settings/accounts" className="text-[var(--red-text)] hover:underline">Add one →</Link>
                                         </p>
                                     )}
                                 </div>
@@ -1119,7 +1215,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                                     {linkedInAccounts.length === 0 && (
                                         <p className="mt-1 text-xs text-[var(--text-muted)]">
                                             No LinkedIn accounts.{" "}
-                                            <Link href="/settings/accounts" className="text-[var(--red)] hover:underline">Connect one →</Link>
+                                            <Link href="/settings/accounts" className="text-[var(--red-text)] hover:underline">Connect one →</Link>
                                         </p>
                                     )}
                                 </div>
@@ -1205,7 +1301,7 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
                                                     className={[
                                                         "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                                                         active
-                                                            ? "bg-[var(--red-glow)] border-[var(--border-red)] text-[var(--red)]"
+                                                            ? "bg-[var(--red-glow)] border-[var(--border-red)] text-[var(--red-text)]"
                                                             : "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-red)]/60",
                                                     ].join(" ")}
                                                 >
@@ -1247,12 +1343,12 @@ export function CampaignWizard({ open, domains, onClose, onCreated }: CampaignWi
 
                             {launchError && (
                                 <div className="flex items-start gap-2 p-3 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-xl">
-                                    <svg className="flex-shrink-0 mt-0.5 text-[var(--red)]" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                    <svg className="flex-shrink-0 mt-0.5 text-[var(--red-text)]" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                                         <circle cx="12" cy="12" r="10" />
                                         <line x1="12" y1="8" x2="12" y2="12" />
                                         <line x1="12" y1="16" x2="12.01" y2="16" />
                                     </svg>
-                                    <p className="text-xs text-[var(--red)]">{launchError}</p>
+                                    <p className="text-xs text-[var(--red-text)]">{launchError}</p>
                                 </div>
                             )}
                         </div>

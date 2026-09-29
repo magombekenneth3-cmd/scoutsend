@@ -96,7 +96,7 @@ export function AddSuppressionModal({ open, onClose, onAdded }: Props) {
 
                     <div className="space-y-1.5">
                         <label htmlFor="sup-value" className="block text-xs font-semibold text-[var(--text-secondary)]">
-                            {mode === "email" ? "Email address" : "Domain"} <span className="text-[var(--red)]">*</span>
+                            {mode === "email" ? "Email address" : "Domain"} <span className="text-[var(--red-text)]">*</span>
                         </label>
                         <input id="sup-value" ref={inputRef} type={mode === "email" ? "email" : "text"} value={value}
                             onChange={(e) => { setValue(e.target.value); setError(null); }}
@@ -107,7 +107,7 @@ export function AddSuppressionModal({ open, onClose, onAdded }: Props) {
 
                     <div className="space-y-1.5">
                         <label htmlFor="sup-reason" className="block text-xs font-semibold text-[var(--text-secondary)]">
-                            Reason <span className="text-[var(--red)]">*</span>
+                            Reason <span className="text-[var(--red-text)]">*</span>
                         </label>
                         <input id="sup-reason" type="text" value={reason}
                             onChange={(e) => { setReason(e.target.value); setError(null); }}

@@ -252,7 +252,7 @@ function TimelineDot({ state }: { state: LineState }) {
     const base = "relative z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-300";
     const styles: Record<LineState, string> = {
         done: `${base} bg-emerald-400 border-emerald-400 text-white`,
-        active: `${base} bg-[var(--red-glow)] border-[var(--red)] text-[var(--red)]`,
+        active: `${base} bg-[var(--red-glow)] border-[var(--red)] text-[var(--red-text)]`,
         pending: `${base} bg-transparent border-[var(--border)] text-[var(--text-muted)]`,
         warning: `${base} bg-amber-400/10 border-amber-400 text-amber-400`,
     };

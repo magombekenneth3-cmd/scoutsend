@@ -268,11 +268,13 @@ const LEADS = [
 async function main() {
   const owner = await prisma.user.findFirst({
     where: { role: "ADMIN" },
-    select: { id: true, email: true },
+    select: { id: true, email: true, orgMemberships: { select: { orgId: true }, take: 1 } },
     orderBy: { createdAt: "asc" },
   });
 
   if (!owner) throw new Error("No ADMIN user found.");
+  const orgId = owner.orgMemberships[0]?.orgId;
+  if (!orgId) throw new Error("Owner has no organization — run migrate-orgs first.");
   console.log(`\nSeeding as: ${owner.email} (${owner.id})`);
 
   const existing = await prisma.campaign.findFirst({
@@ -299,6 +301,7 @@ async function main() {
       followUpDelayDays: 3,
       followUpMaxSteps: 3,
       createdById: owner.id,
+      orgId,
     },
   });
 

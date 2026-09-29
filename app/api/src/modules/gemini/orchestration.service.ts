@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import { runGraphPipeline, CampaignPausedError, CampaignPipelineBusyError, NoSenderError } from "./ochestration.graph";
-import { verifySenderDomainDns } from "../senderDomain/senderDomain.services";
+import { runGraphPipeline, CampaignPausedError, CampaignPipelineBusyError, NoSenderError } from "./orchestration.graph";
+import { verifySenderDomainDnsInternal, getCachedDnsStatus } from "../senderDomain/senderDomain.services";
 import { verifyMailboxConnection, verifyMailboxDns } from "../senderMailbox/senderMailbox.services";
 import { createLinkedInProvider } from "../../lib/linkedIn";
 import { logger } from "../../lib/logger";
@@ -146,30 +146,56 @@ async function withTimeout<T>(
     }
 }
 
+const DNS_REVERIFICATION_STALE_MS = 24 * 60 * 60 * 1000;
+
 async function assertSenderDomainDnsValid(
     senderDomainId: string,
     triggeredBy: string,
 ): Promise<void> {
-    const { spfValid, dkimValid, dmarcValid, dnsCheckedAt } = await verifySenderDomainDns(
-        senderDomainId,
-        triggeredBy,
-    );
+    const cached = await getCachedDnsStatus(senderDomainId);
 
-    if (!spfValid || !dkimValid || !dmarcValid) {
+    const isStale =
+        !cached.dnsCheckedAt ||
+        Date.now() - cached.dnsCheckedAt.getTime() > DNS_REVERIFICATION_STALE_MS;
+
+    const res = isStale
+        ? await verifySenderDomainDnsInternal(senderDomainId)
+        : {
+            ...cached,
+            inconclusive: { spf: false, dkim: false, dmarc: false },
+        };
+
+    const { spfValid, dkimValid, dmarcValid, dnsCheckedAt, inconclusive } = res;
+
+    if (
+        !spfValid ||
+        !dkimValid ||
+        !dmarcValid ||
+        inconclusive.spf ||
+        inconclusive.dkim ||
+        inconclusive.dmarc
+    ) {
         logger.warn(
-            { senderDomainId, spfValid, dkimValid, dmarcValid, dnsCheckedAt },
+            { senderDomainId, triggeredBy, spfValid, dkimValid, dmarcValid, dnsCheckedAt, inconclusive },
             "[orchestrator] Sender domain failed DNS validation — blocking campaign launch",
         );
 
+        const reasons: string[] = [];
+        if (!spfValid) reasons.push("SPF invalid");
+        if (!dkimValid) reasons.push("DKIM invalid");
+        if (!dmarcValid) reasons.push("DMARC invalid");
+        if (inconclusive.spf) reasons.push("SPF lookup inconclusive (DNS timeout)");
+        if (inconclusive.dkim) reasons.push("DKIM lookup inconclusive (DNS timeout)");
+        if (inconclusive.dmarc) reasons.push("DMARC lookup inconclusive (DNS timeout)");
+
         throw new SenderDnsError(
             senderDomainId,
-            `SPF valid: ${spfValid}, DKIM valid: ${dkimValid}, DMARC valid: ${dmarcValid}. ` +
-            "Fix the domain's DNS records and re-verify before launching this campaign.",
+            `${reasons.join(", ")}. Fix the domain's DNS settings and re-verify before launching this campaign.`,
         );
     }
 
     logger.info(
-        { senderDomainId, spfValid, dkimValid, dmarcValid, dnsCheckedAt },
+        { senderDomainId, triggeredBy, spfValid, dkimValid, dmarcValid, dnsCheckedAt },
         "[orchestrator] Sender domain DNS validation passed",
     );
 }
@@ -178,28 +204,30 @@ async function assertMailboxDnsValid(
     senderMailboxId: string,
     triggeredBy: string,
 ): Promise<void> {
+    const mailbox = await prisma.senderMailbox.findUnique({
+        where: { id: senderMailboxId },
+        select: { providerType: true, health: true },
+    });
+
+    if (mailbox && (mailbox.providerType === "GMAIL" || mailbox.providerType === "OUTLOOK")) {
+        logger.info(
+            { senderMailboxId, providerType: mailbox.providerType },
+            "[orchestrator] Mailbox uses OAuth provider — bypassing strict DNS TXT lookup",
+        );
+        return;
+    }
+
     const { sendingDomain, spfValid, dkimValid, dmarcValid, dnsCheckedAt } = await verifyMailboxDns(
         senderMailboxId,
         triggeredBy,
     );
 
-    if (!spfValid || !dkimValid || !dmarcValid) {
+    if (!spfValid && !dkimValid && !dmarcValid) {
         logger.warn(
             { senderMailboxId, sendingDomain, spfValid, dkimValid, dmarcValid, dnsCheckedAt },
-            "[orchestrator] Sender mailbox DNS validation failed — blocking campaign launch",
-        );
-
-        throw new SenderDnsError(
-            senderMailboxId,
-            `Mailbox domain ${sendingDomain} — SPF valid: ${spfValid}, DKIM valid: ${dkimValid}, DMARC valid: ${dmarcValid}. ` +
-            "Fix the mailbox sending domain's DNS records and re-verify before launching this campaign.",
+            "[orchestrator] Sender mailbox failed all DNS checks — soft warning",
         );
     }
-
-    logger.info(
-        { senderMailboxId, sendingDomain, spfValid, dkimValid, dmarcValid, dnsCheckedAt },
-        "[orchestrator] Sender mailbox DNS validation passed",
-    );
 }
 
 function classifyCampaignError(err: unknown): { code: string; message: string } {
@@ -208,6 +236,13 @@ function classifyCampaignError(err: unknown): { code: string; message: string } 
 
     let code = "UNKNOWN_ERROR";
     let message = rawMessage;
+
+    if (err instanceof PipelineTimeoutError) {
+        return {
+            code: "PIPELINE_TIMEOUT",
+            message: "Pipeline timed out after 30 minutes. The AI agent may be overloaded. Please relaunch — it will retry from where it left off.",
+        };
+    }
 
     if (normalized.includes("dns") || normalized.includes("spf") || normalized.includes("dkim") || normalized.includes("dmarc")) {
         code = "DNS_RECORD_MISSING";
@@ -227,9 +262,30 @@ function classifyCampaignError(err: unknown): { code: string; message: string } 
     } else if (normalized.includes("compliance") || normalized.includes("spam risk") || normalized.includes("blocked")) {
         code = "COMPLIANCE_BLOCKED";
         message = `Compliance Blocked: The generated email copy triggered compliance rules or has a high spam risk score. Please refine your campaign instructions.`;
+    } else if (normalized.includes("no leads") || normalized.includes("has no leads")) {
+        code = "NO_LEADS";
+        message = `No Leads: This campaign has no leads. Add at least one lead before launching.`;
+    } else if (normalized.includes("no sequence") || normalized.includes("has no sequence")) {
+        code = "NO_SEQUENCE";
+        message = `No Sequence: This campaign has no email sequence steps. Add at least one step before launching.`;
     }
 
     return { code, message };
+}
+
+async function preflightCheck(campaignId: string): Promise<void> {
+    const [leadCount, stepCount] = await Promise.all([
+        prisma.lead.count({ where: { campaignId, deletedAt: null } }),
+        prisma.sequenceStep.count({ where: { campaignId } }),
+    ]);
+
+    if (leadCount === 0) {
+        throw new Error(`Campaign has no leads — add at least one lead before launching.`);
+    }
+
+    if (stepCount === 0) {
+        throw new Error(`Campaign has no sequence steps — add at least one email step before launching.`);
+    }
 }
 
 async function lockCampaign(
@@ -246,23 +302,36 @@ async function lockCampaign(
         let jobId = "";
 
         await prisma.$transaction(async (tx) => {
+            const existing = await tx.campaign.findUnique({
+                where: { id: campaignId },
+                select: { id: true, orgId: true, createdById: true, status: true },
+            });
+
+            if (!existing) throw new CampaignNotFoundError(campaignId);
+
+            const isOwner = existing.createdById === triggeredBy;
+            let isOrgMember = false;
+            if (!isOwner && existing.orgId) {
+                const member = await tx.organizationMember.findFirst({
+                    where: { userId: triggeredBy, orgId: existing.orgId },
+                    select: { id: true },
+                });
+                isOrgMember = !!member;
+            }
+
+            if (!isOwner && !isOrgMember) {
+                throw new CampaignOwnershipError(campaignId);
+            }
+
             const updated = await tx.campaign.updateMany({
                 where: {
                     id: campaignId,
-                    createdById: triggeredBy,
                     status: { in: ["DRAFT", "FAILED", "RESEARCHING"] },
                 },
                 data: { status: "RESEARCHING", regenAttempts: 0 },
             });
 
             if (updated.count === 0) {
-                const existing = await tx.campaign.findUnique({
-                    where: { id: campaignId },
-                    select: { createdById: true, status: true },
-                });
-
-                if (!existing) throw new CampaignNotFoundError(campaignId);
-                if (existing.createdById !== triggeredBy) throw new CampaignOwnershipError(campaignId);
                 if (existing.status === "COMPLETED") throw new CampaignAlreadyCompletedError(campaignId);
                 if (ACTIVE_STATUSES.has(existing.status) || existing.status === "PAUSED") {
                     throw new CampaignAlreadyRunningError(campaignId, existing.status);
@@ -318,12 +387,22 @@ async function lockResume(campaignId: string, triggeredBy: string): Promise<Resu
         await prisma.$transaction(async (tx) => {
             const campaign = await tx.campaign.findUnique({
                 where: { id: campaignId },
-                select: { status: true, previousStatus: true, createdById: true },
+                select: { status: true, previousStatus: true, createdById: true, orgId: true },
             });
 
             if (!campaign) throw new CampaignNotFoundError(campaignId);
 
-            if (campaign.createdById !== triggeredBy) {
+            const isOwner = campaign.createdById === triggeredBy;
+            let isOrgMember = false;
+            if (!isOwner && campaign.orgId) {
+                const member = await tx.organizationMember.findFirst({
+                    where: { userId: triggeredBy, orgId: campaign.orgId },
+                    select: { id: true },
+                });
+                isOrgMember = !!member;
+            }
+
+            if (!isOwner && !isOrgMember) {
                 throw new CampaignOwnershipError(campaignId);
             }
 
@@ -413,6 +492,8 @@ export async function runCampaign(
     );
 
     try {
+        await preflightCheck(campaignId);
+
         await prisma.campaignStateStore.deleteMany({ where: { campaignId } });
 
         if (campaign.senderDomainId) {
@@ -462,10 +543,10 @@ export async function runCampaign(
                 },
             });
 
-            await tx.campaignStateStore.deleteMany({ where: { campaignId } });
-
             return finalCampaign.status;
         });
+
+        await prisma.campaignStateStore.deleteMany({ where: { campaignId } }).catch(() => null);
 
         logger.info(
             { campaignId, finalStatus },
@@ -623,6 +704,8 @@ export async function resumeCampaign(
 
         if (!campaignForChecks) throw new CampaignNotFoundError(campaignId);
 
+        await preflightCheck(campaignId);
+
         if (campaignForChecks.senderDomainId) {
             await assertSenderDomainDnsValid(campaignForChecks.senderDomainId, triggeredBy);
         }
@@ -674,9 +757,9 @@ export async function resumeCampaign(
                     result: reviewSummary as unknown as Prisma.InputJsonValue,
                 },
             });
-
-            await tx.campaignStateStore.deleteMany({ where: { campaignId } });
         });
+
+        await prisma.campaignStateStore.deleteMany({ where: { campaignId } }).catch(() => null);
 
         logger.info({ campaignId }, "[orchestrator] Campaign resumed and completed");
     } catch (err) {

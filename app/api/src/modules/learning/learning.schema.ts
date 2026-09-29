@@ -25,7 +25,8 @@ export const getLearningEventsQuerySchema = z.object({
   eventType: eventTypeEnum.optional(),
   outcome: outcomeEnum.optional(),
   outreachMessageId: z.string().optional(),
-  // Filter for unresolved events only (outcome = PENDING_REVIEW)
+  orgId: z.string().optional(),
+  campaignId: z.string().optional(),
   pendingOnly: z
     .string()
     .optional()

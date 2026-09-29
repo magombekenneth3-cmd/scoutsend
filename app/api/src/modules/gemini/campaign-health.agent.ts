@@ -7,7 +7,9 @@ import type {
     DeliverabilityEventType,
     DeliverabilityEventSeverity,
 } from "@prisma/client";
-import { callGemini, extractJSON, MODELS } from "./gemini.client";
+import { MODELS } from "./gemini.client";
+import { callGateway, HealthAssessmentSchema } from "../../lib/llm-gateway";
+import type { HealthAssessmentOutput } from "../../lib/llm-gateway";
 import { logger } from "../../lib/logger";
 import { DOMAIN_HEALTH_THRESHOLDS } from "../../lib/constants";
 import pLimit from "p-limit";
@@ -219,9 +221,11 @@ async function assessHealth(params: {
         .join("\n");
 
     try {
-        const { text } = await callGemini({
+        const proposal = await callGateway<HealthAssessmentOutput>({
             agentName: "campaign-health.assessor",
             model: MODELS.REVIEW,
+            responseMode: "text",
+            outputSchema: HealthAssessmentSchema,
             systemPrompt: `You are an email deliverability expert. Given campaign health metrics across multiple time windows and a pre-computed trend direction, explain the health situation in plain English and produce a concrete action plan. Use the provided trend direction as-is; do not infer a different one.
 
 Return ONLY JSON:
@@ -245,24 +249,25 @@ Thresholds:
 - Warning: bounce ≥ ${(DOMAIN_HEALTH_THRESHOLDS.BOUNCE_RATE_WARNING * 100).toFixed(1)}% | complaint ≥ ${(DOMAIN_HEALTH_THRESHOLDS.COMPLAINT_RATE_WARNING * 100).toFixed(2)}%
 - Degraded: bounce ≥ ${(DOMAIN_HEALTH_THRESHOLDS.BOUNCE_RATE_DEGRADED * 100).toFixed(1)}% | complaint ≥ ${(DOMAIN_HEALTH_THRESHOLDS.COMPLAINT_RATE_DEGRADED * 100).toFixed(2)}%
 - Blocked: bounce ≥ ${(DOMAIN_HEALTH_THRESHOLDS.BOUNCE_RATE_BLOCKED * 100).toFixed(1)}% | complaint ≥ ${(DOMAIN_HEALTH_THRESHOLDS.COMPLAINT_RATE_BLOCKED * 100).toFixed(2)}%`,
+            proposalContext: { campaignId },
             metadata: { campaignId, status, trendDirection },
             temperature: 0.2,
         });
 
-        const parsed = extractJSON<{ summary?: unknown; actions?: unknown }>(text);
+        const payload = proposal.payload;
 
         const summary =
-            typeof parsed.summary === "string" && parsed.summary.trim().length > 0
-                ? parsed.summary
+            typeof payload.summary === "string" && payload.summary.trim().length > 0
+                ? payload.summary
                 : fallbackSummary(status, trendDirection);
 
-        const actions = Array.isArray(parsed.actions)
-            ? parsed.actions.filter((action): action is string => typeof action === "string")
+        const actions = Array.isArray(payload.actions)
+            ? payload.actions.filter((action): action is string => typeof action === "string")
             : [];
 
         return { summary, actions };
     } catch (err) {
-        logger.warn({ err, campaignId }, "[campaign-health.agent] Gemini health assessment failed, using fallback");
+        logger.warn({ err, campaignId }, "[campaign-health.agent] LLM gateway health assessment failed, using fallback");
         return { summary: fallbackSummary(status, trendDirection), actions: [] };
     }
 }
@@ -455,4 +460,65 @@ export async function runHealthCheckAllCampaigns(): Promise<void> {
             }),
         ),
     );
+}
+
+const CIRCUIT_BREAKER_WINDOW_MS = 60 * 60 * 1000;
+
+export async function checkBounceCircuitBreaker(campaignId: string): Promise<"ok" | "blocked"> {
+    const since = new Date(Date.now() - CIRCUIT_BREAKER_WINDOW_MS);
+
+    const [sentCount, bounceCount, campaign] = await Promise.all([
+        prisma.outreachMessage.count({
+            where: {
+                lead: { campaignId, deletedAt: null },
+                deliveryState: { in: ["SENT", "DELIVERED", "OPENED", "REPLIED", "BOUNCED", "FAILED"] as DeliveryState[] },
+                sentAt: { gte: since },
+            },
+        }),
+        prisma.deliverabilityEvent.count({
+            where: {
+                campaignId,
+                type: { in: ["BOUNCE", "SOFT_BOUNCE", "HARD_BOUNCE"] as DeliverabilityEventType[] },
+                createdAt: { gte: since },
+            },
+        }),
+        prisma.campaign.findUnique({
+            where: { id: campaignId },
+            select: { status: true },
+        }),
+    ]);
+
+    if (!campaign || sentCount < MIN_SAMPLE_SIZE) return "ok";
+
+    const bounceRate = bounceCount / sentCount;
+    if (bounceRate < DOMAIN_HEALTH_THRESHOLDS.BOUNCE_RATE_BLOCKED) return "ok";
+
+    logger.warn(
+        { campaignId, sentCount, bounceCount, bounceRate },
+        "[campaign-health.agent] Circuit breaker triggered — pausing campaign mid-send",
+    );
+
+    await prisma.$transaction([
+        prisma.campaign.updateMany({
+            where: { id: campaignId, status: campaign.status },
+            data: { previousStatus: campaign.status as CampaignStatus, status: "PAUSED" },
+        }),
+        prisma.deliverabilityEvent.create({
+            data: {
+                campaignId,
+                type: "HEALTH_BLOCKED",
+                severity: "CRITICAL",
+                metadata: {
+                    trigger: "circuit_breaker",
+                    windowMinutes: 60,
+                    sentCount,
+                    bounceCount,
+                    bounceRate,
+                    autoPaused: true,
+                },
+            },
+        }),
+    ]);
+
+    return "blocked";
 }

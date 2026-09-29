@@ -46,11 +46,6 @@ export async function suspendUserHandler(
         logger.info({ targetId: id, requesterId }, "[admin] user suspended");
         res.status(204).send();
     } catch (err) {
-        const statusCode = (err as any).statusCode;
-        if (statusCode) {
-            res.status(statusCode).json({ error: (err as Error).message });
-            return;
-        }
         next(err);
     }
 }
@@ -67,11 +62,6 @@ export async function deleteUserHandler(
         logger.info({ targetId: id, requesterId }, "[admin] user deleted");
         res.status(204).send();
     } catch (err) {
-        const statusCode = (err as any).statusCode;
-        if (statusCode) {
-            res.status(statusCode).json({ error: (err as Error).message });
-            return;
-        }
         next(err);
     }
 }

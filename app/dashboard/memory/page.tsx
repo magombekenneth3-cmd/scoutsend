@@ -301,7 +301,7 @@ export default function MemoryPage() {
                             className={[
                                 "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px",
                                 tab === t.id
-                                    ? "border-[var(--red)] text-[var(--red)]"
+                                    ? "border-[var(--red)] text-[var(--red-text)]"
                                     : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                             ].join(" ")}
                         >
@@ -318,11 +318,11 @@ export default function MemoryPage() {
                 {/* Error */}
                 {error && (
                     <div className="flex items-center gap-3 p-4 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-xl mb-6">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--red)] flex-shrink-0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--red-text)] flex-shrink-0">
                             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
-                        <p className="text-sm text-[var(--red)]">{error}</p>
-                        <button onClick={load} className="ml-auto text-xs text-[var(--red)] underline">Retry</button>
+                        <p className="text-sm text-[var(--red-text)]">{error}</p>
+                        <button onClick={load} className="ml-auto text-xs text-[var(--red-text)] underline">Retry</button>
                     </div>
                 )}
 

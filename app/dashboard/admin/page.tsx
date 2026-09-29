@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { TopBar } from "@/app/components/dashboard/TopBar";
+import { apiFetch } from "@/lib/api-fetch";
 
 type Tab = "overview" | "users" | "system";
 type UserRole = "ADMIN" | "OPERATOR" | "REVIEWER";
@@ -113,7 +114,7 @@ function StatCard({
             </span>
             <span
                 className="text-2xl font-semibold font-display"
-                style={{ color: warn ? "var(--red)" : "var(--text-primary)" }}
+                style={{ color: warn ? "var(--red-text)" : "var(--text-primary)" }}
             >
                 {typeof value === "number" ? value.toLocaleString() : value}
             </span>
@@ -226,7 +227,7 @@ function InfraTable({ health }: { health: SystemHealth }) {
                                             </span>
                                             <span
                                                 style={{
-                                                    color: warn ? "var(--red)" : "var(--text-primary)",
+                                                    color: warn ? "var(--red-text)" : "var(--text-primary)",
                                                     fontWeight: warn ? 600 : 400,
                                                 }}
                                             >
@@ -355,8 +356,7 @@ function UsersTab({ currentUserId }: { currentUserId: string }) {
             if (opts.search.trim()) p.set("search", opts.search.trim());
             if (opts.role) p.set("role", opts.role);
             try {
-                const res = await fetch(`/api/admin/users?${p}`, {
-                    credentials: "include",
+                const res = await apiFetch(`/api/admin/users?${p}`, {
                     cache: "no-store",
                 });
                 if (!res.ok) throw new Error("Failed to load users");
@@ -386,9 +386,8 @@ function UsersTab({ currentUserId }: { currentUserId: string }) {
         setActionLoading(`role-${userId}`);
         setError(null);
         try {
-            const res = await fetch(`/api/admin/users/${userId}/role`, {
+            const res = await apiFetch(`/api/admin/users/${userId}/role`, {
                 method: "PATCH",
-                credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ role }),
             });
@@ -408,9 +407,8 @@ function UsersTab({ currentUserId }: { currentUserId: string }) {
         setActionLoading(`logout-${userId}`);
         setError(null);
         try {
-            const res = await fetch(`/api/admin/users/${userId}/force-logout`, {
+            const res = await apiFetch(`/api/admin/users/${userId}/force-logout`, {
                 method: "POST",
-                credentials: "include",
             });
             if (!res.ok && res.status !== 204) {
                 const d = await res.json();
@@ -433,9 +431,8 @@ function UsersTab({ currentUserId }: { currentUserId: string }) {
         setActionLoading(`delete-${userId}`);
         setError(null);
         try {
-            const res = await fetch(`/api/admin/users/${userId}`, {
+            const res = await apiFetch(`/api/admin/users/${userId}`, {
                 method: "DELETE",
-                credentials: "include",
             });
             if (!res.ok && res.status !== 204) {
                 const d = await res.json();
@@ -457,7 +454,7 @@ function UsersTab({ currentUserId }: { currentUserId: string }) {
                     className="px-4 py-3 rounded-lg text-sm"
                     style={{
                         background: "rgba(229,72,72,0.08)",
-                        color: "var(--red)",
+                        color: "var(--red-text)",
                         border: "1px solid rgba(229,72,72,0.2)",
                     }}
                 >
@@ -660,7 +657,7 @@ function UsersTab({ currentUserId }: { currentUserId: string }) {
                                                         style={{
                                                             background: "rgba(229,72,72,0.08)",
                                                             border: "1px solid rgba(229,72,72,0.18)",
-                                                            color: "var(--red)",
+                                                            color: "var(--red-text)",
                                                         }}
                                                     >
                                                         {actionLoading === `delete-${user.id}`
@@ -811,7 +808,7 @@ function SystemTab({ health }: { health: SystemHealth | null }) {
                                         className="text-xs px-2 py-0.5 rounded font-medium"
                                         style={{
                                             background: "rgba(229,72,72,0.1)",
-                                            color: "var(--red)",
+                                            color: "var(--red-text)",
                                             border: "1px solid rgba(229,72,72,0.2)",
                                         }}
                                     >
@@ -837,7 +834,7 @@ function SystemTab({ health }: { health: SystemHealth | null }) {
                                         <p
                                             className="text-xl font-semibold"
                                             style={{
-                                                color: warn ? "var(--red)" : "var(--text-primary)",
+                                                color: warn ? "var(--red-text)" : "var(--text-primary)",
                                             }}
                                         >
                                             {value.toLocaleString()}
@@ -866,7 +863,7 @@ export default function AdminPage() {
         let cancelled = false;
         async function init() {
             try {
-                const res = await fetch("/api/auth/me", { credentials: "include" });
+                const res = await apiFetch("/api/auth/me");
                 if (res.status === 401) {
                     if (!cancelled) setPageState("forbidden");
                     return;
@@ -896,14 +893,8 @@ export default function AdminPage() {
         let cancelled = false;
         setRefreshing(true);
         Promise.all([
-            fetch("/api/admin/stats", {
-                credentials: "include",
-                cache: "no-store",
-            }).then(r => r.json() as Promise<PlatformStats>),
-            fetch("/api/admin/health", {
-                credentials: "include",
-                cache: "no-store",
-            }).then(r => r.json() as Promise<SystemHealth>),
+            apiFetch("/api/admin/stats").then(r => r.json() as Promise<PlatformStats>),
+            apiFetch("/api/admin/health").then(r => r.json() as Promise<SystemHealth>),
         ])
             .then(([s, h]) => {
                 if (!cancelled) {
@@ -960,7 +951,7 @@ export default function AdminPage() {
             <div className="flex flex-col h-full">
                 <TopBar title="Admin" breadcrumbs={breadcrumbs} />
                 <div className="flex-1 flex items-center justify-center">
-                    <p className="text-sm" style={{ color: "var(--red)" }}>
+                    <p className="text-sm" style={{ color: "var(--red-text)" }}>
                         Failed to load admin panel. Check server logs.
                     </p>
                 </div>

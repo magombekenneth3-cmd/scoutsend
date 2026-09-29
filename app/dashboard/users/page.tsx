@@ -31,13 +31,13 @@ const PAGE_SIZE = 25;
 const ALL_ROLES: UserRole[] = ["ADMIN", "OPERATOR", "REVIEWER"];
 
 const ROLE_BADGE: Record<UserRole, string> = {
-    ADMIN: "text-[var(--red)] bg-[var(--red-glow)] border border-[var(--border-red)]",
+    ADMIN: "text-[var(--red-text)] bg-[var(--red-glow)] border border-[var(--border-red)]",
     OPERATOR: "text-sky-400 bg-sky-400/10 border border-sky-400/20",
     REVIEWER: "text-amber-400 bg-amber-400/10 border border-amber-400/20",
 };
 
 const ROLE_SELECT_OPTION_STYLE: Record<UserRole, string> = {
-    ADMIN: "text-[var(--red)]",
+    ADMIN: "text-[var(--red-text)]",
     OPERATOR: "text-sky-400",
     REVIEWER: "text-amber-400",
 };
@@ -355,7 +355,7 @@ export default function UsersPage() {
                 <StatCard
                     label="Admins"
                     value={stats?.admins ?? 0}
-                    accent="text-[var(--red)]"
+                    accent="text-[var(--red-text)]"
                     loading={statsLoading}
                 />
                 <StatCard
@@ -381,7 +381,7 @@ export default function UsersPage() {
                             className={[
                                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
                                 roleFilter === tab.value
-                                    ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]"
+                                    ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]"
                                     : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-red)]",
                             ].join(" ")}
                         >
@@ -432,7 +432,7 @@ export default function UsersPage() {
                         <p className="text-sm text-[var(--text-secondary)]">{error}</p>
                         <button
                             onClick={refresh}
-                            className="text-xs text-[var(--red)] hover:underline focus-visible:outline-none focus-visible:underline"
+                            className="text-xs text-[var(--red-text)] hover:underline focus-visible:outline-none focus-visible:underline"
                         >
                             Retry
                         </button>
@@ -649,7 +649,7 @@ export default function UsersPage() {
                                                 className={[
                                                     "w-8 h-8 rounded-lg text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
                                                     page === pg
-                                                        ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]"
+                                                        ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]"
                                                         : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] border border-transparent",
                                                 ].join(" ")}
                                             >

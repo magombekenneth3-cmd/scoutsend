@@ -12,6 +12,12 @@ export const SAFE_FONT_STACKS = [
 
 export type FontStack = (typeof SAFE_FONT_STACKS)[number];
 
+export interface ProvenStat {
+    metric: string;
+    value: string;
+    context: string;
+}
+
 export interface BrandSettings {
     id: string;
     companyName: string;
@@ -27,6 +33,7 @@ export interface BrandSettings {
     senderName: string;
     senderTitle: string | null;
     senderPhone: string | null;
+    provenStats: ProvenStat[] | null;
     companyAddress: string | null;
     unsubscribeText: string;
     facebookUrl: string | null;

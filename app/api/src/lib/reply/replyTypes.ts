@@ -76,6 +76,7 @@ export interface ReplyLead {
     lastName?: string | null;
     email?: string | null;
     companyName: string;
+    pipelineStage?: string | null;
 }
 
 /** Minimal outreach message shape nested inside a Reply from the API. */
@@ -105,6 +106,8 @@ export interface Reply {
     competitorsMentioned?: string[] | null;
     budgetSignal?: string | null;
     timelineSignal?: string | null;
+    isRead: boolean;
+    snoozedUntil?: string | null;
     createdAt: string;
     lead: ReplyLead;
     outreachMessage: ReplyOutreachMessage;

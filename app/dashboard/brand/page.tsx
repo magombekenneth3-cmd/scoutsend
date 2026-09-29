@@ -5,6 +5,7 @@ import { IdentitySection } from "@/app/components/brand/Identity";
 import { ColoursSection } from "@/app/components/brand/ColorSeletion";
 import { SignatureSection } from "@/app/components/brand/SignatureSection";
 import { FooterSection } from "@/app/components/brand/FooterSection";
+import { ProvenStatsSection } from "@/app/components/brand/ProvenStatsSection";
 import { EmailPreview } from "@/app/components/brand/EmailPreview";
 import { useBrand } from "@/app/api/brand/usebrand";
 
@@ -196,6 +197,12 @@ export default function BrandSettingsPage() {
                                 <FooterSection
                                     form={form}
                                     errors={errors}
+                                    onChange={updateField}
+                                    disabled={isSaving}
+                                />
+                                <SectionDivider />
+                                <ProvenStatsSection
+                                    form={form}
                                     onChange={updateField}
                                     disabled={isSaving}
                                 />

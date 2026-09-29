@@ -7,12 +7,15 @@ import {
   enrichCompanyWaterfall,
   enrichPersonWaterfall,
 } from "../../lib/providers";
+import { runLeadScoringAgent } from "./lead-scoring.agent";
 
 export type WaterfallProviderState =
   | "success"
   | "empty"
   | "timeout"
   | "error"
+  | "no_key"
+  | "rate_limited"
   | "skipped";
 
 export interface WaterfallProviderStatus {
@@ -34,6 +37,7 @@ export interface WaterfallEnrichResult {
   skipped: boolean;
   company: WaterfallProviderStatus;
   person: WaterfallProviderStatus;
+  failureReasons: string[];
 }
 
 interface ProviderEntry {
@@ -294,8 +298,9 @@ function shouldRunProvider(meta: ProviderMeta | undefined, force: boolean): bool
 export async function runEnrichmentWaterfall(
   leadId: string,
   userId: string,
-  options: { force?: boolean } = {}
+  options: { force?: boolean; excludeProviders?: string[] } = {}
 ): Promise<WaterfallEnrichResult> {
+  try {
   const lead = await prisma.lead.findFirstOrThrow({
     where: {
       id: leadId,
@@ -344,6 +349,18 @@ export async function runEnrichmentWaterfall(
     }
   }
 
+  if (!domain && lead.email && lead.email.includes("@")) {
+    const parts = lead.email.split("@");
+    const emailDomain = parts[1]?.toLowerCase().trim();
+    const COMMON_WEBMAIL = new Set([
+      "gmail.com", "yahoo.com", "hotmail.com", "outlook.com",
+      "icloud.com", "aol.com", "protonmail.com", "zoho.com", "mail.com",
+    ]);
+    if (emailDomain && !COMMON_WEBMAIL.has(emailDomain)) {
+      domain = getDomain(emailDomain) ?? emailDomain;
+    }
+  }
+
   const runCompany = Boolean(domain) && shouldRunProvider(companyMeta, Boolean(options.force));
   const runPerson = shouldRunProvider(personMeta, Boolean(options.force));
 
@@ -359,6 +376,7 @@ export async function runEnrichmentWaterfall(
       skipped: true,
       company: { provider: "company", status: "skipped", durationMs: 0, fieldsReceived: 0, fieldsAdded: 0 },
       person: { provider: "person", status: "skipped", durationMs: 0, fieldsReceived: 0, fieldsAdded: 0 },
+      failureReasons: [],
     };
   }
 
@@ -368,7 +386,7 @@ export async function runEnrichmentWaterfall(
     runCompany
       ? safeEnrich(
         "company",
-        (_signal) => attemptWithRetry(() => enrichCompanyWaterfall(domain!)),
+        (_signal) => attemptWithRetry(() => enrichCompanyWaterfall(domain!, { excludeProviders: options.excludeProviders })),
         enrichContext
       )
       : Promise.resolve(null),
@@ -377,18 +395,22 @@ export async function runEnrichmentWaterfall(
         "person",
         (_signal) =>
           attemptWithRetry(() =>
-            enrichPersonWaterfall({
-              email: lead.email ?? undefined,
-              linkedinUrl: lead.linkedinUrl ?? undefined,
-              firstName: lead.firstName ?? undefined,
-              lastName: lead.lastName ?? undefined,
-              domain,
-            })
+            enrichPersonWaterfall(
+              {
+                email: lead.email ?? undefined,
+                linkedinUrl: lead.linkedinUrl ?? undefined,
+                firstName: lead.firstName ?? undefined,
+                lastName: lead.lastName ?? undefined,
+                domain,
+              },
+              { excludeProviders: options.excludeProviders }
+            )
           ),
         enrichContext
       )
       : Promise.resolve(null),
   ]);
+
 
   logger.info(
     {
@@ -751,6 +773,29 @@ export async function runEnrichmentWaterfall(
     "[enrichment-waterfall] done"
   );
 
+  if (fieldsAdded.length > 0) {
+    const leadCampaign = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { campaign: { select: { icpDescription: true, qualificationThreshold: true } } },
+    }).catch(() => null);
+
+    if (leadCampaign?.campaign?.icpDescription) {
+      await runLeadScoringAgent(
+        leadId,
+        leadCampaign.campaign.icpDescription,
+        true,
+        leadCampaign.campaign.qualificationThreshold ?? undefined
+      ).catch((err) =>
+        logger.warn({ err, leadId }, "[enrichment-waterfall] Dynamic lead rescore after enrichment failed")
+      );
+    }
+  }
+
+  const failureReasons: string[] = [
+    companyOutcome?.error,
+    personOutcome?.error,
+  ].filter((e): e is string => typeof e === "string" && e.length > 0);
+
   return {
     leadId,
     companyHit,
@@ -761,5 +806,15 @@ export async function runEnrichmentWaterfall(
     skipped: false,
     company: companyStatus,
     person: personStatus,
+    failureReasons,
   };
+  } catch (err) {
+    logger.error({ err, leadId }, "[enrichment-waterfall] fatal — lead left with lastEnrichedAt stamped");
+    throw err;
+  } finally {
+    await prisma.lead.updateMany({
+      where: { id: leadId, lastEnrichedAt: null },
+      data: { lastEnrichedAt: new Date() },
+    }).catch(() => {});
+  }
 }

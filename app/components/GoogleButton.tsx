@@ -14,10 +14,10 @@ export function GoogleButton({ label = "Continue with Google" }: GoogleButtonPro
             style={{
                 width: "100%",
                 height: 44,
-                background: "#1e2340",
-                border: "1px solid rgba(255,255,255,0.07)",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
                 borderRadius: 10,
-                color: "#8892b0",
+                color: "var(--text-secondary)",
                 fontFamily: "var(--font-body)",
                 fontSize: 14,
                 fontWeight: 500,

@@ -4,6 +4,7 @@ export type QueueKey =
   | "leadSignal"
   | "leadScoring"
   | "emailEnrichment"
+  | "companyScrape"
   | "emailGeneration"
   | "send"
   | "linkedin"
@@ -11,7 +12,16 @@ export type QueueKey =
   | "mailPoll"
   | "maintenance"
   | "learning"
-  | "deliveryWebhook";
+  | "deliveryWebhook"
+  | "seedWarmup"
+  | "transactional";
+
+export const JOB_PRIORITY = {
+  CRITICAL: 1,
+  HIGH: 2,
+  NORMAL: 5,
+  LOW: 10,
+} as const;
 
 export interface QueuePolicy {
   queueName: string;
@@ -23,6 +33,7 @@ export interface QueuePolicy {
     backoff: { type: "exponential" | "fixed"; delay: number };
     removeOnComplete: { age: number };
     removeOnFail: { age: number };
+    priority: number;
   };
 }
 
@@ -35,7 +46,8 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       attempts: 3,
       backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: { age: 60 * 60 * 24 },
-      removeOnFail: { age: 60 * 60 * 24 * 7 },
+      removeOnFail: { age: 60 * 60 * 24 * 7 }, // 7 days — DLQ recovery window
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   leadResearch: {
@@ -47,6 +59,7 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       backoff: { type: "exponential", delay: 2_000 },
       removeOnComplete: { age: 60 * 60 * 24 },
       removeOnFail: { age: 60 * 60 * 24 * 7 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   leadSignal: {
@@ -58,6 +71,7 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: { age: 3600 },
       removeOnFail: { age: 60 * 60 * 24 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   leadScoring: {
@@ -70,17 +84,31 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       backoff: { type: "exponential", delay: 3_000 },
       removeOnComplete: { age: 3600 },
       removeOnFail: { age: 60 * 60 * 24 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   emailEnrichment: {
     queueName: "email-enrichment",
     concurrency: 8,
-    lockDuration: 180_000,
+    lockDuration: 300_000,
     defaultJobOptions: {
       attempts: 2,
-      backoff: { type: "exponential", delay: 3_000 },
+      backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: { age: 60 * 60 * 24 },
       removeOnFail: { age: 60 * 60 * 24 * 7 },
+      priority: JOB_PRIORITY.NORMAL,
+    },
+  },
+  companyScrape: {
+    queueName: "company-scrape",
+    concurrency: 5,
+    lockDuration: 30_000,
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: { type: "exponential", delay: 5_000 },
+      removeOnComplete: { age: 3600 },
+      removeOnFail: { age: 60 * 60 * 24 },
+      priority: JOB_PRIORITY.LOW,
     },
   },
   emailGeneration: {
@@ -93,6 +121,7 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: { age: 3600 },
       removeOnFail: { age: 60 * 60 * 24 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   send: {
@@ -103,7 +132,8 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       attempts: 3,
       backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: { age: 300 },
-      removeOnFail: { age: 3600 },
+      removeOnFail: { age: 60 * 60 * 24 * 7 }, // 7 days — crash recovery window for send audit
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   linkedin: {
@@ -116,6 +146,7 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       backoff: { type: "exponential", delay: 10_000 },
       removeOnComplete: { age: 3600 },
       removeOnFail: { age: 60 * 60 * 24 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   realtime: {
@@ -127,6 +158,7 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       backoff: { type: "exponential", delay: 2_000 },
       removeOnComplete: { age: 300 },
       removeOnFail: { age: 3600 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   mailPoll: {
@@ -138,17 +170,19 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: { age: 3600 },
       removeOnFail: { age: 60 * 60 * 24 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   maintenance: {
     queueName: "campaign-maintenance",
-    concurrency: 5,
-    lockDuration: 120_000,
+    concurrency: 8,
+    lockDuration: 300_000,
     defaultJobOptions: {
       attempts: 2,
       backoff: { type: "fixed", delay: 30_000 },
       removeOnComplete: { age: 3600 },
       removeOnFail: { age: 60 * 60 * 24 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   learning: {
@@ -160,6 +194,7 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: { age: 60 * 60 * 24 },
       removeOnFail: { age: 60 * 60 * 24 * 7 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
   deliveryWebhook: {
@@ -171,13 +206,31 @@ export const QUEUE_POLICY: Record<QueueKey, QueuePolicy> = {
       backoff: { type: "fixed", delay: 1_000 },
       removeOnComplete: { age: 0 },
       removeOnFail: { age: 60 * 60 * 24 },
+      priority: JOB_PRIORITY.NORMAL,
+    },
+  },
+  seedWarmup: {
+    queueName: "seed-warmup",
+    concurrency: 5,
+    lockDuration: 120_000,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 30_000 },
+      removeOnComplete: { age: 60 * 60 * 24 },
+      removeOnFail: { age: 60 * 60 * 24 * 7 },
+      priority: JOB_PRIORITY.NORMAL,
+    },
+  },
+  transactional: {
+    queueName: "transactional-email",
+    concurrency: 10,
+    lockDuration: 30_000,
+    defaultJobOptions: {
+      attempts: 5,
+      backoff: { type: "exponential", delay: 1_000 },
+      removeOnComplete: { age: 3600 },
+      removeOnFail: { age: 60 * 60 * 24 * 7 },
+      priority: JOB_PRIORITY.NORMAL,
     },
   },
 };
-
-export const JOB_PRIORITY = {
-  CRITICAL: 1,
-  HIGH: 2,
-  NORMAL: 5,
-  LOW: 10,
-} as const;

@@ -14,6 +14,39 @@ enum UserRole {
   REVIEWER
 }
 
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum PlanTier {
+  FREE
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+enum ConsentBasis {
+  EXPLICIT_CONSENT
+  LEGITIMATE_INTEREST
+  EXISTING_BUSINESS_RELATIONSHIP
+}
+
+enum CrmProvider {
+  HUBSPOT
+  SALESFORCE
+}
+
 enum EmailStatus {
   NOT_ATTEMPTED
   PENDING
@@ -57,6 +90,9 @@ enum ApprovalStatus {
 
 enum DeliveryState {
   DRAFT
+  VALIDATED
+  AUTHORIZED
+  DISPATCHING
   QUEUED
   SENT
   DELIVERED
@@ -67,6 +103,8 @@ enum DeliveryState {
   SUPPRESSED
   SENDING
   SPAM
+  BLOCKED
+  CANCELLED
 }
 
 enum ReplyIntent {
@@ -103,6 +141,16 @@ enum DomainHealth {
   BLOCKED
 }
 
+enum WarmupState {
+  NOT_STARTED
+  OBSERVATION
+  RAMPING
+  STABLE
+  COOLDOWN
+  PAUSED
+  RECOVERY
+}
+
 enum MailProviderType {
   GMAIL
   OUTLOOK
@@ -124,6 +172,8 @@ enum DeliverabilityEventType {
   HEALTH_WARNING
   HEALTH_DEGRADED
   HEALTH_BLOCKED
+  SEED_WARMUP_SPAM_LANDING
+  SEED_WARMUP_ENGAGED
 }
 
 enum DeliverabilityEventSeverity {
@@ -187,6 +237,7 @@ enum LeadJourneyEventType {
   EMAIL_SENT
   EMAIL_DELIVERED
   EMAIL_OPENED
+  EMAIL_CLICKED
   EMAIL_BOUNCED
   LINKEDIN_VISITED
   LINKEDIN_CONNECT_SENT
@@ -220,6 +271,57 @@ enum DiscoveryRunStatus {
   PARTIAL
 }
 
+enum LeadState {
+  DISCOVERED
+  RESEARCH_PENDING
+  ENRICHING
+  ENRICHED
+  SIGNALS_EVALUATED
+  SCORE_PENDING
+  SCORED
+  EMAIL_REVEAL_PENDING
+  EMAIL_REVEALED
+  EMAIL_VALIDATING
+  EMAIL_VERIFIED
+  CONTENT_PENDING
+  CONTENT_READY
+  COMPLIANCE_PENDING
+  SEND_ELIGIBLE
+  QUEUED
+  SENT
+  WAITING_FOR_REPLY
+  REPLIED
+  DISQUALIFIED
+  SUPPRESSED
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINT
+  SEQUENCE_STOPPED
+  MEETING_BOOKED
+  CONVERTED
+  FAILED_RETRYABLE
+  FAILED_TERMINAL
+}
+
+enum EmailValidationStatus {
+  UNKNOWN
+  REVEALED
+  VALID
+  INVALID
+  RISKY
+  CATCH_ALL
+}
+
+enum OperationStatus {
+  PENDING
+  RUNNING
+  RECOVERABLE
+  LEASE_EXPIRED
+  SUCCEEDED
+  FAILED
+}
+
+
 enum CatchAllPolicy {
   SKIP
   SEND
@@ -235,6 +337,7 @@ enum ResearchStatus {
   PENDING
   RUNNING
   COMPLETE
+  PARTIAL
   FAILED
   STALE
   CANCELLED
@@ -254,6 +357,171 @@ enum AgentOutputType {
   NUMBER
 }
 
+enum ProposalExecutionStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+  REJECTED
+}
+
+model AgentProposalExecution {
+  id                 String                  @id @default(cuid())
+
+  proposalId         String                  @unique
+  proposalHash       String
+  requestFingerprint String
+  contextHash        String
+  agentName          String
+  outreachMessageId  String?                 @unique
+
+  status             ProposalExecutionStatus
+
+  createdAt          DateTime                @default(now())
+  startedAt          DateTime?
+  completedAt        DateTime?
+
+  errorCode          String?
+  errorMessage       String?
+
+  @@index([proposalId])
+  @@index([requestFingerprint])
+  @@index([contextHash])
+  @@index([outreachMessageId])
+}
+
+model GeneratedProposalCache {
+  id                 String    @id @default(cuid())
+
+  proposalId         String    @unique
+  agentName          String
+  leadId             String
+  campaignId         String
+
+  // Complete generated payload — immutable once written
+  subject            String
+  body               String
+  subjectVariant     String?
+  leadingSignal      String?
+  ctaTier            String?
+  confidence         Float
+  reasoning          String?
+
+  // Proposal metadata & telemetry
+  proposalHash       String
+  contextHash        String
+  requestFingerprint String
+  expiresAt          DateTime
+  tokenInput         Int       @default(0)
+  tokenOutput        Int       @default(0)
+  tokenTotal         Int       @default(0)
+  latencyMs          Int       @default(0)
+
+  // Lifecycle state machine & lease fencing
+  // Status: GENERATED | PERSISTING | PERSISTED | PERSIST_FAILED | EXPIRED | PERSISTENCE_EXHAUSTED
+  persistenceStatus  String    @default("GENERATED")
+  persistAttempts    Int       @default(0)
+  lastPersistError   String?
+  persistedMessageId String?
+  leaseToken         String?
+  leaseExpiresAt     DateTime?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([leadId, campaignId, contextHash])
+  @@index([persistenceStatus, updatedAt])
+}
+
+model Organization {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  members     OrganizationMember[]
+  invitations OrganizationInvitation[]
+
+  campaigns      Campaign[]
+  senderMailboxes SenderMailbox[]
+  senderDomains   SenderDomain[]
+  suppressions    Suppression[]
+  brandSettings   BrandSettings?
+  linkedInAccounts LinkedInAccount[]
+  competitorInsights CompetitorInsight[]
+  agentColumns    LeadAgentColumn[]
+
+  notifications   Notification[]
+  subscription    Subscription?
+  crmIntegrations CrmIntegration[]
+  consentRecords  ConsentRecord[]
+  apiKeys         ApiKey[]
+  learningEvents  LearningEvent[]
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  orgId       String
+  name        String
+  keyHash     String    @unique
+  keyPrefix   String
+  scopes      String[]
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([keyHash])
+}
+
+
+model OrganizationMember {
+  id    String  @id @default(cuid())
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role            OrgRole @default(MEMBER)
+  invitedByUserId String?
+  invitedAt       DateTime?
+  joinedAt        DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+}
+
+model OrganizationInvitation {
+  id    String  @id @default(cuid())
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  email           String
+  role            OrgRole  @default(MEMBER)
+  token           String   @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  invitedByUserId String
+  invitedBy       User     @relation("SentInvitations", fields: [invitedByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([orgId])
+  @@index([email])
+  @@index([token])
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -262,6 +530,7 @@ model User {
   lastName     String
   role         UserRole @default(OPERATOR)
   tokenVersion Int      @default(0)
+  emailVerified Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -278,6 +547,48 @@ model User {
   triggeredResearch  LeadResearchReport[]
   agentColumns       LeadAgentColumn[]
   triggeredAgentRuns LeadAgentRun[]
+  competitorInsights CompetitorInsight[]
+  seedMailboxes      SeedMailbox[]
+
+  orgMemberships OrganizationMember[]
+  sentInvitations OrganizationInvitation[] @relation("SentInvitations")
+  learningEvents  LearningEvent[]
+  sessions        UserSession[]
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  jti       String   @unique
+  familyId  String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model CompetitorInsight {
+  id          String   @id @default(cuid())
+  userId      String
+  tool        String
+  painPoint   String
+  sentiment   String
+  source      String?
+  userFixesIt Boolean?
+  userNote    String?
+  severity    String   @default("medium")
+  fetchedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orgId String?
+  org   Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, tool, painPoint])
+  @@index([userId, tool])
+  @@index([orgId])
 }
 
 model Campaign {
@@ -286,11 +597,17 @@ model Campaign {
   description    String?
   status         CampaignStatus  @default(DRAFT)
   previousStatus CampaignStatus?
+  /// CAS version — every authoritative mutation must supply expectedVersion = this value.
+  version        Int             @default(1)
 
   icpDescription String
   targetIndustry String?
   targetRegion   String?
   enrichmentData Json?
+
+  businessDescription String?
+  valueProposition    String?
+  provenStats         Json?
 
   dailySendLimit         Int   @default(25)
   qualificationThreshold Float @default(0.5)
@@ -304,9 +621,13 @@ model Campaign {
   followUpMaxSteps       Int     @default(2)
   regenAttempts          Int     @default(0)
   autoSendRepliesEnabled Boolean @default(false)
+  inboundEnabled         Boolean @default(false)
+  requireVerifiedEmailForGeneration Boolean @default(false)
 
   catchAllPolicy CatchAllPolicy @default(SKIP)
   templateStyle  TemplateStyle  @default(BRANDED)
+
+  enrichmentBudgetCents Int?
 
   startedAt   DateTime?
   pausedAt    DateTime?
@@ -314,6 +635,9 @@ model Campaign {
 
   linkedInAccountId String?
   linkedInAccount   LinkedInAccount? @relation(fields: [linkedInAccountId], references: [accountId])
+
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
@@ -323,6 +647,7 @@ model Campaign {
 
   senderMailboxId String?
   senderMailbox   SenderMailbox? @relation("CampaignMailbox", fields: [senderMailboxId], references: [id])
+  senderMailboxes SenderMailbox[] @relation("CampaignMailboxes")
 
   leads                Lead[]
   queueJobs            QueueJob[]
@@ -336,12 +661,16 @@ model Campaign {
   qualityThreshold     CampaignQualityThreshold?
   scoringWeights       CampaignScoringWeights?
   agentColumns         LeadAgentColumn[]
+  learningEvents       LearningEvent[]
+  campaignRuns         CampaignRun[]
+  enrichmentCosts      EnrichmentCostLedger[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   @@index([createdById])
+  @@index([orgId])
   @@index([status])
   @@index([status, deletedAt])
   @@index([senderDomainId])
@@ -356,6 +685,9 @@ model LinkedInAccount {
   avatarUrl  String?
   profileUrl String?
 
+  orgId       String?
+  org         Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
@@ -365,10 +697,17 @@ model LinkedInAccount {
   updatedAt DateTime @updatedAt
 
   @@index([createdById])
+  @@index([orgId])
 }
 
 model Lead {
   id String @id @default(cuid())
+
+  leadState             LeadState            @default(DISCOVERED)
+  leadStateVersion      Int                  @default(0)
+  /// CAS version — every authoritative mutation must supply expectedVersion = this value.
+  version               Int                  @default(1)
+  emailValidationStatus EmailValidationStatus @default(UNKNOWN)
 
   companyName String
   website     String?
@@ -425,37 +764,49 @@ model Lead {
   aiTraces           AITrace[]
   researchReports    LeadResearchReport[]
   agentRuns          LeadAgentRun[]
+  emailRevealDecision EmailRevealDecision?
+  enrichmentCosts     EnrichmentCostLedger[]
+
+  researchCard             Json?
+  researchCardGeneratedAt  DateTime?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+
   @@index([campaignId])
   @@index([campaignId, deletedAt])
-  @@index([campaignId, externalId])
+  @@index([campaignId, deletedAt, qualificationScore(sort: Desc)])
   @@unique([campaignId, externalId])
   @@index([companyId])
   @@index([pipelineStage])
   @@unique([campaignId, email])
-  @@unique([campaignId, domain])
+  /// Multiple leads per domain per campaign are allowed (e.g. multi-stakeholder outreach)
+  @@index([campaignId, domain])
   @@index([campaignId, pipelineStage])
   @@index([seniority])
   @@index([department])
   @@index([decisionMakerScore])
   @@index([emailStatus])
+  @@index([emailValidationStatus])
+  @@index([leadState])
   @@index([lastEnrichedAt])
   @@index([qualificationScore])
   @@index([lastContactedAt])
+  @@index([campaignId, leadState, deletedAt])
 }
 
 model LeadSignal {
   id String @id @default(cuid())
 
-  signalType  SignalType
-  value       String
-  confidence  Float
-  source      String?
-  explanation String?
+  signalType      SignalType
+  value           String
+  confidence      Float
+  source          String?
+  sourceId        String?
+  independenceKey String     @default("")
+  explanation     String?
 
   firstSeenAt DateTime  @default(now())
   lastSeenAt  DateTime  @default(now())
@@ -469,9 +820,11 @@ model LeadSignal {
   updatedAt DateTime @updatedAt
 
   @@unique([leadId, signalType, value])
+  @@unique([leadId, independenceKey], map: "LeadSignal_leadId_independenceKey_key")
   @@index([leadId, isActive])
   @@index([signalType])
   @@index([expiresAt])
+  @@index([independenceKey])
 }
 
 model OutreachMessage {
@@ -485,26 +838,42 @@ model OutreachMessage {
   subjectVariant  String?
   approvalStatus ApprovalStatus @default(PENDING)
   deliveryState  DeliveryState  @default(DRAFT)
+  /// CAS version — every authoritative mutation must supply expectedVersion = this value.
+  version        Int            @default(1)
   spamRiskScore        Float?
   personalizationScore Float?
   leadingSignal        String?
   claimToken           String?
+  claimVersion         Int       @default(0)
+  claimExpiresAt       DateTime?
   channel              Channel @default(EMAIL)
 
   externalMessageId String? @unique
 
-  isFollowUp   Boolean @default(false)
-  followUpStep Int?
+  isFollowUp      Boolean @default(false)
+  followUpStep    Int?
+
+  parentMessageId String?
+  parentMessage   OutreachMessage?  @relation("OutreachThread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  childMessages   OutreachMessage[] @relation("OutreachThread")
+
+  clicks Int @default(0)
 
   retryCount  Int       @default(0)
   lastError   String?
   nextRetryAt DateTime?
+
+  payloadHash      String?
+  complianceStatus String?
 
   approvedById String?
   approvedBy   User?  @relation(fields: [approvedById], references: [id])
 
   leadId String
   lead   Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  senderMailboxId String?
+  senderMailbox   SenderMailbox? @relation(fields: [senderMailboxId], references: [id])
 
   replies        Reply[]
   learningEvents LearningEvent[]
@@ -519,6 +888,8 @@ model OutreachMessage {
   scheduledAt          DateTime?
   generationConfidence Float?
   enrichmentData       Json?
+  regenerationNeeded   Boolean @default(false)
+  regenerationReason   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -533,7 +904,12 @@ model OutreachMessage {
   @@index([nextRetryAt])
   @@index([scheduledAt])
   @@index([sentAt])
+  @@index([leadId, deliveryState, scheduledAt])
   @@unique([leadId, followUpStep], name: "outreach_message_lead_followup_step_unique", map: "outreach_message_lead_followup_step_unique")
+  @@index([senderMailboxId])
+  @@index([parentMessageId])
+  @@index([claimExpiresAt])
+  @@index([channel])
 }
 
 model Reply {
@@ -579,6 +955,9 @@ model Reply {
   draftIntent   String?
   oooRequeuedAt DateTime?
 
+  isRead        Boolean   @default(false)
+  snoozedUntil  DateTime?
+
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
@@ -591,6 +970,9 @@ model Reply {
   @@index([requiresHumanReview])
   @@index([createdAt])
   @@index([oooRequeuedAt])
+  @@index([isRead])
+  @@index([snoozedUntil])
+  @@index([intent, createdAt])
 }
 
 model WinRecord {
@@ -701,18 +1083,73 @@ model SenderDomain {
   dkimPublicKey String?
   dnsCheckedAt  DateTime?
 
+  orgId       String?
+  org         Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
   campaigns            Campaign[]
   deliverabilityEvents DeliverabilityEvent[]
 
+  warmupState                WarmupState @default(NOT_STARTED)
+  warmupFenceVersion         Int         @default(0)
+  warmupDay                  Int         @default(0)
+  baseDailyLimit             Int         @default(50)
+  consecutiveHealthyEvals    Int         @default(0)
+  consecutiveDegradedEvals   Int         @default(0)
+  warmupStartedAt            DateTime?
+
+  warmupDecisionLogs WarmupDecisionLog[] @relation("DomainDecisionLogs")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([createdById])
+  @@index([orgId])
   @@index([health])
   @@index([warmupEnabled])
+  @@index([warmupState])
+}
+
+model WarmupDecisionLog {
+  id              String      @id @default(cuid())
+
+  scope           String      // "mailbox" | "domain"
+  entityId        String
+  policyVersion   String
+  inputHash       String
+
+  action          String      // HOLD | ACCELERATE | COOL_DOWN | PAUSE
+  previousState   String
+  nextState       String
+  previousLimit   Int
+  effectiveLimit  Int
+  targetLimit     Int
+
+  health          String      // HEALTHY | DEGRADED | CRITICAL
+  reasons         Json        // WarmupReasonDetail[]
+  insufficientData Boolean    @default(false)
+
+  consecutiveHealthyEvals   Int @default(0)
+  consecutiveDegradedEvals  Int @default(0)
+
+  fenceVersion    Int         @default(0)
+  warmupDay       Int         @default(0)
+
+  senderMailboxId String?
+  senderMailbox   SenderMailbox? @relation("MailboxDecisionLogs", fields: [senderMailboxId], references: [id])
+
+  senderDomainId  String?
+  senderDomain    SenderDomain?  @relation("DomainDecisionLogs", fields: [senderDomainId], references: [id])
+
+  createdAt       DateTime    @default(now())
+
+  @@index([entityId])
+  @@index([scope, entityId])
+  @@index([senderMailboxId])
+  @@index([senderDomainId])
+  @@index([createdAt])
 }
 
 model DeliverabilityEvent {
@@ -775,20 +1212,36 @@ model SenderMailbox {
   lastReplyCheckedAt    DateTime?
   lastDeliveryCheckedAt DateTime?
 
+  orgId       String?
+  org         Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
   campaigns            Campaign[]            @relation("CampaignMailbox")
+  campaignMailboxes    Campaign[]            @relation("CampaignMailboxes")
   deliverabilityEvents DeliverabilityEvent[]
+  outreachMessages     OutreachMessage[]
+  warmupInteractions   WarmupInteraction[]
+
+  warmupState                WarmupState @default(NOT_STARTED)
+  warmupFenceVersion         Int         @default(0)
+  warmupDay                  Int         @default(0)
+  consecutiveHealthyEvals    Int         @default(0)
+  consecutiveDegradedEvals   Int         @default(0)
+
+  warmupDecisionLogs WarmupDecisionLog[] @relation("MailboxDecisionLogs")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([createdById, emailAddress])
   @@index([createdById])
+  @@index([orgId])
   @@index([health])
   @@index([lastReplyCheckedAt])
   @@index([lastDeliveryCheckedAt])
+  @@index([warmupState])
 }
 
 
@@ -801,15 +1254,20 @@ model Suppression {
   reason String
   source String?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
-  @@unique([email, userId], map: "Suppression_email_userId_key")
-  @@unique([domain, userId], map: "Suppression_domain_userId_key")
+  @@unique([email, orgId], map: "Suppression_email_orgId_key")
+  @@unique([domain, orgId], map: "Suppression_domain_orgId_key")
   @@index([email])
   @@index([domain])
+  @@index([orgId])
+  @@index([userId])
   @@index([createdAt])
 }
 
@@ -849,8 +1307,8 @@ model AuditLog {
 
   metadata Json?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   ipAddress String?
   userAgent String?
@@ -905,6 +1363,15 @@ model LearningEvent {
   outreachMessageId String?
   outreachMessage   OutreachMessage? @relation(fields: [outreachMessageId], references: [id], onDelete: SetNull)
 
+  orgId      String?
+  org        Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  campaignId String?
+  campaign   Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  userId     String?
+  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   metadata Json?
 
   createdAt DateTime @default(now())
@@ -912,6 +1379,9 @@ model LearningEvent {
   @@index([outreachMessageId])
   @@index([eventType])
   @@index([createdAt])
+  @@index([orgId, createdAt])
+  @@index([campaignId, createdAt])
+  @@index([userId])
 }
 
 model BrandSettings {
@@ -934,6 +1404,8 @@ model BrandSettings {
   senderTitle String?
   senderPhone String?
 
+  provenStats Json?
+
   companyAddress  String?
   unsubscribeText String @default("You received this email because you match our ideal customer profile. To unsubscribe, reply with 'unsubscribe'.")
   facebookUrl     String?
@@ -942,6 +1414,9 @@ model BrandSettings {
 
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orgId String? @unique
+  org   Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -963,6 +1438,8 @@ model Company {
   embedding      Unsupported("vector(768)")?
   lastEnrichedAt DateTime?
 
+  /// CAS version — every authoritative mutation must supply expectedVersion = this value.
+  version   Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1087,6 +1564,7 @@ model CampaignStateStore {
   campaignId         String   @unique
   currentNode        String
   regenAttemptsCount Int      @default(0)
+  stateVersion       Int      @default(0)
   approvalStatuses   Json
   updatedAt          DateTime @updatedAt
   campaign           Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -1256,6 +1734,9 @@ model LeadAgentColumn {
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
+  orgId String?
+  org   Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
@@ -1264,6 +1745,7 @@ model LeadAgentColumn {
   @@unique([campaignId, fieldKey])
   @@index([campaignId])
   @@index([createdById])
+  @@index([orgId])
 }
 
 model LeadAgentRun {
@@ -1290,4 +1772,462 @@ model LeadAgentRun {
   @@index([columnId])
   @@index([leadId, columnId])
   @@index([status])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  orgId     String
+  title     String
+  message   String
+  type      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model Subscription {
+  id     String @id @default(cuid())
+  orgId  String @unique
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  planTier  PlanTier           @default(FREE)
+  status    SubscriptionStatus @default(ACTIVE)
+
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+
+  seatLimit      Int @default(3)
+  campaignLimit  Int @default(5)
+
+  currentPeriodEnd DateTime?
+  trialEndsAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@index([stripeCustomerId])
+  @@index([status])
+}
+
+model ConsentRecord {
+  id     String @id @default(cuid())
+  orgId  String
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  email     String
+  domain    String?
+  basis     ConsentBasis
+  source    String
+
+  ipAddress String?
+  userAgent String?
+
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([orgId])
+  @@index([email])
+  @@index([orgId, email])
+  @@index([revokedAt])
+}
+
+model CrmIntegration {
+  id      String @id @default(cuid())
+  orgId   String
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  provider       CrmProvider
+  accessToken    String
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+
+  lastSyncAt    DateTime?
+  syncErrorCount Int     @default(0)
+  lastSyncError  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  syncLogs CrmSyncLog[]
+
+  @@unique([orgId, provider])
+  @@index([orgId])
+}
+
+model CrmSyncLog {
+  id              String @id @default(cuid())
+  integrationId   String
+  integration     CrmIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  action    String
+  success   Boolean
+  errorMsg  String?
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([integrationId])
+  @@index([integrationId, createdAt])
+  @@index([createdAt])
+}
+
+enum SeedProvider {
+  GMAIL
+  OUTLOOK
+}
+
+enum SeedStage {
+  BOOTSTRAPPING
+  ACTIVE
+  COOLING_DOWN
+  DEAD
+}
+
+model SeedMailbox {
+  id           String       @id @default(cuid())
+  provider     SeedProvider
+  emailAddress String       @unique
+
+  credentials Json
+
+  ownerUserId String?
+  owner       User?   @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+
+  stage         SeedStage @default(BOOTSTRAPPING)
+  healthScore   Float     @default(0.5)
+  dailyCapacity Int       @default(0)
+  usedToday     Int       @default(0)
+  lastResetAt   DateTime  @default(now())
+
+  lastPairedAt Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  interactions WarmupInteraction[]
+
+  @@index([stage, healthScore])
+}
+
+model WarmupInteraction {
+  id String @id @default(cuid())
+
+  senderMailboxId String
+  senderMailbox   SenderMailbox @relation(fields: [senderMailboxId], references: [id], onDelete: Cascade)
+
+  seedMailboxId String
+  seedMailbox   SeedMailbox @relation(fields: [seedMailboxId], references: [id], onDelete: Cascade)
+
+  direction String
+  messageId String
+  threadId  String?
+
+  scheduledOpenAt    DateTime?
+  openedAt           DateTime?
+  landedInSpam       Boolean?
+  movedToInboxAt     DateTime?
+  repliedAt          DateTime?
+  replyGeneratedByAi Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([senderMailboxId])
+  @@index([seedMailboxId])
+  @@index([createdAt])
+  @@index([senderMailboxId, createdAt])
+}
+
+model Operation {
+  id            String          @id @default(cuid())
+  operationId   String          @unique
+  aggregateType String
+  aggregateId   String
+  operationType String
+  status        OperationStatus @default(PENDING)
+  attempt       Int             @default(0)
+  leaseVersion  Int             @default(0)
+  payload       Json            @default("{}")
+  result        Json?
+  error         String?
+  leaseOwner    String?
+  leaseExpiresAt DateTime?
+  createdAt     DateTime        @default(now())
+  completedAt   DateTime?
+
+  @@index([aggregateId, operationType])
+  @@index([status, createdAt])
+  @@index([status, leaseExpiresAt])
+  @@index([aggregateId])
+  @@index([leaseOwner])
+  @@index([leaseExpiresAt])
+}
+
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  PUBLISHED
+  FAILED
+  DEAD_LETTER
+}
+
+model OutboxEvent {
+  id               String            @id @default(cuid())
+  organizationId   String
+  correlationId    String?
+  aggregateType    String
+  aggregateId      String
+  aggregateVersion Int               @default(0)
+  eventType        String
+  payload          Json
+  idempotencyKey   String            @unique
+  operationId      String?
+  status           OutboxEventStatus @default(PENDING)
+  lastError        String?
+  createdAt        DateTime  @default(now())
+  publishedAt      DateTime?
+  nextRetryAt      DateTime?
+  leaseToken       String?
+  leaseExpiresAt   DateTime?
+  attempts         Int       @default(0)
+
+  @@index([publishedAt, createdAt])
+  @@index([aggregateId])
+  @@index([status, createdAt])
+  @@index([status, nextRetryAt])
+  @@index([status, leaseExpiresAt])
+  @@index([organizationId, status])
+  @@index([organizationId, status, nextRetryAt])
+  @@index([organizationId, status, leaseExpiresAt])
+  @@index([operationId])
+}
+
+model OutboxOperatorAudit {
+  id                  String    @id @default(cuid())
+  organizationId      String
+  outboxEventId       String
+  operatorId          String
+  action              String    @default("REPLAY")
+  previousStatus      String
+  resultingStatus     String
+  previousAttempts    Int
+  previousLastError   String?
+  previousNextRetryAt DateTime?
+  previousLeaseToken  String?
+  reason              String?
+  createdAt           DateTime  @default(now())
+  metadata            Json?
+
+  @@index([organizationId, createdAt])
+  @@index([outboxEventId])
+}
+
+model ProviderDeliveryAttempt {
+  id                String    @id @default(cuid())
+  organizationId    String
+  outboxEventId     String
+  attemptNumber     Int
+  leaseToken        String?
+  workerId          String?
+  provider          String
+  providerMessageId String?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+  latencyMs         Int?
+  outcome           String    @default("PROCESSING")
+  statusCode        Int?
+  errorCode         String?
+  createdAt         DateTime  @default(now())
+
+  @@unique([outboxEventId, attemptNumber])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, outcome, createdAt])
+}
+
+model OutboxFencingIncident {
+  id                String    @id @default(cuid())
+  organizationId    String
+  outboxEventId     String
+  staleLeaseToken   String
+  currentLeaseToken String?
+  leaseExpiresAt    DateTime?
+  workerId          String?
+  occurredAt        DateTime  @default(now())
+
+  @@index([organizationId, occurredAt])
+  @@index([outboxEventId])
+}
+
+model EmailRevealDecision {
+  id           String   @id @default(cuid())
+  leadId       String   @unique
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  score        Float
+  threshold    Float
+  decision     String
+  scoringRunId String
+  decidedAt    DateTime @default(now())
+
+  @@index([leadId])
+  @@index([decision])
+}
+
+enum SendIntentStatus {
+  PENDING
+  DISPATCHING
+  ACCEPTED
+  SENT
+  FAILED
+  UNKNOWN
+  RECONCILING
+  UNRESOLVED
+  HUMAN_REVIEW
+}
+
+model SendIntent {
+  id                String           @id @default(cuid())
+  operationId       String           @unique
+  leadId            String
+  campaignId        String?
+  mailboxId         String?
+  outreachMessageId String           @unique
+  sequenceStep      Int
+  idempotencyKey    String           @unique
+  traceId           String?
+  status            SendIntentStatus @default(PENDING)
+  providerMessageId String?
+  provider          String?
+  payloadHash       String?
+  attemptCount      Int              @default(0)
+  lastAttemptAt     DateTime?
+  errorMessage      String?
+
+  /// Worker lease & fencing authority
+  claimedBy      String?
+  fencingEpoch   Int       @default(1)
+  leaseVersion   Int       @default(1)
+  leaseExpiresAt DateTime?
+
+  /// Reconciliation sweeper — how many times UNKNOWN state has been polled
+  reconciliationAttempts Int @default(0)
+
+  /// CAS version — every authoritative mutation must supply expectedVersion = this value.
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([campaignId])
+  @@index([mailboxId])
+  @@index([status])
+  @@index([status, updatedAt])
+  @@index([idempotencyKey])
+  @@index([claimedBy, leaseExpiresAt])
+  /// Stale-lease sweeper: DISPATCHING + expired lease
+  @@index([status, leaseExpiresAt])
+  /// UNKNOWN reconciliation sweeper: ordered by oldest first
+  @@index([status, reconciliationAttempts, updatedAt])
+  /// Authoritative SendIntent resolution: fast index-only scan by campaignId + createdAt desc + id desc
+  @@index([campaignId, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+enum QuotaScope {
+  MAILBOX
+  DOMAIN
+  CAMPAIGN
+  SMTP_HOST
+}
+
+enum QuotaReservationStatus {
+  RESERVED
+  CONSUMED
+  RELEASED
+  HELD
+}
+
+model QuotaReservation {
+  id            String                 @id @default(cuid())
+  operationId   String
+  scope         QuotaScope
+  scopeId       String
+  amount        Int                    @default(1)
+  status        QuotaReservationStatus @default(RESERVED)
+  windowStart   DateTime
+  /// CAS version — every authoritative mutation must supply expectedVersion = this value.
+  version       Int                    @default(1)
+  createdAt     DateTime               @default(now())
+  expiresAt     DateTime
+
+  @@unique([operationId, scope, scopeId])
+  @@index([scope, scopeId, status])
+  @@index([status, expiresAt])
+  @@index([operationId])
+}
+
+enum CampaignRunStatus {
+  CREATED
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  RECOVERING
+}
+
+model CampaignRun {
+  id           String            @id @default(cuid())
+  campaignId   String
+  campaign     Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  /// Monotonically increasing. Incremented on every lease takeover so stale workers are permanently invalid.
+  fencingEpoch Int               @default(1)
+  status       CampaignRunStatus @default(CREATED)
+  /// CAS version — every authoritative mutation must supply expectedVersion = this value.
+  version      Int      @default(1)
+  /// For event ordering / outbox sequencing only. Not used for CAS.
+  logicalVersion Int    @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  leases       CampaignRunLease[]
+
+  @@index([campaignId, status])
+}
+
+model CampaignRunLease {
+  id             String      @id @default(cuid())
+  campaignRunId  String
+  campaignRun    CampaignRun @relation(fields: [campaignRunId], references: [id], onDelete: Cascade)
+  workerId       String
+  /// Must equal CampaignRun.fencingEpoch at time of claim. Permanently invalid when CampaignRun.fencingEpoch increments.
+  fencingEpoch   Int
+  /// CAS-protected renewal counter within this epoch.
+  leaseVersion   Int         @default(1)
+  leaseExpiresAt DateTime
+  createdAt      DateTime    @default(now())
+
+  @@unique([campaignRunId, fencingEpoch])
+  @@index([workerId, leaseExpiresAt])
+  @@index([leaseExpiresAt])
+}
+
+model EnrichmentCostLedger {
+  id         String   @id @default(cuid())
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  provider   String   /// e.g. APOLLO_REVEAL, HUNTER, ZEROBOUNCE, PDL, PROXYCURL, APIFY_LINKEDIN
+  operation  String   /// e.g. email_reveal, email_verify, company_enrich, person_enrich
+  costCents  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId])
+  @@index([leadId])
+  @@index([createdAt])
 }

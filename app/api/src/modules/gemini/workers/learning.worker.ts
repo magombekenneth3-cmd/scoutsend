@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { createRedisConnection } from "../../../lib/ioredis";
+import { redisConnectionOptions } from "../../../lib/ioredis";
 import { QUEUE_POLICY } from "../queue-policy";
 import { wireWorkerEvents } from "../worker-runtime";
 import { logger } from "../../../lib/logger";
@@ -22,7 +22,7 @@ async function processJob(job: import("bullmq").Job) {
 }
 
 export const learningWorker = new Worker(policy.queueName, processJob, {
-  connection: createRedisConnection(),
+  connection: redisConnectionOptions,
   concurrency: policy.concurrency,
   lockDuration: policy.lockDuration,
 });

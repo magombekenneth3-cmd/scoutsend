@@ -1,70 +1,41 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useCampaignEventsContext, CampaignSSEEvent } from "../context/CampaignEventsContext";
 
-export interface CampaignEvent {
-    campaignId: string;
-    type: "active" | "progress" | "completed" | "failed";
-    jobName: string;
-    label: string;
-    progress?: number;
-    detail?: string;
-    timestamp: string;
-}
+export type CampaignEvent = CampaignSSEEvent;
 
 const EVENT_TTL_MS = 30_000;
 
 export function useCampaignEvents(opts?: { onJobComplete?: () => void }) {
     const [events, setEvents] = useState<Map<string, CampaignEvent>>(new Map());
-    const sourceRef = useRef<EventSource | null>(null);
-    const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const eventsCtx = useCampaignEventsContext();
     const onJobCompleteRef = useRef(opts?.onJobComplete);
     onJobCompleteRef.current = opts?.onJobComplete;
 
-    const connect = useCallback(() => {
-        if (sourceRef.current) return;
-
-        const es = new EventSource("/api/campaigns/events");
-        sourceRef.current = es;
-
-        es.onmessage = (e) => {
-            try {
-                const event: CampaignEvent = JSON.parse(e.data);
-                const key = `${event.campaignId}:${event.jobName}`;
-
-                setEvents((prev) => {
-                    const next = new Map(prev);
-                    next.set(key, event);
-                    return next;
-                });
-
-                if (event.type === "completed" || event.type === "failed") {
-                    onJobCompleteRef.current?.();
-
-                    setTimeout(() => {
-                        setEvents((prev) => {
-                            const next = new Map(prev);
-                            next.delete(key);
-                            return next;
-                        });
-                    }, EVENT_TTL_MS);
-                }
-            } catch {}
-        };
-
-        es.onerror = () => {
-            es.close();
-            sourceRef.current = null;
-            retryRef.current = setTimeout(connect, 5_000);
-        };
-    }, []);
-
     useEffect(() => {
-        connect();
-        return () => {
-            sourceRef.current?.close();
-            sourceRef.current = null;
-            if (retryRef.current) clearTimeout(retryRef.current);
-        };
-    }, [connect]);
+        if (!eventsCtx) return;
+
+        return eventsCtx.subscribe((event) => {
+            const key = `${event.campaignId}:${event.jobName}`;
+
+            setEvents((prev) => {
+                const next = new Map(prev);
+                next.set(key, event);
+                return next;
+            });
+
+            if (event.type === "completed" || event.type === "failed") {
+                onJobCompleteRef.current?.();
+
+                setTimeout(() => {
+                    setEvents((prev) => {
+                        const next = new Map(prev);
+                        next.delete(key);
+                        return next;
+                    });
+                }, EVENT_TTL_MS);
+            }
+        });
+    }, [eventsCtx]);
 
     const activeEvents = Array.from(events.values()).filter(
         (e) => e.type === "active" || e.type === "progress",

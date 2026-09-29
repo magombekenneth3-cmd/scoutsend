@@ -9,14 +9,15 @@ import {
   pipelineStatsQuerySchema,
 } from "./repliess.schema";
 import { prisma } from "../../lib/prisma";
-import { assertCampaignOwner } from "../../lib/ownership";
+import { assertCampaignAccess } from "../../lib/ownership";
 
 async function assertReplyOwner(
   reply: { outreachMessage: { lead: { campaignId: string } } } | null,
-  userId: string
+  userId: string,
+  orgId: string | undefined,
 ): Promise<void> {
   if (!reply) throw Object.assign(new Error("Reply not found"), { statusCode: 404 });
-  await assertCampaignOwner(reply.outreachMessage.lead.campaignId, userId);
+  await assertCampaignAccess(reply.outreachMessage.lead.campaignId, userId, orgId);
 }
 
 export async function createReply(
@@ -33,7 +34,7 @@ export async function createReply(
       res.status(404).json({ error: "Lead not found" });
       return;
     }
-    await assertCampaignOwner(lead.campaign.id, userId);
+    await assertCampaignAccess(lead.campaign.id, userId, req.user!.orgId);
 
     const reply = await RepliesService.createReply(data);
     res.status(201).json(reply);
@@ -57,6 +58,20 @@ export async function getReplies(
   }
 }
 
+export async function getReplyCounts(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.user!.userId;
+    const counts = await RepliesService.getReplyCountsForUser(userId);
+    res.status(200).json(counts);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getReplyById(
   req: AuthenticatedRequest,
   res: Response,
@@ -65,7 +80,7 @@ export async function getReplyById(
   try {
     const { id } = req.params as { id: string };
     const reply = await RepliesService.getReplyById(id);
-    await assertReplyOwner(reply, req.user!.userId);
+    await assertReplyOwner(reply, req.user!.userId, req.user!.orgId);
     res.status(200).json(reply);
   } catch (error) {
     next(error);
@@ -81,7 +96,7 @@ export async function updateReply(
     const { id } = req.params as { id: string };
     const data = updateReplySchema.parse(req.body);
     const existing = await RepliesService.getReplyById(id);
-    await assertReplyOwner(existing, req.user!.userId);
+    await assertReplyOwner(existing, req.user!.userId, req.user!.orgId);
     const reply = await RepliesService.updateReply(id, req.user!.userId, data);
     res.status(200).json(reply);
   } catch (error) {
@@ -97,7 +112,7 @@ export async function sendReplyDraft(
   try {
     const { id } = req.params as { id: string };
     const existing = await RepliesService.getReplyById(id);
-    await assertReplyOwner(existing, req.user!.userId);
+    await assertReplyOwner(existing, req.user!.userId, req.user!.orgId);
     const result = await RepliesService.sendReplyDraft(id, req.user!.userId);
     res.status(200).json(result);
   } catch (error) {
@@ -114,7 +129,7 @@ export async function markMeetingBooked(
     const { id } = req.params as { id: string };
     const { notes } = markMeetingBookedSchema.parse(req.body);
     const existing = await RepliesService.getReplyById(id);
-    await assertReplyOwner(existing, req.user!.userId);
+    await assertReplyOwner(existing, req.user!.userId, req.user!.orgId);
     const result = await RepliesService.markMeetingBooked({
       replyId: id,
       userId: req.user!.userId,
@@ -136,7 +151,7 @@ export async function getPipelineStats(
     const userId = req.user!.userId;
 
     if (campaignId) {
-      await assertCampaignOwner(campaignId, userId);
+      await assertCampaignAccess(campaignId, userId, req.user!.orgId);
       const stats = await RepliesService.getPipelineStats(campaignId);
       res.status(200).json(stats);
     } else {

@@ -22,7 +22,7 @@ export function OutreachAngleSection({ angle }: OutreachAngleSectionProps) {
     <div className="space-y-5">
       {/* Primary angle */}
       <div className="rounded-lg bg-[var(--red-glow)] border border-[var(--border-red)] px-4 py-3">
-        <p className="text-[10px] font-semibold text-[var(--red)] uppercase tracking-widest mb-1.5">Primary angle</p>
+        <p className="text-[10px] font-semibold text-[var(--red-text)] uppercase tracking-widest mb-1.5">Primary angle</p>
         <p className="text-sm font-medium text-[var(--text-primary)] leading-relaxed">{angle.primaryAngle}</p>
         <p className="text-xs text-[var(--text-secondary)] mt-2 leading-relaxed">{angle.angleRationale}</p>
       </div>

@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../../lib/prisma";
 import { upsertCompany, upsertCompanySignal, extractDomain } from "../../../lib/company/company.upsert";
-import { isPrismaUniqueViolation, emailToDomain } from "./discovery";
+import { isExpectedLeadDuplicate, emailToDomain } from "./discovery";
 import type { DiscoveredLead, LeadInsertOutcome } from "./discovery.types";
 
 export async function insertLead(
@@ -58,7 +58,7 @@ export async function insertLead(
             );
             leadId = created.id;
         } catch (createErr) {
-            if (isPrismaUniqueViolation(createErr)) {
+            if (isExpectedLeadDuplicate(createErr)) {
                 return { status: "skipped", companyId, signalIsNew };
             }
             throw createErr;

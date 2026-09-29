@@ -20,5 +20,7 @@ export const createAITraceSchema = z.object({
   tokenUsage: z.number().int().nonnegative().optional(),
   confidence: z.number().min(0).max(1).optional(),
   costUsd: z.number().nonnegative().optional(),
+  campaignId: z.string().optional(),
+  leadId: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });

@@ -1,6 +1,6 @@
 import { GmailProvider } from "./gmail.provider";
 import { OutlookProvider, OutlookProviderOptions } from "./outlook.provider";
-import { SmtpProvider } from "./smt.provider";
+import { SmtpProvider } from "./smtp.provider";
 import { MailboxCredentials, MailProvider } from "./types";
 
 export interface CreateMailProviderOptions {
@@ -29,6 +29,7 @@ export function createMailProvider(
 
 export { GmailProvider } from "./gmail.provider";
 export { OutlookProvider } from "./outlook.provider";
-export { SmtpProvider } from "./smt.provider";
+export { SmtpProvider } from "./smtp.provider";
 export type { OutlookProviderOptions } from "./outlook.provider";
 export * from "./types";
+export * from "./smtp.probe";

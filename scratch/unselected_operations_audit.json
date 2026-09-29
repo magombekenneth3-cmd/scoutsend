@@ -1,0 +1,1136 @@
+[
+  {
+    "file": "app/api/src/check-brand.ts",
+    "line": 4,
+    "model": "BrandSettings",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const settings = await prisma.brandSettings.findMany();"
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 36,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/lib/providers/apify-linkedin.provider.ts",
+    "line": 180,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({ where: { id: lead.id }, data: patch });"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 102,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const message = await prisma.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 159,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const message2 = await prisma.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 186,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const message3 = await prisma.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 256,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const message = await prisma.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 63,
+    "model": "Lead",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const lead = await prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 95,
+    "model": "Lead",
+    "op": "delete",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.delete({ where: { id: testLeadId } }).catch(() => null);"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 73,
+    "model": "SenderMailbox",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 94,
+    "model": "SenderMailbox",
+    "op": "delete",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.delete({ where: { id: testMailboxId } }).catch(() => null);"
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 65,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 124,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 146,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 224,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 414,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 169,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 359,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-quota.service.ts",
+    "line": 296,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 216,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/brandSettings/brandsettings.service.ts",
+    "line": 15,
+    "model": "BrandSettings",
+    "op": "upsert",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "return prisma.brandSettings.upsert({"
+  },
+  {
+    "file": "app/api/src/modules/brandSettings/brandsettings.service.ts",
+    "line": 25,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "return prisma.brandSettings.findUnique({ where: { userId } });"
+  },
+  {
+    "file": "app/api/src/modules/brandSettings/brandsettings.service.ts",
+    "line": 35,
+    "model": "BrandSettings",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const settings = await prisma.brandSettings.findUnique({ where: { userId } });"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 21,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 54,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id: mailboxId } });"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 76,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 142,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 109,
+    "model": "Reply",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 238,
+    "model": "Reply",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const updatedReply = await tx.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/campaign-health.agent.ts",
+    "line": 366,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1616,
+    "model": "Lead",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.lead.create("
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1695,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.lead.findFirst("
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 150,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 179,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 156,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 563,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 611,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({ where: { id: lead.id }, data: updateData });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1118,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1130,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1302,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1660,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1670,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1779,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 526,
+    "model": "Company",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.company.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-sequence.agent.ts",
+    "line": 844,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const created = await tx.outreachMessage.create({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 352,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 466,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 547,
+    "model": "Lead",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const staleLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 434,
+    "model": "Company",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.company.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 727,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 950,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.create("
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 538,
+    "model": "Lead",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 770,
+    "model": "Reply",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1430,
+    "model": "Lead",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1474,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1509,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1634,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2529,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "? await tx.lead.update("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2561,
+    "model": "Lead",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": ": await tx.lead.create("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2694,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.update("
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 710,
+    "model": "Company",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.company.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1192,
+    "model": "Lead",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": ": await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1770,
+    "model": "Lead",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/objection-handler.agent.ts",
+    "line": 562,
+    "model": "Reply",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 437,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1207,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1349,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1361,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1376,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1385,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1403,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1499,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1622,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1744,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1407,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 408,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1018,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const alternativeMailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1471,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1663,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1760,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 214,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 536,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 145,
+    "model": "Lead",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 48,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 83,
+    "model": "SenderMailbox",
+    "op": "findUniqueOrThrow",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.senderMailbox.findUniqueOrThrow({ where: { id: senderMailboxId } }),"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 113,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 273,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 430,
+    "model": "SenderMailbox",
+    "op": "findUniqueOrThrow",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const customerMailbox = await prisma.senderMailbox.findUniqueOrThrow({ where: { id: senderMailboxId } });"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 983,
+    "model": "Lead",
+    "op": "findFirst",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 23,
+    "model": "Lead",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "return await prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 199,
+    "model": "Lead",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "return prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/learning/learning.service.ts",
+    "line": 332,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 627,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 638,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 687,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 642,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 657,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/outbox/outbox.integration.test.ts",
+    "line": 91,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.outreachMessage.create({ data: { subject: \"Hello\", body: \"World\" } });"
+  },
+  {
+    "file": "app/api/src/modules/outbox/outbox.integration.test.ts",
+    "line": 115,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const msg = await tx.outreachMessage.create({ data: { subject: \"Test\" } });"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 357,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "createdMessage = await tx.outreachMessage.create({ data: createData });"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 359,
+    "model": "OutreachMessage",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "createdMessage = await tx.outreachMessage.create({ data: createData });"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 478,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const existingMsg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 592,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({ where: { id: current.persistedMessageId } });"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 684,
+    "model": "OutreachMessage",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const existingMsg = await prisma.outreachMessage.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 837,
+    "model": "Lead",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "leads = (await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 855,
+    "model": "Lead",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "leads = (await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1438,
+    "model": "Lead",
+    "op": "findMany",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1524,
+    "model": "Lead",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 550,
+    "model": "OutreachMessage",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.outreachMessage.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 741,
+    "model": "Reply",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 778,
+    "model": "Reply",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "prisma.reply.update({ where: { id: replyId }, data: { oooRequeuedAt: new Date() } })"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1041,
+    "model": "Reply",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1085,
+    "model": "Reply",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1252,
+    "model": "Reply",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.reply.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1237,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1260,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 144,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 183,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 285,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 19,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 35,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 64,
+    "model": "SenderMailbox",
+    "op": "create",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "return await prisma.senderMailbox.create({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 206,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "return prisma.senderMailbox.update({ where: { id }, data: updateData });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 223,
+    "model": "SenderMailbox",
+    "op": "delete",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "return prisma.senderMailbox.delete({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 236,
+    "model": "SenderMailbox",
+    "op": "update",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "return prisma.senderMailbox.update({ where: { id }, data: { currentSent: 0 } });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 241,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "hasSelect": false,
+    "hasSelectOnlyScalar": false,
+    "snippet": "? await prisma.senderMailbox.findUnique({ where: { id } })"
+  }
+]

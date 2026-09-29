@@ -4,3 +4,5 @@ export { classifyReply } from "../../lib/reply/reply.classifier";
 export { generateDraftReply, generateMeetingRequestDraft } from "../../lib/reply/reply.drafter";
 export { resolveOOOReturnDate } from "../../lib/reply/reply.ooo";
 export { canAutoSend } from "../../lib/reply/reply.policy";
+export { classifyReplyProposal, ReplyIntentSchema } from "./classify-reply.agent";
+export type { ReplyIntentProposalPayload } from "./classify-reply.agent";

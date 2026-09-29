@@ -4,7 +4,7 @@ import { INTENT_CONFIG } from "@/app/api/src/lib/reply/replyConfig";
 import { SentimentBar } from "./SentimentBar";
 
 import type { Reply } from "@/app/api/src/lib/reply/replyTypes";
-import { formatTimeAgo, getAvatarGradient, getInitials } from "@/app/api/src/lib/reply/reply.utils";
+import { formatTimeAgo, getAvatarGradient, getInitials, parseEmailThread } from "@/app/api/src/lib/reply/reply.utils";
 
 interface ReplyCardProps {
     reply: Reply;
@@ -14,6 +14,7 @@ interface ReplyCardProps {
 
 export function ReplyCard({ reply, selected, onClick }: ReplyCardProps) {
     const cfg = INTENT_CONFIG[reply.intent];
+    const { replyText } = parseEmailThread(reply.body);
 
     return (
         <button
@@ -37,7 +38,10 @@ export function ReplyCard({ reply, selected, onClick }: ReplyCardProps) {
 
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                        <span className={`text-sm truncate flex items-center gap-1.5 ${!reply.isRead ? "font-bold text-[var(--text-primary)]" : "font-semibold text-[var(--text-secondary)]"}`}>
+                            {!reply.isRead && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 animate-pulse" title="Unread" />
+                            )}
                             {reply.lead.firstName} {reply.lead.lastName}
                         </span>
                         <span className="text-[11px] text-[var(--text-muted)] flex-shrink-0 tabular-nums">
@@ -59,8 +63,8 @@ export function ReplyCard({ reply, selected, onClick }: ReplyCardProps) {
                         )}
                     </div>
 
-                    <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
-                        {reply.body}
+                    <p className={`text-xs line-clamp-2 leading-relaxed ${!reply.isRead ? "text-[var(--text-primary)] font-medium" : "text-[var(--text-muted)] font-normal"}`}>
+                        {replyText}
                     </p>
 
                     {reply.sentimentScore !== null && (

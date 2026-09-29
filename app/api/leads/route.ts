@@ -1,7 +1,18 @@
 import { NextRequest } from "next/server";
 import { API_BASE, proxyRequest } from "../_proxy";
 
-const ALLOWED_QUERY = ["campaignId", "page", "limit", "search"];
+const ALLOWED_QUERY = [
+    "campaignId",
+    "page",
+    "limit",
+    "search",
+    "source",
+    "competitorSignal",
+    "recommendedAction",
+    "minScore",
+    "pipelineStage",
+    "emailStatus",
+];
 
 export async function GET(req: NextRequest) {
     const upstream = new URLSearchParams();

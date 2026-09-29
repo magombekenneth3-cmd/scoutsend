@@ -34,7 +34,7 @@ export function RepliesIntentTabs({ activeTab, tabCounts, onChange }: RepliesInt
                             "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all duration-150",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
                             isActive
-                                ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]"
+                                ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]"
                                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]",
                             hasNeedsReview && !isActive ? "text-amber-400/80" : "",
                         ].join(" ")}

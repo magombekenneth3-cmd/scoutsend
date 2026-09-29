@@ -176,7 +176,7 @@ export default function MailboxesPage() {
                         className={[
                             "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
                             healthFilter === f.value
-                                ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]"
+                                ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]"
                                 : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-red)]",
                         ].join(" ")}
                     >
@@ -236,7 +236,7 @@ export default function MailboxesPage() {
                                 </svg>
                             </div>
                             <p className="text-sm text-[var(--text-secondary)]">{error}</p>
-                            <button onClick={load} className="text-xs text-[var(--red)] hover:underline focus-visible:outline-none focus-visible:underline">Retry</button>
+                            <button onClick={load} className="text-xs text-[var(--red-text)] hover:underline focus-visible:outline-none focus-visible:underline">Retry</button>
                         </div>
                     ) : loading ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

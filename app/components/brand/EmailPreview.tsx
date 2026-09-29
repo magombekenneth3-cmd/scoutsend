@@ -63,7 +63,7 @@ export function EmailPreview({ previewKey, configured }: EmailPreviewProps) {
                                 "flex items-center justify-center w-8 h-7 transition-colors duration-150",
                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] focus-visible:ring-inset",
                                 viewMode === "desktop"
-                                    ? "bg-[var(--red-glow)] text-[var(--red)]"
+                                    ? "bg-[var(--red-glow)] text-[var(--red-text)]"
                                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                             ].join(" ")}
                         >
@@ -81,7 +81,7 @@ export function EmailPreview({ previewKey, configured }: EmailPreviewProps) {
                                 "flex items-center justify-center w-8 h-7 transition-colors duration-150",
                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] focus-visible:ring-inset",
                                 viewMode === "mobile"
-                                    ? "bg-[var(--red-glow)] text-[var(--red)]"
+                                    ? "bg-[var(--red-glow)] text-[var(--red-text)]"
                                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                             ].join(" ")}
                         >

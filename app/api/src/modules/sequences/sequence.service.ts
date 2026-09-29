@@ -72,12 +72,12 @@ export function validateSequenceSteps(steps: SequenceStepInput[]): string | null
             return `Step ${i}: ${step.channel} requires a subjectTemplate`;
         }
 
-        if ((step.messageTemplate?.length ?? 0) > 2000) {
-            return `Step ${i}: messageTemplate exceeds 2000 characters`;
+        if ((step.messageTemplate?.length ?? 0) > 50_000) {
+            return `Step ${i}: messageTemplate exceeds 50000 characters`;
         }
 
-        if ((step.subjectTemplate?.length ?? 0) > 300) {
-            return `Step ${i}: subjectTemplate exceeds 300 characters`;
+        if ((step.subjectTemplate?.length ?? 0) > 2_000) {
+            return `Step ${i}: subjectTemplate exceeds 2000 characters`;
         }
 
         if (step.messageTemplate && UNCLOSED_MERGE_TAG_RE.test(step.messageTemplate)) {

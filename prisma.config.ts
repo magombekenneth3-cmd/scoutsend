@@ -10,6 +10,6 @@ export default defineConfig({
   },
   datasource: {
     url: process.env["DATABASE_URL"],
-    shadowDatabaseUrl: "postgresql://extremesales@127.0.0.1:5432/app_shadow",
+    shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"] ?? "postgresql://extremesales@127.0.0.1:5432/app_shadow",
   },
 });

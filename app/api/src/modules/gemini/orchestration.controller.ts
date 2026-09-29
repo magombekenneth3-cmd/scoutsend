@@ -2,7 +2,7 @@ import { Response, NextFunction } from "express";
 import { queueLookalikeSearch } from "../lookalike/lookalike.service";
 import { AuthenticatedRequest } from "../auth/auth.types";
 import { campaignQueue, maintenanceQueue } from "./campaign.queue";
-import { assertCampaignOwner } from "../../lib/ownership";
+import { assertCampaignAccess } from "../../lib/ownership";
 import { assertPublicHttpUrl } from "../../lib/url-safety";
 import { prisma } from "../../lib/prisma";
 import { logger } from "../../lib/logger";
@@ -40,7 +40,7 @@ function handleError(err: unknown, res: Response, next: NextFunction): void {
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   "run-pipeline": ["DRAFT", "FAILED"],
-  "pause-pipeline": ["RUNNING", "QUEUED"],
+  "pause-pipeline": ["RESEARCHING", "GENERATING", "REVIEW", "SENDING", "QUEUED"],
   "resume-pipeline": ["PAUSED"],
 };
 
@@ -146,7 +146,7 @@ export async function runCampaign(
     const { id } = req.params as { id: string };
     if (!validateId(id, res)) return;
 
-    await assertCampaignOwner(id, user.userId);
+    await assertCampaignAccess(id, user.userId, user.orgId);
     if (!(await validateTransition("run-pipeline", id, res))) return;
 
     const jobId = await enqueueWithDedup(
@@ -177,7 +177,7 @@ export async function pauseCampaign(
     const { id } = req.params as { id: string };
     if (!validateId(id, res)) return;
 
-    await assertCampaignOwner(id, user.userId);
+    await assertCampaignAccess(id, user.userId, user.orgId);
     if (!(await validateTransition("pause-pipeline", id, res))) return;
 
     const jobId = await enqueueWithDedup(
@@ -208,7 +208,7 @@ export async function resumeCampaign(
     const { id } = req.params as { id: string };
     if (!validateId(id, res)) return;
 
-    await assertCampaignOwner(id, user.userId);
+    await assertCampaignAccess(id, user.userId, user.orgId);
     if (!(await validateTransition("resume-pipeline", id, res))) return;
 
     const jobId = await enqueueWithDedup(
@@ -239,7 +239,7 @@ export async function runLookalikeSearch(
     const { id } = req.params as { id: string };
     if (!validateId(id, res)) return;
 
-    await assertCampaignOwner(id, user.userId);
+    await assertCampaignAccess(id, user.userId, user.orgId);
 
     const { clientUrls: rawUrls } = req.body as { clientUrls?: unknown };
     const clientUrls = validateClientUrls(rawUrls, res);
@@ -248,6 +248,7 @@ export async function runLookalikeSearch(
     await queueLookalikeSearch({
       campaignId: id,
       userId: user.userId,
+      orgId: user.orgId,
       clientUrls: clientUrls.length > 0 ? clientUrls : undefined,
     });
 
@@ -272,7 +273,7 @@ export async function discoverLeads(
     const { id } = req.params as { id: string };
     if (!validateId(id, res)) return;
 
-    await assertCampaignOwner(id, user.userId);
+    await assertCampaignAccess(id, user.userId, user.orgId);
 
     const campaign = await prisma.campaign.findUnique({
       where: { id },

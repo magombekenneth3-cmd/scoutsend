@@ -24,11 +24,15 @@ globalThis.fetch = async (input, init) => {
 async function main() {
   const user = await prisma.user.findFirst();
   if (!user) throw new Error("No user found");
+  const orgMembership = await prisma.organizationMember.findFirst({ where: { userId: user.id }, select: { orgId: true } });
+  if (!orgMembership) throw new Error("User has no org membership — seed an org or run the registration flow first.");
+  const orgId = orgMembership.orgId;
   const campaign = await prisma.campaign.create({
     data: {
       name: "Temp Campaign",
       icpDescription: "ICP",
       createdById: user.id,
+      orgId,
     }
   });
   const lead = await prisma.lead.create({

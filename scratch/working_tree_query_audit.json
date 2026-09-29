@@ -1,0 +1,5897 @@
+[
+  {
+    "file": "app/api/src/check-brand.ts",
+    "line": 4,
+    "snippet": "const settings = await prisma.brandSettings.findMany();",
+    "model": "BrandSettings",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "provenStats"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 10,
+    "snippet": "const total = await prisma.lead.count({ where: { companyId: null, deletedAt: null } });",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 18,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 36,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 59,
+    "snippet": "const leadsWithSignals = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/company/company-engagement.service.ts",
+    "line": 17,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/company/company-research-context.ts",
+    "line": 96,
+    "snippet": "const company = await prisma.company.findUnique({",
+    "model": "Company",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/intelligence/evidence-barrier.ts",
+    "line": 36,
+    "snippet": "const ops = await prisma.operation.findMany({",
+    "model": "Operation",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/intelligence/intelligence-dag.ts",
+    "line": 67,
+    "snippet": "const successCount = await prisma.operation.count({",
+    "model": "Operation",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/leads/eligibility.service.ts",
+    "line": 210,
+    "snippet": "const nonOooReply = await prisma.reply.findFirst({",
+    "model": "Reply",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/leads/eligibility.service.ts",
+    "line": 68,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/linkedInAgent/linkedDiscovery.persistence.ts",
+    "line": 45,
+    "snippet": "const existingLead = await tx.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/linkedInAgent/linkedDiscovery.persistence.ts",
+    "line": 63,
+    "snippet": "const createdLead = await tx.lead.create({",
+    "model": "Lead",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/operations/operation.service.ts",
+    "line": 31,
+    "snippet": "const existing = await prisma.operation.findUnique({",
+    "model": "Operation",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "leaseVersion"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/operations/operation.service.ts",
+    "line": 40,
+    "snippet": "const updated = await prisma.operation.updateMany({",
+    "model": "Operation",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "leaseVersion"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/operations/operation.service.ts",
+    "line": 62,
+    "snippet": "await prisma.operation.create({",
+    "model": "Operation",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "leaseVersion"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/operations/operation.service.ts",
+    "line": 87,
+    "snippet": "const updated = await prisma.operation.updateMany({",
+    "model": "Operation",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "leaseVersion"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/operations/operation.service.ts",
+    "line": 117,
+    "snippet": "const existing = await prisma.operation.findUnique({",
+    "model": "Operation",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "leaseVersion"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/operations/operation.service.ts",
+    "line": 151,
+    "snippet": "await prisma.operation.updateMany({",
+    "model": "Operation",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "leaseVersion"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/operations/operation.service.ts",
+    "line": 186,
+    "snippet": "const renewed = await prisma.operation.updateMany({",
+    "model": "Operation",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "leaseVersion"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/operations/operation.service.ts",
+    "line": 255,
+    "snippet": "const result = await prisma.operation.updateMany({",
+    "model": "Operation",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "leaseVersion"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/ownership.ts",
+    "line": 49,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/prospect-discovery/email-reveal.ts",
+    "line": 182,
+    "snippet": "const localSibling = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/providers/apify-linkedin.provider.ts",
+    "line": 148,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/providers/apify-linkedin.provider.ts",
+    "line": 180,
+    "snippet": "await prisma.lead.update({ where: { id: lead.id }, data: patch });",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/reply/reply.policy.ts",
+    "line": 52,
+    "snippet": "const recentAutoSend = await prisma.reply.findFirst({",
+    "model": "Reply",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/reply/reply.policy.ts",
+    "line": 63,
+    "snippet": "const threadDepth = await prisma.reply.count({",
+    "model": "Reply",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/campaign-convergence.engine.ts",
+    "line": 122,
+    "snippet": "const scheduledLeads = await tx.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/campaign-convergence.engine.ts",
+    "line": 131,
+    "snippet": "const rawIntents = await tx.sendIntent.findMany({",
+    "model": "SendIntent",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/campaign-metrics.service.ts",
+    "line": 39,
+    "snippet": "const intents = await prisma.sendIntent.findMany({",
+    "model": "SendIntent",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/manual-review.service.ts",
+    "line": 43,
+    "snippet": "const msg = await tx.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/manual-review.service.ts",
+    "line": 28,
+    "snippet": "const intent = await tx.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 93,
+    "snippet": "await prisma.outreachMessage.deleteMany({ where: { senderMailboxId: testMailboxId } }).catch(() => null);",
+    "model": "OutreachMessage",
+    "operation": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 102,
+    "snippet": "const message = await prisma.outreachMessage.create({",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 131,
+    "snippet": "const updatedMsg = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 159,
+    "snippet": "const message2 = await prisma.outreachMessage.create({",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 186,
+    "snippet": "const message3 = await prisma.outreachMessage.create({",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 216,
+    "snippet": "const msg3Check = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 256,
+    "snippet": "const message = await prisma.outreachMessage.create({",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 73,
+    "snippet": "const mailbox = await prisma.senderMailbox.create({",
+    "model": "SenderMailbox",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 94,
+    "snippet": "await prisma.senderMailbox.delete({ where: { id: testMailboxId } }).catch(() => null);",
+    "model": "SenderMailbox",
+    "operation": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 240,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 63,
+    "snippet": "const lead = await prisma.lead.create({",
+    "model": "Lead",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 95,
+    "snippet": "await prisma.lead.delete({ where: { id: testLeadId } }).catch(() => null);",
+    "model": "Lead",
+    "operation": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 90,
+    "snippet": "await prisma.sendIntent.deleteMany({ where: { leadId: testLeadId } }).catch(() => null);",
+    "model": "SendIntent",
+    "operation": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 139,
+    "snippet": "const intent = await prisma.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "traceId",
+      "provider",
+      "payloadHash",
+      "lastAttemptAt",
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "reconciliationAttempts",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 349,
+    "snippet": "const finalIntent = await prisma.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 91,
+    "snippet": "await prisma.quotaReservation.deleteMany({ where: { scopeId: testMailboxId } }).catch(() => null);",
+    "model": "QuotaReservation",
+    "operation": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 92,
+    "snippet": "await prisma.quotaReservation.deleteMany({ where: { scopeId: testCampaignId } }).catch(() => null);",
+    "model": "QuotaReservation",
+    "operation": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 147,
+    "snippet": "const reservations = await prisma.quotaReservation.findMany({",
+    "model": "QuotaReservation",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "operationId",
+      "scopeId",
+      "windowStart",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 225,
+    "snippet": "const reservations = await prisma.quotaReservation.findMany({",
+    "model": "QuotaReservation",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "operationId",
+      "scopeId",
+      "windowStart",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 271,
+    "snippet": "const heldRes = await prisma.quotaReservation.findFirst({",
+    "model": "QuotaReservation",
+    "operation": "findFirst",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "operationId",
+      "scopeId",
+      "windowStart",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 83,
+    "snippet": "prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 79,
+    "snippet": "prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 113,
+    "snippet": "const txLead = await tx.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 59,
+    "snippet": "const existingIntent = await prisma.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 185,
+    "snippet": "const createdIntent = await tx.sendIntent.create({",
+    "model": "SendIntent",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "traceId",
+      "provider",
+      "payloadHash",
+      "lastAttemptAt",
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "reconciliationAttempts",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/provider-outcome-convergence.engine.ts",
+    "line": 65,
+    "snippet": "const intent = await tx.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "fencingEpoch",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 27,
+    "snippet": "const message = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 65,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 94,
+    "snippet": "const staleMessages = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 124,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 146,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 33,
+    "snippet": "await prisma.sendIntent.update({",
+    "model": "SendIntent",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "traceId",
+      "provider",
+      "payloadHash",
+      "lastAttemptAt",
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "reconciliationAttempts",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/reconciliation.workers.ts",
+    "line": 109,
+    "snippet": "const associatedIntents = await prisma.sendIntent.findMany({",
+    "model": "SendIntent",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/send-dispatch.worker.ts",
+    "line": 221,
+    "snippet": "const message = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/send-dispatch.worker.ts",
+    "line": 195,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/send-dispatch.worker.ts",
+    "line": 161,
+    "snippet": "const intent = await prisma.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 224,
+    "snippet": "await tx.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 414,
+    "snippet": "await tx.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 169,
+    "snippet": "await tx.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 359,
+    "snippet": "await tx.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 140,
+    "snippet": "const reservations = await tx.quotaReservation.findMany({",
+    "model": "QuotaReservation",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "scopeId",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 331,
+    "snippet": "const reservations = await tx.quotaReservation.findMany({",
+    "model": "QuotaReservation",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "scopeId",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 8,
+    "snippet": "*  1. No raw `prisma.sendIntent.update({ data: { status } })` calls bypassing transitionState().",
+    "model": "SendIntent",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "traceId",
+      "provider",
+      "payloadHash",
+      "lastAttemptAt",
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "reconciliationAttempts",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 65,
+    "snippet": "const intent = await tx.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 237,
+    "snippet": "const intent = await prisma.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 324,
+    "snippet": "await tx.sendIntent.update({",
+    "model": "SendIntent",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "traceId",
+      "provider",
+      "payloadHash",
+      "lastAttemptAt",
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "reconciliationAttempts",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 346,
+    "snippet": "return prisma.sendIntent.findMany({",
+    "model": "SendIntent",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "provider",
+      "leaseExpiresAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 366,
+    "snippet": "const intent = await prisma.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 391,
+    "snippet": "const intent = await prisma.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 407,
+    "snippet": "await prisma.sendIntent.update({",
+    "model": "SendIntent",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 416,
+    "snippet": "const intent = await prisma.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 442,
+    "snippet": "const existing = await prisma.sendIntent.findUnique({",
+    "model": "SendIntent",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 463,
+    "snippet": "await prisma.sendIntent.upsert({",
+    "model": "SendIntent",
+    "operation": "upsert",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/send-intent.service.ts",
+    "line": 493,
+    "snippet": "await prisma.sendIntent.update({",
+    "model": "SendIntent",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "traceId",
+      "provider",
+      "payloadHash",
+      "lastAttemptAt",
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "reconciliationAttempts",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-quota.service.ts",
+    "line": 55,
+    "snippet": "const mailbox = await client.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/send-quota.service.ts",
+    "line": 296,
+    "snippet": "await tx.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-quota.service.ts",
+    "line": 220,
+    "snippet": "return await tx.quotaReservation.create({",
+    "model": "QuotaReservation",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "operationId",
+      "scopeId",
+      "windowStart",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/send-quota.service.ts",
+    "line": 246,
+    "snippet": "const reservations = await tx.quotaReservation.findMany({",
+    "model": "QuotaReservation",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "scopeId",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/stale-lease-recovery.sweeper.ts",
+    "line": 74,
+    "snippet": "const stale = await prisma.sendIntent.findMany({",
+    "model": "SendIntent",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "lastAttemptAt",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/send/unknown-reconciliation.sweeper.ts",
+    "line": 188,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/lib/send/unknown-reconciliation.sweeper.ts",
+    "line": 70,
+    "snippet": "const unknowns = await prisma.sendIntent.findMany({",
+    "model": "SendIntent",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "reconciliationAttempts",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/state/lease.service.ts",
+    "line": 82,
+    "snippet": "const run = await tx.campaignRun.findUnique({",
+    "model": "CampaignRun",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "fencingEpoch",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/state/lease.service.ts",
+    "line": 97,
+    "snippet": "const existing = await tx.campaignRunLease.findUnique({",
+    "model": "CampaignRunLease",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "workerId",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/state/lease.service.ts",
+    "line": 103,
+    "snippet": "const lease = await tx.campaignRunLease.create({",
+    "model": "CampaignRunLease",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "workerId",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/state/lease.service.ts",
+    "line": 178,
+    "snippet": "const newLease = await tx.campaignRunLease.create({",
+    "model": "CampaignRunLease",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "workerId",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt"
+    ]
+  },
+  {
+    "file": "app/api/src/lib/state/lease.service.ts",
+    "line": 344,
+    "snippet": "const lease = await prisma.campaignRunLease.findUnique({",
+    "model": "CampaignRunLease",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "workerId",
+      "leaseVersion",
+      "leaseExpiresAt"
+    ]
+  },
+  {
+    "file": "app/api/src/middleware/org-access.middleware.ts",
+    "line": 58,
+    "snippet": "const r = await prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/middleware/org-access.middleware.ts",
+    "line": 50,
+    "snippet": "const r = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/middleware/org-access.middleware.ts",
+    "line": 82,
+    "snippet": "const r = await prisma.brandSettings.findUnique({",
+    "model": "BrandSettings",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 63,
+    "snippet": "const updated = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 90,
+    "snippet": "const ownerMsg = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 146,
+    "snippet": "const message = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 193,
+    "snippet": "const message = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 167,
+    "snippet": "const mailbox = await tx.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 112,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 189,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 248,
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 330,
+    "snippet": "const message = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 467,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 216,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/admin/admin.service.ts",
+    "line": 169,
+    "snippet": "prisma.outreachMessage.count(),",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/admin/admin.service.ts",
+    "line": 170,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/admin/admin.service.ts",
+    "line": 173,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/admin/admin.service.ts",
+    "line": 182,
+    "snippet": "prisma.reply.count(),",
+    "model": "Reply",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/admin/admin.service.ts",
+    "line": 183,
+    "snippet": "prisma.reply.count({ where: { intent: { in: POSITIVE_REPLY_INTENTS } } }),",
+    "model": "Reply",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/admin/admin.service.ts",
+    "line": 179,
+    "snippet": "prisma.senderMailbox.count(),",
+    "model": "SenderMailbox",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/admin/admin.service.ts",
+    "line": 167,
+    "snippet": "prisma.lead.count({ where: { deletedAt: null } }),",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/admin/admin.service.ts",
+    "line": 168,
+    "snippet": "prisma.lead.count({ where: { deletedAt: null, createdAt: { gte: since7Days } } }),",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/brandSettings/brandsettings.service.ts",
+    "line": 15,
+    "snippet": "return prisma.brandSettings.upsert({",
+    "model": "BrandSettings",
+    "operation": "upsert",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/brandSettings/brandsettings.service.ts",
+    "line": 25,
+    "snippet": "return prisma.brandSettings.findUnique({ where: { userId } });",
+    "model": "BrandSettings",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "provenStats"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/brandSettings/brandsettings.service.ts",
+    "line": 35,
+    "snippet": "const settings = await prisma.brandSettings.findUnique({ where: { userId } });",
+    "model": "BrandSettings",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "provenStats"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 21,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 54,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id: mailboxId } });",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 76,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 114,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 121,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 128,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 142,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/campaigns/campaigns.narrative.ts",
+    "line": 71,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/campaigns/campaigns.narrative.ts",
+    "line": 74,
+    "snippet": "prisma.lead.count({",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/campaigns/campaigns.narrative.ts",
+    "line": 77,
+    "snippet": "prisma.lead.count({",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/campaigns/campaigns.narrative.ts",
+    "line": 80,
+    "snippet": "prisma.lead.count({",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/campaigns/campaigns.service.ts",
+    "line": 221,
+    "snippet": "const leadCount = await prisma.lead.count({",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/campaigns/campaigns.service.ts",
+    "line": 341,
+    "snippet": "prisma.lead.count({ where: { campaignId, deletedAt: null } }),",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/campaigns/campaigns.service.ts",
+    "line": 443,
+    "snippet": "prisma.lead.count({ where: { campaignId: id, deletedAt: null } }),",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 119,
+    "snippet": "await tx.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 51,
+    "snippet": "const reply = await prisma.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 109,
+    "snippet": "await tx.reply.update({",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "snoozedUntil",
+      "isRead"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 185,
+    "snippet": "const authState = await prisma.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 228,
+    "snippet": "const authState = await tx.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/conversation/reply-decision.service.ts",
+    "line": 238,
+    "snippet": "const updatedReply = await tx.reply.update({",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "snoozedUntil",
+      "isRead"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/crm/crm-sync.service.ts",
+    "line": 89,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/crm/crm-sync.service.ts",
+    "line": 160,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/campaign-health.agent.ts",
+    "line": 165,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/campaign-health.agent.ts",
+    "line": 466,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/campaign-health.agent.ts",
+    "line": 366,
+    "snippet": "prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1313,
+    "snippet": "await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1507,
+    "snippet": "await tx.lead.findFirst(",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1547,
+    "snippet": "await tx.lead.findFirst(",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1582,
+    "snippet": "await tx.lead.findFirst(",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1616,
+    "snippet": "await tx.lead.create(",
+    "model": "Lead",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1695,
+    "snippet": "await tx.lead.findFirst(",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 54,
+    "snippet": "const approved = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 137,
+    "snippet": "await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 150,
+    "snippet": "prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 179,
+    "snippet": "prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/compliance.agent.ts",
+    "line": 96,
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({",
+    "model": "BrandSettings",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 51,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 156,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 188,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/discoveryLib/insert.service.ts",
+    "line": 34,
+    "snippet": "tx.lead.create({",
+    "model": "Lead",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/discoveryLib/ranking.ts",
+    "line": 48,
+    "snippet": "const scoredLeads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 291,
+    "snippet": "const candidates = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 494,
+    "snippet": "const current = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 556,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 563,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 611,
+    "snippet": "await prisma.lead.update({ where: { id: lead.id }, data: updateData });",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 665,
+    "snippet": "prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 715,
+    "snippet": "const updated = await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 747,
+    "snippet": "const updated = await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 795,
+    "snippet": "const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichmentData: true } });",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 799,
+    "snippet": "const updated = await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 902,
+    "snippet": "const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichmentData: true } });",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 912,
+    "snippet": "const updated = await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 939,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 963,
+    "snippet": "const claimed = await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 988,
+    "snippet": "await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1047,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1091,
+    "snippet": "await tx.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1118,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1130,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1302,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1383,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1394,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1484,
+    "snippet": "await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1559,
+    "snippet": "const existingEmailRows = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1660,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1670,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1779,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1785,
+    "snippet": "await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 509,
+    "snippet": "const company = await prisma.company.findUnique({",
+    "model": "Company",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 526,
+    "snippet": "await prisma.company.update({",
+    "model": "Company",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.queue.ts",
+    "line": 197,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-sequence.agent.ts",
+    "line": 764,
+    "snippet": "? await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-sequence.agent.ts",
+    "line": 844,
+    "snippet": "const created = await tx.outreachMessage.create({",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-sequence.agent.ts",
+    "line": 514,
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({",
+    "model": "BrandSettings",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-cache.ts",
+    "line": 46,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 352,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 466,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 495,
+    "snippet": "const rescored = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 547,
+    "snippet": "const staleLeads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 434,
+    "snippet": "await prisma.company.update({",
+    "model": "Company",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 304,
+    "snippet": "const lead = await prisma.lead.findFirstOrThrow({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 451,
+    "snippet": "const current = await tx.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 727,
+    "snippet": "await tx.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 777,
+    "snippet": "const leadCampaign = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 815,
+    "snippet": "await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 950,
+    "snippet": "await prisma.outreachMessage.create(",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 1134,
+    "snippet": "await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 770,
+    "snippet": "await prisma.reply.update({",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "snoozedUntil",
+      "isRead"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 538,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1269,
+    "snippet": "await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1430,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1474,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1509,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1634,
+    "snippet": "await tx.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1876,
+    "snippet": "await prisma.lead.count({",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2019,
+    "snippet": "await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2146,
+    "snippet": "await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2173,
+    "snippet": "await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2508,
+    "snippet": "await tx.lead.findUnique(",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2529,
+    "snippet": "? await tx.lead.update(",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2561,
+    "snippet": ": await tx.lead.create(",
+    "model": "Lead",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2680,
+    "snippet": "await prisma.lead.findUnique(",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2694,
+    "snippet": "await prisma.lead.update(",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/icp.refinementAgent.ts",
+    "line": 101,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/icp.refinementAgent.ts",
+    "line": 107,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/icp.refinementAgent.ts",
+    "line": 113,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/icp.refinementAgent.ts",
+    "line": 116,
+    "snippet": "prisma.reply.count({",
+    "model": "Reply",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/icp.refinementAgent.ts",
+    "line": 90,
+    "snippet": "prisma.lead.count({ where: scoredLeadFilter }),",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/icp.refinementAgent.ts",
+    "line": 91,
+    "snippet": "prisma.lead.count({",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/job-intel.agent.ts",
+    "line": 1111,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-agent.agent.ts",
+    "line": 160,
+    "snippet": "const updated = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 791,
+    "snippet": "await prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 813,
+    "snippet": "lead = await prisma.lead.findFirstOrThrow({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 677,
+    "snippet": "const company = await prisma.company.findUnique({",
+    "model": "Company",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 708,
+    "snippet": "const company = await prisma.company.findUnique({ where: { id: companyId }, select: { enrichmentData: true } });",
+    "model": "Company",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 710,
+    "snippet": "await prisma.company.update({",
+    "model": "Company",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1192,
+    "snippet": ": await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1291,
+    "snippet": "prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1530,
+    "snippet": "prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1597,
+    "snippet": "await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1770,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1987,
+    "snippet": "await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/linkedin-outreach.agent.ts",
+    "line": 250,
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({",
+    "model": "BrandSettings",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/multi-source-discovery.agent.ts",
+    "line": 103,
+    "snippet": "prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/multi-source-discovery.agent.ts",
+    "line": 107,
+    "snippet": "prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/objection-handler.agent.ts",
+    "line": 488,
+    "snippet": "const reply = await prisma.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/objection-handler.agent.ts",
+    "line": 562,
+    "snippet": "await prisma.reply.update({",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "snoozedUntil",
+      "isRead"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/objection-handler.agent.ts",
+    "line": 588,
+    "snippet": "const replies = await prisma.reply.findMany({",
+    "model": "Reply",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/orchestration.graph.ts",
+    "line": 63,
+    "snippet": "const { count } = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/orchestration.graph.ts",
+    "line": 232,
+    "snippet": "const unscoredLeads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/orchestration.service.ts",
+    "line": 441,
+    "snippet": "const approvedCount = await tx.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/orchestration.service.ts",
+    "line": 207,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/orchestration.service.ts",
+    "line": 278,
+    "snippet": "prisma.lead.count({ where: { campaignId, deletedAt: null } }),",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/quality.agent.ts",
+    "line": 632,
+    "snippet": "return prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/quality.agent.ts",
+    "line": 877,
+    "snippet": "const { count } = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/quality.agent.ts",
+    "line": 967,
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({",
+    "model": "BrandSettings",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/research.agent.ts",
+    "line": 551,
+    "snippet": "return prisma.lead.findUniqueOrThrow({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 257,
+    "snippet": "const messages = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 437,
+    "snippet": "prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 504,
+    "snippet": "await tx.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 535,
+    "snippet": "const stillHeld = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/review.agent.ts",
+    "line": 248,
+    "snippet": "const brandSettings = await prisma.brandSettings.findUnique({",
+    "model": "BrandSettings",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/seed-warmup.agent.ts",
+    "line": 12,
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({",
+    "model": "SenderMailbox",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1177,
+    "snippet": "const rawCandidatePool = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1207,
+    "snippet": "prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1217,
+    "snippet": "const remaining = await prisma.outreachMessage.count({ where: approvedMessageWhere });",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1271,
+    "snippet": "const messages = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1320,
+    "snippet": "await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1334,
+    "snippet": "await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1349,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1361,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1376,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1385,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1403,
+    "snippet": "prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1499,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1603,
+    "snippet": "await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1622,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1717,
+    "snippet": "await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1744,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1789,
+    "snippet": "prisma.outreachMessage.count({ where: approvedMessageWhere }),",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1790,
+    "snippet": "prisma.outreachMessage.count({",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1297,
+    "snippet": "const replies = await prisma.reply.findMany({",
+    "model": "Reply",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 393,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 408,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1018,
+    "snippet": "const alternativeMailboxes = await prisma.senderMailbox.findMany({",
+    "model": "SenderMailbox",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1471,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1663,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1760,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1220,
+    "snippet": "const leadCount = await prisma.lead.count({ where: { campaignId, deletedAt: null } });",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1407,
+    "snippet": "prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/signal-ingestion.agent.ts",
+    "line": 53,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/tech-detection.agent.ts",
+    "line": 1045,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/tech-detection.agent.ts",
+    "line": 1105,
+    "snippet": "const company = await prisma.company.findUnique({",
+    "model": "Company",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 108,
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({",
+    "model": "SenderMailbox",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 139,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 214,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/leadSignal.worker.ts",
+    "line": 58,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 135,
+    "snippet": "const res = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 419,
+    "snippet": "const stuckMessages = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 429,
+    "snippet": "const recovered = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 438,
+    "snippet": "const exhausted = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 859,
+    "snippet": "const messages = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 158,
+    "snippet": "const pendingReplies = await prisma.reply.findMany({",
+    "model": "Reply",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 393,
+    "snippet": "for (const row of await prisma.senderMailbox.findMany({ select: { id: true, timezone: true, lastResetAt: true } })) {",
+    "model": "SenderMailbox",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 395,
+    "snippet": "await prisma.senderMailbox.update({ where: { id: row.id }, data: { currentSent: 0, lastResetAt: now } });",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 536,
+    "snippet": "prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 671,
+    "snippet": "const qualifiedLeads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 718,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 742,
+    "snippet": "await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 816,
+    "snippet": "const expiredLeaseOps = await prisma.operation.findMany({",
+    "model": "Operation",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 827,
+    "snippet": "const { count } = await prisma.operation.updateMany({",
+    "model": "Operation",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "leaseVersion"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 846,
+    "snippet": "const stuckIntents = await prisma.sendIntent.findMany({",
+    "model": "SendIntent",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 885,
+    "snippet": "? prisma.sendIntent.updateMany({",
+    "model": "SendIntent",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "traceId",
+      "provider",
+      "payloadHash",
+      "lastAttemptAt",
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "reconciliationAttempts",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 894,
+    "snippet": "? prisma.sendIntent.updateMany({",
+    "model": "SendIntent",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "traceId",
+      "provider",
+      "payloadHash",
+      "lastAttemptAt",
+      "claimedBy",
+      "fencingEpoch",
+      "leaseVersion",
+      "leaseExpiresAt",
+      "reconciliationAttempts",
+      "version"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 145,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 812,
+    "snippet": "const scoredLeads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 908,
+    "snippet": "const scoredLeads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 37,
+    "snippet": "const scored = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 48,
+    "snippet": "const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { linkedinUrl: true } });",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 64,
+    "snippet": "const scored = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 77,
+    "snippet": "prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 115,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 48,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 83,
+    "snippet": "prisma.senderMailbox.findUniqueOrThrow({ where: { id: senderMailboxId } }),",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 113,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 273,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 430,
+    "snippet": "const customerMailbox = await prisma.senderMailbox.findUniqueOrThrow({ where: { id: senderMailboxId } });",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/lead-agent/lead-agent.controller.ts",
+    "line": 105,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/lead-agent/lead-agent.controller.ts",
+    "line": 191,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1314,
+    "snippet": "const existing = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1329,
+    "snippet": "await prisma.outreachMessage.deleteMany({",
+    "model": "OutreachMessage",
+    "operation": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1388,
+    "snippet": "const pendingMessages = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 600,
+    "snippet": "return prisma.lead.create({",
+    "model": "Lead",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 841,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 862,
+    "snippet": "await tx.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 895,
+    "snippet": "const exists = await prisma.lead.count({",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 942,
+    "snippet": "const result = await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 983,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1017,
+    "snippet": "const owned = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1034,
+    "snippet": "await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1086,
+    "snippet": "const ownedLeads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1167,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1207,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1220,
+    "snippet": "const committee = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1274,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1302,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1352,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 23,
+    "snippet": "return await prisma.lead.create({",
+    "model": "Lead",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 67,
+    "snippet": "prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 112,
+    "snippet": "prisma.lead.count({ where }),",
+    "model": "Lead",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 122,
+    "snippet": "return prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 165,
+    "snippet": "const currentLead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 183,
+    "snippet": "return prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 199,
+    "snippet": "return prisma.lead.update({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/learning/learning.service.ts",
+    "line": 209,
+    "snippet": "const message = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/learning/learning.service.ts",
+    "line": 259,
+    "snippet": "prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/learning/learning.service.ts",
+    "line": 332,
+    "snippet": "await tx.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/lookalike/seed-resolver.ts",
+    "line": 41,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.controller.ts",
+    "line": 42,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 131,
+    "snippet": "return prisma.outreachMessage.create({",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 158,
+    "snippet": "prisma.outreachMessage.count({ where }),",
+    "model": "OutreachMessage",
+    "operation": "count",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 159,
+    "snippet": "prisma.outreachMessage.findMany({ where, select: { id: true }, orderBy, skip, take: limit }),",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 166,
+    "snippet": "const messages = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 182,
+    "snippet": "return prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 200,
+    "snippet": "const existing = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 220,
+    "snippet": "const updated = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 239,
+    "snippet": "return prisma.outreachMessage.findUniqueOrThrow({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 247,
+    "snippet": "const existing = await tx.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 277,
+    "snippet": "const updated = await tx.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 290,
+    "snippet": "const message = await tx.outreachMessage.findUniqueOrThrow({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 386,
+    "snippet": "const existing = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 404,
+    "snippet": "const updated = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 429,
+    "snippet": "const message = await prisma.outreachMessage.findUniqueOrThrow({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 532,
+    "snippet": "const messages = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 570,
+    "snippet": "const message = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 610,
+    "snippet": "const claimed = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 627,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 638,
+    "snippet": "await prisma.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 687,
+    "snippet": "await tx.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 710,
+    "snippet": "return prisma.outreachMessage.findUniqueOrThrow({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 722,
+    "snippet": "const messages = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 642,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 657,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 124,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outbox/outbox.integration.test.ts",
+    "line": 91,
+    "snippet": "await tx.outreachMessage.create({ data: { subject: \"Hello\", body: \"World\" } });",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/outbox/outbox.integration.test.ts",
+    "line": 115,
+    "snippet": "const msg = await tx.outreachMessage.create({ data: { subject: \"Test\" } });",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 350,
+    "snippet": "await tx.outreachMessage.deleteMany({",
+    "model": "OutreachMessage",
+    "operation": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 357,
+    "snippet": "createdMessage = await tx.outreachMessage.create({ data: createData });",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 359,
+    "snippet": "createdMessage = await tx.outreachMessage.create({ data: createData });",
+    "model": "OutreachMessage",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 478,
+    "snippet": "const existingMsg = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 592,
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({ where: { id: current.persistedMessageId } });",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 684,
+    "snippet": "const existingMsg = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1048,
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1061,
+    "snippet": "return prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1085,
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1096,
+    "snippet": "return prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1122,
+    "snippet": "const msg = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1131,
+    "snippet": "return prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1219,
+    "snippet": "return prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 201,
+    "snippet": "prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 837,
+    "snippet": "leads = (await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 855,
+    "snippet": "leads = (await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1011,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 916,
+    "snippet": "const dbLeads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1129,
+    "snippet": "await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1438,
+    "snippet": "await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1524,
+    "snippet": "await prisma.lead.create({",
+    "model": "Lead",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 111,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 123,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 165,
+    "snippet": "? await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 172,
+    "snippet": ": await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 192,
+    "snippet": "const currentLead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 302,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 323,
+    "snippet": "const updateResult = await prisma.lead.updateMany({",
+    "model": "Lead",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 335,
+    "snippet": "const currentLead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.contoller.ts",
+    "line": 29,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 178,
+    "snippet": "const pendingMessages = await client.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 327,
+    "snippet": "const updated = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 347,
+    "snippet": "prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 487,
+    "snippet": "prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 550,
+    "snippet": "await tx.outreachMessage.update({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 352,
+    "snippet": "prisma.reply.findMany({",
+    "model": "Reply",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 498,
+    "snippet": "const existingReply = await prisma.reply.findFirst({",
+    "model": "Reply",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 524,
+    "snippet": "const createdReply = await tx.reply.create({",
+    "model": "Reply",
+    "operation": "create",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 581,
+    "snippet": "const reply = await prisma.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 741,
+    "snippet": "await prisma.reply.update({",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "snoozedUntil",
+      "isRead"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 778,
+    "snippet": "prisma.reply.update({ where: { id: replyId }, data: { oooRequeuedAt: new Date() } })",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "snoozedUntil",
+      "isRead"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 904,
+    "snippet": "const reply = await prisma.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1041,
+    "snippet": "await prisma.reply.update({",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "snoozedUntil",
+      "isRead"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1085,
+    "snippet": "await prisma.reply.update({",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "snoozedUntil",
+      "isRead"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1108,
+    "snippet": "const reply = await prisma.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1252,
+    "snippet": "await tx.reply.update({",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "snoozedUntil",
+      "isRead"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1322,
+    "snippet": "const reply = await prisma.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1360,
+    "snippet": "prisma.reply.count({ where }),",
+    "model": "Reply",
+    "operation": "count",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1361,
+    "snippet": "prisma.reply.findMany({ where, select: { id: true }, orderBy, skip, take: safeLimit }),",
+    "model": "Reply",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1371,
+    "snippet": "const replies = await prisma.reply.findMany({",
+    "model": "Reply",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1398,
+    "snippet": "return prisma.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1430,
+    "snippet": "const existing = await prisma.reply.findFirst({",
+    "model": "Reply",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1454,
+    "snippet": "const updated = await prisma.reply.update({",
+    "model": "Reply",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1510,
+    "snippet": "prisma.reply.count({ where }),",
+    "model": "Reply",
+    "operation": "count",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1511,
+    "snippet": "prisma.reply.findMany({ where, select: { id: true }, orderBy, skip, take: safeLimit }),",
+    "model": "Reply",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1521,
+    "snippet": "const replies = await prisma.reply.findMany({",
+    "model": "Reply",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1237,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1260,
+    "snippet": "await tx.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 467,
+    "snippet": "prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 64,
+    "snippet": "const msg = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 196,
+    "snippet": "const matched = await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 174,
+    "snippet": "const existingReplies = await prisma.reply.findMany({",
+    "model": "Reply",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 115,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 144,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 167,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 183,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 285,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 313,
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({",
+    "model": "SenderMailbox",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 82,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 225,
+    "snippet": "const leads = await prisma.lead.findMany({",
+    "model": "Lead",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 19,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 35,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 64,
+    "snippet": "return await prisma.senderMailbox.create({",
+    "model": "SenderMailbox",
+    "operation": "create",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 106,
+    "snippet": "prisma.senderMailbox.findMany({",
+    "model": "SenderMailbox",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 131,
+    "snippet": "prisma.senderMailbox.count({ where }),",
+    "model": "SenderMailbox",
+    "operation": "count",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 146,
+    "snippet": "return prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 206,
+    "snippet": "return prisma.senderMailbox.update({ where: { id }, data: updateData });",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 223,
+    "snippet": "return prisma.senderMailbox.delete({ where: { id } });",
+    "model": "SenderMailbox",
+    "operation": "delete",
+    "hasExplicitSelect": false,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 236,
+    "snippet": "return prisma.senderMailbox.update({ where: { id }, data: { currentSent: 0 } });",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 241,
+    "snippet": "? await prisma.senderMailbox.findUnique({ where: { id } })",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/webhook/delivery.worker.ts",
+    "line": 185,
+    "snippet": "const updated = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/webhook/delivery.worker.ts",
+    "line": 228,
+    "snippet": "await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/webhook/delivery.worker.ts",
+    "line": 251,
+    "snippet": "const message = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/delivery.worker.ts",
+    "line": 309,
+    "snippet": "await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/webhook/delivery.worker.ts",
+    "line": 107,
+    "snippet": "const mailbox = await tx.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 99,
+    "snippet": "const updated = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 116,
+    "snippet": "const campaignOrg = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 172,
+    "snippet": "const message = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 261,
+    "snippet": "(await prisma.outreachMessage.findMany({",
+    "model": "OutreachMessage",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 148,
+    "snippet": "const mailbox = await tx.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 219,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({",
+    "model": "SenderMailbox",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 320,
+    "snippet": "await prisma.senderMailbox.update({",
+    "model": "SenderMailbox",
+    "operation": "update",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 332,
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({",
+    "model": "SenderMailbox",
+    "operation": "findMany",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 291,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/inbound.controller.ts",
+    "line": 118,
+    "snippet": "outreachMessage = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/inbound.controller.ts",
+    "line": 125,
+    "snippet": "outreachMessage = await prisma.outreachMessage.findFirst({",
+    "model": "OutreachMessage",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/inbound.controller.ts",
+    "line": 105,
+    "snippet": "const existingReply = await prisma.reply.findUnique({",
+    "model": "Reply",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/inbound.controller.ts",
+    "line": 91,
+    "snippet": "const lead = await prisma.lead.findFirst({",
+    "model": "Lead",
+    "operation": "findFirst",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/linkedin.controller.ts",
+    "line": 70,
+    "snippet": "const lead = await prisma.lead.findUnique({",
+    "model": "Lead",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/tracking.controller.ts",
+    "line": 65,
+    "snippet": "const updated = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/webhook/tracking.controller.ts",
+    "line": 84,
+    "snippet": "const message = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/tracking.controller.ts",
+    "line": 169,
+    "snippet": "const updated = await prisma.outreachMessage.updateMany({",
+    "model": "OutreachMessage",
+    "operation": "update",
+    "hasExplicitSelect": false,
+    "queriesMissingField": true,
+    "missingFieldsInvolved": [
+      "senderMailboxId",
+      "regenerationNeeded",
+      "regenerationReason"
+    ]
+  },
+  {
+    "file": "app/api/src/modules/webhook/tracking.controller.ts",
+    "line": 189,
+    "snippet": "const message = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/modules/webhook/unsubscribe.controller.ts",
+    "line": 18,
+    "snippet": "const message = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  },
+  {
+    "file": "app/api/src/routes/unsubscribe.routes.ts",
+    "line": 39,
+    "snippet": "const message = await prisma.outreachMessage.findUnique({",
+    "model": "OutreachMessage",
+    "operation": "findUnique",
+    "hasExplicitSelect": true,
+    "queriesMissingField": false,
+    "missingFieldsInvolved": []
+  }
+]

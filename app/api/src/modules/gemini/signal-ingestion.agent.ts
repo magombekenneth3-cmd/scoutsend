@@ -1,19 +1,9 @@
-/**
- * signal-ingestion.agent.ts
- *
- * Pillar B: Real-Time Signal-Based Triggering
- *
- * When a high-value signal fires for a lead (FUNDING, HIRING, INTENT, TECH_ADOPTION),
- * immediately enqueue an accelerated research → generate pipeline for that lead.
- * This bypasses the nightly batch scheduler so outreach reaches prospects while
- * the buying signal is still hot — typically within minutes of detection.
- */
-
+import { SignalType } from "@prisma/client";
 import { leadSignalQueue } from "./campaign.queue";
 import { prisma } from "../../lib/prisma";
 import { logger } from "../../lib/logger";
+import { runLeadScoringAgent } from "./lead-scoring.agent";
 
-/** Signal types that warrant immediate outreach acceleration */
 const HIGH_VALUE_SIGNAL_TYPES = new Set([
     "FUNDING",
     "HIRING",
@@ -23,7 +13,15 @@ const HIGH_VALUE_SIGNAL_TYPES = new Set([
     "EXPANSION",
 ]);
 
-const SIGNAL_COOLDOWN_MS = 6 * 60 * 60_000; // 6 hours — prevent duplicate triggers per lead
+const SIGNAL_COOLDOWN_MS = 6 * 60 * 60_000;
+const SINGLE_SIGNAL_CONFIDENCE_THRESHOLD = 0.80;
+const CORROBORATED_SIGNAL_CONFIDENCE_THRESHOLD = 0.60;
+const NON_OUTREACH_PIPELINE_STAGES = new Set([
+    "ENGAGED",
+    "HOT",
+    "MEETING_BOOKED",
+    "DISQUALIFIED",
+]);
 
 interface IngestSignalParams {
     leadId: string;
@@ -41,10 +39,10 @@ export async function ingestLeadSignal(params: IngestSignalParams): Promise<void
     const { leadId, signalType, confidence } = params;
 
     if (!HIGH_VALUE_SIGNAL_TYPES.has(signalType)) {
-        return; // Low-priority signal — let the nightly batch handle it
+        return;
     }
 
-    if (confidence < 0.6) {
+    if (confidence < CORROBORATED_SIGNAL_CONFIDENCE_THRESHOLD) {
         logger.debug(
             { leadId, signalType, confidence },
             "[signal-ingestion.agent] Low confidence signal skipped"
@@ -74,6 +72,13 @@ export async function ingestLeadSignal(params: IngestSignalParams): Promise<void
                 select: { id: true },
                 take: 1,
             },
+            signals: {
+                where: {
+                    signalType: { in: Array.from(HIGH_VALUE_SIGNAL_TYPES) as SignalType[] },
+                    createdAt: { gte: new Date(Date.now() - 48 * 60 * 60_000) },
+                },
+                select: { signalType: true, confidence: true },
+            },
         },
     });
 
@@ -82,7 +87,14 @@ export async function ingestLeadSignal(params: IngestSignalParams): Promise<void
         return;
     }
 
-    // Skip leads that already have outreach in flight
+    if (NON_OUTREACH_PIPELINE_STAGES.has(lead.pipelineStage) || lead.recommendedAction === "DISQUALIFY") {
+        logger.debug(
+            { leadId, signalType, pipelineStage: lead.pipelineStage },
+            "[signal-ingestion.agent] Lead in non-outreach stage — skipping acceleration"
+        );
+        return;
+    }
+
     if (lead.outreachMessages.length > 0) {
         logger.debug(
             { leadId, signalType },
@@ -91,8 +103,16 @@ export async function ingestLeadSignal(params: IngestSignalParams): Promise<void
         return;
     }
 
-    // Skip disqualified or opted-out leads
-    if (lead.pipelineStage === "DISQUALIFIED" || lead.recommendedAction === "DISQUALIFY") {
+    const existingCorroboratingSignals = lead.signals.filter(
+        (s) => s.signalType !== signalType && s.confidence >= CORROBORATED_SIGNAL_CONFIDENCE_THRESHOLD
+    );
+    const isCorroborated = existingCorroboratingSignals.length > 0;
+
+    if (confidence < SINGLE_SIGNAL_CONFIDENCE_THRESHOLD && !isCorroborated) {
+        logger.debug(
+            { leadId, signalType, confidence, existingSignals: existingCorroboratingSignals.length },
+            "[signal-ingestion.agent] Single unverified signal below threshold — corroboration required"
+        );
         return;
     }
 
@@ -106,7 +126,13 @@ export async function ingestLeadSignal(params: IngestSignalParams): Promise<void
         return;
     }
 
-    // Cooldown check: avoid re-triggering if we already fired an acceleration for this lead recently
+    if (lead.campaign?.icpDescription) {
+        await runLeadScoringAgent(leadId, lead.campaign.icpDescription, true).catch((err) =>
+            logger.warn({ err, leadId, signalType }, "[signal-ingestion.agent] Event-driven lead rescore failed")
+        );
+    }
+
+
     const recentAcceleration = await prisma.queueJob.findFirst({
         where: {
             campaignId,
@@ -142,7 +168,7 @@ export async function ingestLeadSignal(params: IngestSignalParams): Promise<void
         },
         {
             jobId,
-            priority: 1, // Highest priority — ahead of batch jobs
+            priority: 1,
             attempts: 3,
             backoff: { type: "exponential", delay: 5_000 },
             removeOnComplete: { age: 3600 },
@@ -150,7 +176,7 @@ export async function ingestLeadSignal(params: IngestSignalParams): Promise<void
         }
     );
 
-    // Record in QueueJob for cooldown tracking and observability
+
     await prisma.queueJob.create({
         data: {
             queueName: "lead:signal-accelerate",
@@ -175,10 +201,7 @@ export async function ingestLeadSignal(params: IngestSignalParams): Promise<void
     );
 }
 
-/**
- * Batch-ingest signals for multiple leads (e.g. after a discovery run).
- * Processes concurrently with a cap to avoid overwhelming the queue.
- */
+
 export async function ingestSignalBatch(signals: IngestSignalParams[]): Promise<void> {
     const highValue = signals.filter(
         (s) => HIGH_VALUE_SIGNAL_TYPES.has(s.signalType) && s.confidence >= 0.6
@@ -191,7 +214,6 @@ export async function ingestSignalBatch(signals: IngestSignalParams[]): Promise<
         "[signal-ingestion.agent] Batch ingestion started"
     );
 
-    // Process in batches of 10 to avoid DB connection exhaustion
     const BATCH = 10;
     for (let i = 0; i < highValue.length; i += BATCH) {
         await Promise.allSettled(

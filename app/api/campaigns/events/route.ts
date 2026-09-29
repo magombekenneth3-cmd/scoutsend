@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 
-const API_BASE = process.env.INTERNAL_API_URL!;
+const API_BASE = process.env.INTERNAL_API_URL ?? "http://localhost:8080";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +37,10 @@ export async function GET(req: NextRequest) {
   const token = store.get("token")?.value;
 
   if (!token) {
-    return new Response(heartbeatStream(), { status: 200, headers: SSE_HEADERS });
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const encoder = new TextEncoder();

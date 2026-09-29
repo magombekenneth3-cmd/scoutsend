@@ -45,7 +45,7 @@ export function LearningTable({
             "flex items-center justify-center w-8 h-8 rounded-lg text-sm border transition-colors duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
             active
-                ? "border-[var(--red)] bg-[var(--red-glow)] text-[var(--red)]"
+                ? "border-[var(--red)] bg-[var(--red-glow)] text-[var(--red-text)]"
                 : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-white/20 disabled:opacity-40 disabled:cursor-not-allowed",
         ].join(" ");
 

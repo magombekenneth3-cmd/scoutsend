@@ -11,7 +11,7 @@ import {
 } from "./message.schema";
 import { logAudit } from "../audit/audit.service";
 import { AUDIT_EVENTS } from "../../lib/constants";
-import { assertCampaignOwner } from "../../lib/ownership";
+import { assertCampaignAccess } from "../../lib/ownership";
 import { prisma } from "../../lib/prisma";
 import { logger } from "../../lib/logger";
 
@@ -47,7 +47,7 @@ export async function createOutreachMessage(
       res.status(404).json({ error: "Lead not found" });
       return;
     }
-    await assertCampaignOwner(lead.campaignId, userId);
+    await assertCampaignAccess(lead.campaignId, userId, req.user?.orgId);
 
     const message = await OutreachService.createOutreachMessage(data);
 
@@ -82,9 +82,9 @@ export async function getOutreachMessages(
 
     const query = getOutreachMessagesQuerySchema.parse(req.query);
     if (query.campaignId) {
-      await assertCampaignOwner(query.campaignId, userId);
+      await assertCampaignAccess(query.campaignId, userId, req.user?.orgId);
     }
-    const result = await OutreachService.getOutreachMessages(query, userId);
+    const result = await OutreachService.getOutreachMessages(query, userId, req.user?.orgId);
     res.status(200).json(result);
   } catch (error) {
     next(error);
@@ -101,7 +101,7 @@ export async function getOutreachMessageById(
     if (!userId) return;
 
     const { id } = req.params as { id: string };
-    const message = await OutreachService.getOutreachMessageById(id, userId);
+    const message = await OutreachService.getOutreachMessageById(id, userId, req.user?.orgId);
     if (!message) {
       res.status(404).json({ error: "Outreach message not found" });
       return;
@@ -124,7 +124,7 @@ export async function editOutreachMessage(
     const { id } = req.params as { id: string };
     const data = editOutreachMessageSchema.parse(req.body);
 
-    const message = await OutreachService.editOutreachMessage(id, data, userId);
+    const message = await OutreachService.editOutreachMessage(id, data, userId, req.user?.orgId);
     res.status(200).json(message);
   } catch (error) {
     next(error);
@@ -141,7 +141,7 @@ export async function approveOutreachMessage(
     if (!userId) return;
 
     const { id } = req.params as { id: string };
-    const message = await OutreachService.approveOutreachMessage(id, userId);
+    const message = await OutreachService.approveOutreachMessage(id, userId, req.user?.orgId);
 
     try {
       await logAudit({
@@ -173,7 +173,7 @@ export async function rejectOutreachMessage(
     if (!userId) return;
 
     const { id } = req.params as { id: string };
-    const message = await OutreachService.rejectOutreachMessage(id, userId);
+    const message = await OutreachService.rejectOutreachMessage(id, userId, req.user?.orgId);
 
     try {
       await logAudit({
@@ -205,7 +205,7 @@ export async function sendOutreachMessage(
     if (!userId) return;
 
     const { id } = req.params as { id: string };
-    const message = await OutreachService.sendOutreachMessage(id, userId);
+    const message = await OutreachService.sendOutreachMessage(id, userId, req.user?.orgId);
 
     try {
       await logAudit({
@@ -237,7 +237,7 @@ export async function getChartStats(
     if (!userId) return;
 
     const { campaignId, days } = chartStatsQuerySchema.parse(req.query);
-    await assertCampaignOwner(campaignId, userId);
+    await assertCampaignAccess(campaignId, userId, req.user?.orgId);
 
     const result = await OutreachService.getChartStats(campaignId, days);
     res.status(200).json({ data: result });
@@ -256,9 +256,9 @@ export async function batchApproveMessages(
     if (!userId) return;
 
     const { campaignId, messageIds } = batchApproveSchema.parse(req.body);
-    await assertCampaignOwner(campaignId, userId);
+    await assertCampaignAccess(campaignId, userId, req.user?.orgId);
 
-    const result = await OutreachService.batchApproveMessages(campaignId, messageIds, userId);
+    const result = await OutreachService.batchApproveMessages(campaignId, messageIds, userId, req.user?.orgId);
 
     try {
       await logAudit({
@@ -290,9 +290,9 @@ export async function batchRejectMessages(
     if (!userId) return;
 
     const { campaignId, messageIds } = batchRejectSchema.parse(req.body);
-    await assertCampaignOwner(campaignId, userId);
+    await assertCampaignAccess(campaignId, userId, req.user?.orgId);
 
-    const result = await OutreachService.batchRejectMessages(campaignId, messageIds, userId);
+    const result = await OutreachService.batchRejectMessages(campaignId, messageIds, userId, req.user?.orgId);
 
     try {
       await logAudit({
@@ -309,6 +309,30 @@ export async function batchRejectMessages(
     }
 
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getStatusCountsHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = requireUser(req, res);
+    if (!userId) return;
+
+    const campaignId = typeof req.query.campaignId === "string" ? req.query.campaignId : null;
+    if (!campaignId) {
+      res.status(400).json({ error: "campaignId is required" });
+      return;
+    }
+
+    await assertCampaignAccess(campaignId, userId, req.user?.orgId);
+
+    const counts = await OutreachService.getStatusCounts(campaignId, userId, req.user?.orgId);
+    res.status(200).json(counts);
   } catch (error) {
     next(error);
   }

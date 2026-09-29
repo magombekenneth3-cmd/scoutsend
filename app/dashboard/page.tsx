@@ -2,9 +2,10 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import useSWR from "swr";
 import { TopBar } from "../components/dashboard/TopBar";
-import { StatCard } from "../components/dashboard/StatsCard";
+import { StatCard, RadialProgressCard } from "../components/dashboard/StatsCard";
 import { ActivityFeed } from "../components/dashboard/ActivityFeed";
 import { CampaignTable } from "../components/dashboard/CampaignTable";
 import { DomainCard } from "../components/dashboard/Domain.card";
@@ -45,6 +46,50 @@ interface DashboardStats {
         timestampIso: string;
     }[];
     pendingApprovals: number;
+}
+
+interface AttentionItem {
+    id: string;
+    label: string;
+    detail: string;
+    href: string;
+}
+
+const BOUNCE_RATE_ATTENTION_THRESHOLD = 5;
+const REPUTATION_SCORE_ATTENTION_THRESHOLD = 70;
+
+function buildAttentionItems(data: DashboardStats): AttentionItem[] {
+    const items: AttentionItem[] = [];
+
+    if (data.pendingApprovals > 0) {
+        items.push({
+            id: "pending-approvals",
+            label: `${data.pendingApprovals} repl${data.pendingApprovals === 1 ? "y" : "ies"} pending approval`,
+            detail: "Review before they age out of the queue",
+            href: "/dashboard/replies",
+        });
+    }
+
+    for (const d of data.domains) {
+        if (d.bounceRate > BOUNCE_RATE_ATTENTION_THRESHOLD) {
+            items.push({
+                id: `bounce-${d.id}`,
+                label: `${d.domain} bounce rate at ${d.bounceRate.toFixed(1)}%`,
+                detail: "Consider pausing or reducing daily volume",
+                href: "/dashboard/domains",
+            });
+        }
+        if (d.reputationScore < REPUTATION_SCORE_ATTENTION_THRESHOLD) {
+            items.push({
+                id: `reputation-${d.id}`,
+                label: `${d.domain} reputation dropped to ${Math.round(d.reputationScore)}`,
+                detail: "Reduce volume until it recovers",
+                href: "/dashboard/domains",
+            });
+        }
+    }
+
+    return items;
 }
 
 function formatRelativeTime(iso: string): string {
@@ -118,14 +163,14 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
             role="alert"
             className="m-4 sm:m-6 flex items-start gap-3 p-4 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-xl"
         >
-            <svg className="flex-shrink-0 mt-0.5 text-[var(--red)]" width="16" height="16" viewBox="0 0 24 24"
+            <svg className="flex-shrink-0 mt-0.5 text-[var(--red-text)]" width="16" height="16" viewBox="0 0 24 24"
                 fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <div className="flex-1">
-                <p className="text-sm font-medium text-[var(--red)]">{message}</p>
+                <p className="text-sm font-medium text-[var(--red-text)]">{message}</p>
                 <button
                     onClick={onRetry}
                     className="mt-2 text-xs text-[var(--text-secondary)] underline hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] rounded"
@@ -134,6 +179,44 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
                 </button>
             </div>
         </div>
+    );
+}
+
+function AttentionPanel({ items }: { items: AttentionItem[] }) {
+    return (
+        <section
+            className="card-glass p-5 flex flex-col gap-3"
+            aria-label="Needs attention"
+        >
+            <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold font-display text-[var(--text-primary)]">
+                    Needs Attention
+                </h2>
+                <span
+                    className="text-xs font-semibold bg-[var(--red)] text-white rounded-full px-2 py-0.5 tabular-nums"
+                    aria-label={`${items.length} items need attention`}
+                >
+                    {items.length}
+                </span>
+            </div>
+            <ul className="flex flex-col gap-2">
+                {items.map((item) => (
+                    <li key={item.id}>
+                        <Link
+                            href={item.href}
+                            className="group flex flex-col gap-0.5 p-3 rounded-lg bg-[var(--navy-mid)] border border-[var(--border)] hover:border-[var(--border-red)] hover:bg-[var(--surface-2)] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                        >
+                            <span className="text-sm font-medium text-[var(--text-primary)]">
+                                {item.label}
+                            </span>
+                            <span className="text-xs text-[var(--text-muted)]">
+                                {item.detail}
+                            </span>
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </section>
     );
 }
 
@@ -191,6 +274,7 @@ export default function DashboardPage() {
 
     const showSkeleton = isLoading && !data;
     const refreshing = isValidating && !!data;
+    const attentionItems = data ? buildAttentionItems(data) : [];
 
     return (
         <div className="flex flex-col h-full">
@@ -233,186 +317,198 @@ export default function DashboardPage() {
                 {data && (
                     <div className={`p-4 sm:p-6 space-y-6 ${refreshing ? "opacity-90 transition-opacity duration-300" : ""}`}>
 
-                        <section aria-label="Key metrics">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-                                <StatCard
-                                    label="Active Campaigns"
-                                    value={data.activeCampaigns}
-                                    icon={icons.campaigns}
-                                    accent
-                                />
-                                <StatCard
-                                    label="Emails Sent Today"
-                                    value={data.emailsSentToday.toLocaleString()}
-                                    sub="since midnight"
-                                    icon={icons.send}
-                                />
-                                <StatCard
-                                    label="Open Rate"
-                                    value={`${data.openRate}%`}
-                                    trend={deltaToTrend(data.openRateDelta)}
-                                    trendValue={formatDelta(data.openRateDelta)}
-                                    icon={icons.openRate}
-                                />
-                                <StatCard
-                                    label="Reply Rate"
-                                    value={`${data.replyRate}%`}
-                                    trend={deltaToTrend(data.replyRateDelta)}
-                                    trendValue={formatDelta(data.replyRateDelta)}
-                                    icon={icons.reply}
-                                />
-                                <StatCard
-                                    label="Positive Intent"
-                                    value={`${data.positiveIntentRate}%`}
-                                    sub="of all replies"
-                                    trend={deltaToTrend(data.positiveIntentRateDelta)}
-                                    trendValue={formatDelta(data.positiveIntentRateDelta)}
-                                    icon={icons.positive}
-                                />
-                            </div>
-                        </section>
-
                         <LiveStatusBadges activeEvents={activeEvents} recentEvents={recentEvents} />
 
                         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                            <section
-                                className="xl:col-span-2 min-h-[300px] flex flex-col"
-                                aria-label="Pipeline activity chart"
-                            >
-                                <DashboardChart campaigns={data.campaigns} />
-                            </section>
 
-                            <section
-                                className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 flex flex-col"
-                                aria-label="Recent activity"
-                            >
-                                <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-sm font-semibold font-display text-[var(--text-primary)]">
-                                        Recent Activity
-                                    </h2>
-                                    {data.pendingApprovals > 0 && (
-                                        <span
-                                            className="text-xs font-semibold bg-[var(--red)] text-white rounded-full px-2 py-0.5 tabular-nums"
-                                            aria-label={`${data.pendingApprovals} pending approvals`}
-                                        >
-                                            {data.pendingApprovals} pending
-                                        </span>
-                                    )}
-                                </div>
+                            <div className="xl:col-span-2 space-y-6">
 
-                                {data.activityEvents.length === 0 ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-8">
-                                        <div className="w-10 h-10 rounded-full bg-[var(--surface-2)] flex items-center justify-center text-[var(--text-muted)]" aria-hidden="true">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                                            </svg>
-                                        </div>
-                                        <p className="text-sm text-[var(--text-secondary)]">No activity yet</p>
-                                        <p className="text-xs text-[var(--text-muted)]">Events appear here as your pipeline runs</p>
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 overflow-y-auto -mx-1 px-1">
-                                        <ActivityFeed events={data.activityEvents} />
-                                    </div>
-                                )}
-                            </section>
-                        </div>
-
-                        <section aria-label="Campaigns">
-                            <CampaignTable campaigns={data.campaigns} />
-                        </section>
-
-                        {data.domains.length === 0 && data.campaigns.length === 0 && (
-                            <section aria-label="Getting started" className="relative overflow-hidden bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6">
-                                <div className="absolute inset-0 bg-gradient-to-br from-[var(--red-glow)] to-transparent pointer-events-none" aria-hidden="true" />
-                                <div className="relative">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--red)]" aria-hidden="true">
-                                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                                        </svg>
-                                        <h2 className="text-base font-bold font-display text-[var(--text-primary)]">Get started with ScoutSend</h2>
-                                    </div>
-                                    <p className="text-xs text-[var(--text-muted)] mb-5">Three steps to your first AI-powered outbound campaign.</p>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        {([
-                                            { step: 1, label: "Add a sender domain", desc: "Verify your domain and start building email reputation through warm-up.", href: "/dashboard/domains" },
-                                            { step: 2, label: "Connect a mailbox", desc: "Link your sending mailbox and configure daily send limits.", href: "/dashboard/mailboxes" },
-                                            { step: 3, label: "Create a campaign", desc: "Define your ICP, select leads, and let AI write personalised outreach.", href: "/dashboard/campaigns" },
-                                        ] as const).map(({ step, label, desc, href }) => (
-                                            <a
-                                                key={step}
-                                                href={href}
-                                                className="group flex flex-col gap-3 p-4 rounded-lg bg-[var(--navy-mid)] border border-[var(--border)] hover:border-[var(--border-red)] hover:bg-[var(--surface-2)] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
-                                            >
-                                                <span className="w-7 h-7 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] text-[var(--red)] flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                                    {step}
-                                                </span>
-                                                <div>
-                                                    <p className="text-sm font-semibold text-[var(--text-primary)] leading-tight">{label}</p>
-                                                    <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">{desc}</p>
-                                                </div>
-                                                <span className="text-xs text-[var(--red)] font-medium flex items-center gap-1 group-hover:gap-2 transition-all duration-150" aria-hidden="true">
-                                                    Get started
-                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                        <line x1="5" y1="12" x2="19" y2="12" />
-                                                        <polyline points="12 5 19 12 12 19" />
-                                                    </svg>
-                                                </span>
-                                            </a>
-                                        ))}
-                                    </div>
-                                </div>
-                            </section>
-                        )}
-
-                        {data.domains.length > 0 ? (
-                            <section aria-label="Sender domain health">
-                                <h2 className="text-sm font-semibold font-display text-[var(--text-primary)] mb-3">
-                                    Sender Domain Health
-                                </h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                                    {data.domains.map((d) => (
-                                        <DomainCard
-                                            key={d.id}
-                                            domain={d.domain}
-                                            health={d.health}
-                                            reputationScore={Math.round(d.reputationScore)}
-                                            sentToday={d.currentSent}
-                                            dailyLimit={d.dailyLimit}
-                                            bounceRate={d.bounceRate}
-                                            warmupEnabled={d.warmupEnabled}
-                                            warmupLimit={d.warmupLimit}
+                                <section aria-label="Key metrics">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-children">
+                                        <StatCard
+                                            label="Active Campaigns"
+                                            value={data.activeCampaigns}
+                                            sub="running sequences"
+                                            icon={icons.campaigns}
+                                            accent
                                         />
-                                    ))}
-                                </div>
-                            </section>
-                        ) : (
-                            <section aria-label="Sender domain health">
-                                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl flex flex-col items-center justify-center py-10 gap-3 text-center">
-                                    <div className="w-12 h-12 rounded-full bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)]" aria-hidden="true">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <line x1="2" y1="12" x2="22" y2="12" />
-                                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                                        </svg>
+                                        <StatCard
+                                            label="Emails Sent Today"
+                                            value={data.emailsSentToday.toLocaleString()}
+                                            sub="since midnight"
+                                            icon={icons.send}
+                                        />
+                                        <StatCard
+                                            label="Positive Intent"
+                                            value={`${data.positiveIntentRate}%`}
+                                            sub="of all replies received"
+                                            trend={deltaToTrend(data.positiveIntentRateDelta)}
+                                            trendValue={formatDelta(data.positiveIntentRateDelta)}
+                                            icon={icons.positive}
+                                        />
                                     </div>
-                                    <p className="text-sm font-medium text-[var(--text-secondary)]">No sender domains configured</p>
-                                    <p className="text-xs text-[var(--text-muted)] max-w-[260px]">
-                                        Add a verified sending domain to protect your deliverability and warm up your reputation.
-                                    </p>
-                                    <a
-                                        href="/dashboard/domains"
-                                        className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--red-glow)] border border-[var(--border-red)] text-[var(--red)] hover:bg-[var(--red)] hover:text-white transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
-                                    >
-                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                            <line x1="12" y1="5" x2="12" y2="19" />
-                                            <line x1="5" y1="12" x2="19" y2="12" />
-                                        </svg>
-                                        Add domain
-                                    </a>
-                                </div>
-                            </section>
-                        )}
+                                </section>
+
+                                <section aria-label="Pipeline activity chart" className="min-h-[300px] flex flex-col">
+                                    <DashboardChart campaigns={data.campaigns} />
+                                </section>
+
+                                <section aria-label="Campaigns">
+                                    <CampaignTable campaigns={data.campaigns} />
+                                </section>
+
+                                {data.domains.length === 0 && data.campaigns.length === 0 && (
+                                    <section aria-label="Getting started" className="relative overflow-hidden bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-[var(--red-glow)] to-transparent pointer-events-none" aria-hidden="true" />
+                                        <div className="relative">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--red-text)]" aria-hidden="true">
+                                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                                                </svg>
+                                                <h2 className="text-base font-bold font-display text-[var(--text-primary)]">Get started with ScoutSend</h2>
+                                            </div>
+                                            <p className="text-xs text-[var(--text-muted)] mb-5">Three steps to your first AI-powered outbound campaign.</p>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                {([
+                                                    { step: 1, label: "Add a sender domain", desc: "Verify your domain and start building email reputation through warm-up.", href: "/dashboard/domains" },
+                                                    { step: 2, label: "Connect a mailbox", desc: "Link your sending mailbox and configure daily send limits.", href: "/dashboard/mailboxes" },
+                                                    { step: 3, label: "Create a campaign", desc: "Define your ICP, select leads, and let AI write personalised outreach.", href: "/dashboard/campaigns" },
+                                                ] as const).map(({ step, label, desc, href }) => (
+                                                    <Link
+                                                        key={step}
+                                                        href={href}
+                                                        className="group flex flex-col gap-3 p-4 rounded-lg bg-[var(--navy-mid)] border border-[var(--border)] hover:border-[var(--border-red)] hover:bg-[var(--surface-2)] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                                                    >
+                                                        <span className="w-7 h-7 rounded-full bg-[var(--red-glow)] border border-[var(--border-red)] text-[var(--red-text)] flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                                            {step}
+                                                        </span>
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-[var(--text-primary)] leading-tight">{label}</p>
+                                                            <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">{desc}</p>
+                                                        </div>
+                                                        <span className="text-xs text-[var(--red-text)] font-medium flex items-center gap-1 group-hover:gap-2 transition-all duration-150" aria-hidden="true">
+                                                            Get started
+                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                                <line x1="5" y1="12" x2="19" y2="12" />
+                                                                <polyline points="12 5 19 12 12 19" />
+                                                            </svg>
+                                                        </span>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </section>
+                                )}
+
+                                {data.domains.length > 0 ? (
+                                    <section aria-label="Sender domain health">
+                                        <h2 className="text-sm font-semibold font-display text-[var(--text-primary)] mb-3">Sender Domain Health</h2>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {data.domains.map((d) => (
+                                                <DomainCard
+                                                    key={d.id}
+                                                    domain={d.domain}
+                                                    health={d.health}
+                                                    reputationScore={Math.round(d.reputationScore)}
+                                                    sentToday={d.currentSent}
+                                                    dailyLimit={d.dailyLimit}
+                                                    bounceRate={d.bounceRate}
+                                                    warmupEnabled={d.warmupEnabled}
+                                                    warmupLimit={d.warmupLimit}
+                                                />
+                                            ))}
+                                        </div>
+                                    </section>
+                                ) : (
+                                    <section aria-label="Sender domain health">
+                                        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl flex flex-col items-center justify-center py-10 gap-3 text-center">
+                                            <div className="w-12 h-12 rounded-full bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)]" aria-hidden="true">
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <line x1="2" y1="12" x2="22" y2="12" />
+                                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                                                </svg>
+                                            </div>
+                                            <p className="text-sm font-medium text-[var(--text-secondary)]">No sender domains configured</p>
+                                            <p className="text-xs text-[var(--text-muted)] max-w-[260px]">
+                                                Add a verified sending domain to protect your deliverability and warm up your reputation.
+                                            </p>
+                                            <Link
+                                                href="/dashboard/domains"
+                                                className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--red-glow)] border border-[var(--border-red)] text-[var(--red-text)] hover:bg-[var(--red)] hover:text-white transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                                            >
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                    <line x1="12" y1="5" x2="12" y2="19" />
+                                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                                </svg>
+                                                Add domain
+                                            </Link>
+                                        </div>
+                                    </section>
+                                )}
+
+                            </div>
+
+                            <div className="space-y-4">
+
+                                {attentionItems.length > 0 && <AttentionPanel items={attentionItems} />}
+
+                                <section aria-label="Performance indicators" className="space-y-3">
+                                    <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] px-1">Performance</h2>
+                                    <RadialProgressCard
+                                        label="Reply Rate"
+                                        value={data.replyRate}
+                                        sub="of all emails sent"
+                                        trend={deltaToTrend(data.replyRateDelta)}
+                                        trendValue={formatDelta(data.replyRateDelta)}
+                                    />
+                                    <RadialProgressCard
+                                        label="Open Rate"
+                                        value={data.openRate}
+                                        sub="of all emails sent"
+                                        trend={deltaToTrend(data.openRateDelta)}
+                                        trendValue={formatDelta(data.openRateDelta)}
+                                    />
+                                </section>
+
+                                <section
+                                    className="card-glass p-5 flex flex-col"
+                                    aria-label="Recent activity"
+                                >
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h2 className="text-sm font-semibold font-display text-[var(--text-primary)]">
+                                            Recent Activity
+                                        </h2>
+                                        {data.pendingApprovals > 0 && (
+                                            <span
+                                                className="text-xs font-semibold bg-[var(--red)] text-white rounded-full px-2 py-0.5 tabular-nums"
+                                                aria-label={`${data.pendingApprovals} pending approvals`}
+                                            >
+                                                {data.pendingApprovals} pending
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {data.activityEvents.length === 0 ? (
+                                        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-8">
+                                            <div className="w-10 h-10 rounded-full bg-[var(--surface-2)] flex items-center justify-center text-[var(--text-muted)]" aria-hidden="true">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                                                </svg>
+                                            </div>
+                                            <p className="text-sm text-[var(--text-secondary)]">No activity yet</p>
+                                            <p className="text-xs text-[var(--text-muted)]">Events appear here as your pipeline runs</p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex-1 overflow-y-auto -mx-1 px-1">
+                                            <ActivityFeed events={data.activityEvents} />
+                                        </div>
+                                    )}
+                                </section>
+
+                            </div>
+
+                        </div>
 
                     </div>
                 )}

@@ -13,10 +13,11 @@ export { SchemaType };
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-const GEMINI_RETRY_ATTEMPTS = 5;
-const GEMINI_RETRY_BASE_MS = 2_000;
-const GEMINI_RETRY_CAP_MS = 60_000;
-const GEMINI_CALL_TIMEOUT_MS = 30_000;
+const GEMINI_RETRY_ATTEMPTS = 3;
+const GEMINI_RETRY_BASE_MS = 1_000;
+const GEMINI_RETRY_CAP_MS = 4_000;
+const GEMINI_CALL_TIMEOUT_MS = 12_000;
+const MAX_RETRY_WALLCLOCK_MS = 10_000;
 const MAX_OUTPUT_TOKENS_TOOLS = 4096;
 const MAX_OUTPUT_TOKENS_TEXT = 8192;
 
@@ -89,9 +90,9 @@ function parseRetryAfterMs(err: unknown): number | null {
 // ─── Model registry ───────────────────────────────────────────────────────────
 
 export const MODELS = {
-  RESEARCH: "gemini-2.5-flash",
-  GENERATE: "gemini-2.5-flash",
-  REVIEW: "gemini-2.5-flash",
+  RESEARCH: (process.env.GEMINI_MODEL || "gemini-3.1-flash-lite") as "gemini-3.1-flash-lite",
+  GENERATE: (process.env.GEMINI_MODEL || "gemini-3.1-flash-lite") as "gemini-3.1-flash-lite",
+  REVIEW: (process.env.GEMINI_MODEL || "gemini-3.1-flash-lite") as "gemini-3.1-flash-lite",
 } as const;
 
 export type GeminiModel = (typeof MODELS)[keyof typeof MODELS];
@@ -111,13 +112,23 @@ function calculateCost(model: string, promptTokens: number, completionTokens: nu
 
 async function withGeminiRetry<T>(
   model: LimiterBucketKey,
-  fn: () => Promise<T>,
+  fn: (timeoutMs: number) => Promise<T>,
 ): Promise<T> {
   let lastErr: unknown;
+  const startTime = Date.now();
 
   for (let attempt = 0; attempt < GEMINI_RETRY_ATTEMPTS; attempt++) {
+    const elapsed = Date.now() - startTime;
+    const remainingBudget = MAX_RETRY_WALLCLOCK_MS - elapsed;
+    if (remainingBudget <= 100) {
+      if (lastErr) throw lastErr;
+      throw new Error(`[gemini-client] Wall-clock deadline of ${MAX_RETRY_WALLCLOCK_MS}ms exceeded before attempt ${attempt + 1}`);
+    }
+
+    const effectiveTimeoutMs = Math.min(GEMINI_CALL_TIMEOUT_MS, remainingBudget);
+
     try {
-      return await geminiLimiter.schedule(model as GeminiModel, fn);
+      return await geminiLimiter.schedule(model as GeminiModel, () => fn(effectiveTimeoutMs));
     } catch (err) {
       if (err instanceof GeminiBlockedError) throw err;
 
@@ -138,17 +149,25 @@ async function withGeminiRetry<T>(
         msg.includes("ETIMEDOUT") ||
         msg.includes("timed out");
 
-      if (!isRetryable || attempt === GEMINI_RETRY_ATTEMPTS - 1) throw err;
+      const currentElapsed = Date.now() - startTime;
+      if (!isRetryable || attempt === GEMINI_RETRY_ATTEMPTS - 1 || currentElapsed >= MAX_RETRY_WALLCLOCK_MS) {
+        throw err;
+      }
       const retryAfterMs = parseRetryAfterMs(err);
       if (retryAfterMs !== null) {
         geminiLimiter.signalThrottled(model as GeminiModel, retryAfterMs);
       }
       const exponential = GEMINI_RETRY_BASE_MS * Math.pow(2, attempt);
       const capped = Math.min(exponential, GEMINI_RETRY_CAP_MS);
-      const backoff = retryAfterMs ?? Math.floor(capped * (0.5 + Math.random()));
+      const rawBackoff = retryAfterMs ?? Math.floor(capped * (0.8 + Math.random() * 0.4));
+      const backoff = Math.min(rawBackoff, MAX_RETRY_WALLCLOCK_MS - currentElapsed);
+
+      if (backoff <= 0 || currentElapsed + backoff >= MAX_RETRY_WALLCLOCK_MS) {
+        throw err;
+      }
 
       logger.warn(
-        { attempt, backoff, status, msg, model },
+        { attempt, backoff, status, msg, model, elapsed: currentElapsed },
         "[gemini-client] Retryable error — backing off",
       );
       await new Promise((r) => setTimeout(r, backoff));
@@ -220,10 +239,10 @@ async function _callGemini(
 
   const start = Date.now();
 
-  const result = await withGeminiRetry(model, () =>
+  const result = await withGeminiRetry(model, (timeoutMs) =>
     withTimeout(
       geminiModel.generateContent(userPrompt),
-      GEMINI_CALL_TIMEOUT_MS,
+      timeoutMs,
       `callGemini(${agentName})`,
     ),
   );
@@ -356,10 +375,10 @@ async function _callGeminiWithTools<T = unknown>(
 
   while (turnCount < maxTurns) {
     turnCount++;
-    const res = await withGeminiRetry(model, () =>
+    const res = await withGeminiRetry(model, (timeoutMs) =>
       withTimeout(
         chat.sendMessage(currentMessage),
-        GEMINI_CALL_TIMEOUT_MS,
+        timeoutMs,
         `callGeminiWithTools(${agentName}) turn ${turnCount}`,
       ),
     );
@@ -513,10 +532,10 @@ export async function callGeminiStream(
   let fullText = "";
   let promptTokens = 0;
   let completionTokens = 0;
-  const result = await withGeminiRetry(model, () =>
+  const result = await withGeminiRetry(model, (timeoutMs) =>
     withTimeout(
       geminiModel.generateContentStream(userPrompt),
-      GEMINI_CALL_TIMEOUT_MS,
+      timeoutMs,
       `callGeminiStream(${agentName}) connect`,
     ),
   );
@@ -584,12 +603,20 @@ function safeResponseText(response: {
   return text;
 }
 
-export function extractJSON<T>(text: string): T {
+export function parseSafeJson<T>(text: string): T {
+  if (!text || typeof text !== "string") {
+    throw new Error("[json-parser] Empty or non-string input provided to parseSafeJson");
+  }
+
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const raw = (fenced ? fenced[1] : text).trim();
 
-  const firstObj = raw.indexOf("{");
-  const firstArr = raw.indexOf("[");
+  const cleaned = raw
+    .replace(/,\s*([}\]])/g, "$1")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+
+  const firstObj = cleaned.indexOf("{");
+  const firstArr = cleaned.indexOf("[");
 
   let open: string;
   let close: string;
@@ -604,7 +631,11 @@ export function extractJSON<T>(text: string): T {
     close = "}";
     start = firstObj;
   } else {
-    throw new Error(`No JSON value found in Gemini response:\n${text}`);
+    try {
+      return JSON.parse(cleaned) as T;
+    } catch {
+      throw new Error(`[json-parser] No JSON object or array found in Gemini response:\n${text.slice(0, 300)}`);
+    }
   }
 
   let depth = 0;
@@ -612,8 +643,8 @@ export function extractJSON<T>(text: string): T {
   let escape = false;
   let end = -1;
 
-  for (let i = start; i < raw.length; i++) {
-    const ch = raw[i];
+  for (let i = start; i < cleaned.length; i++) {
+    const ch = cleaned[i];
     if (escape) {
       escape = false;
       continue;
@@ -640,29 +671,32 @@ export function extractJSON<T>(text: string): T {
     }
   }
 
-  if (end === -1) {
-    throw new Error(`Unbalanced JSON in Gemini response:\n${text}`);
-  }
-
-  const jsonStr = raw.slice(start, end + 1);
+  const jsonStr = end !== -1 ? cleaned.slice(start, end + 1) : cleaned.slice(start);
 
   try {
     return JSON.parse(jsonStr) as T;
   } catch (e) {
-    throw new Error(
-      `Failed to parse JSON from Gemini response: ${(e as Error).message}\nRaw: ${jsonStr}`,
-    );
+    try {
+      const fixedNewlines = jsonStr.replace(/(?<=:\s*"[^"]*)\n(?=[^"]*")/g, "\\n");
+      return JSON.parse(fixedNewlines) as T;
+    } catch {
+      throw new Error(
+        `[json-parser] Failed to parse JSON from Gemini response: ${(e as Error).message}\nRaw: ${jsonStr.slice(0, 300)}`
+      );
+    }
   }
 }
+
+export const extractJSON = parseSafeJson;
 
 export async function embedText(text: string): Promise<number[]> {
   const model = genAI.getGenerativeModel({ model: EMBED_MODEL });
   const result = await withGeminiRetry(
     EMBED_MODEL,
-    () =>
+    (timeoutMs) =>
       withTimeout(
         model.embedContent(text.slice(0, 8_000)),
-        GEMINI_CALL_TIMEOUT_MS,
+        timeoutMs,
         "embedText",
       ),
   );

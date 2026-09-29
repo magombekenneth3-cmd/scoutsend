@@ -61,16 +61,16 @@ export interface CreateDomainPayload {
 export interface UpdateDomainPayload {
     dailyLimit?: number;
     warmupEnabled?: boolean;
-    health?: DomainHealth;
-    reputationScore?: number;
-    bounceRate?: number;
-    complaintRate?: number;
 }
-
 
 export interface DnsVerifyResult {
     spfValid: boolean;
     dkimValid: boolean;
     dmarcValid: boolean;
     dnsCheckedAt: string;
+    inconclusive?: {
+        spf: boolean;
+        dkim: boolean;
+        dmarc: boolean;
+    };
 }

@@ -5,6 +5,7 @@ export const registerSchema = z.object({
     password: z.string().min(8).max(100),
     firstName: z.string().min(2).max(50),
     lastName: z.string().min(2).max(50),
+    orgName: z.string().min(2).max(80).optional(),
 });
 
 export const loginSchema = z.object({
@@ -19,4 +20,8 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
     token: z.string().min(1),
     password: z.string().min(8).max(100),
+});
+
+export const verifyEmailSchema = z.object({
+    token: z.string().min(1),
 });

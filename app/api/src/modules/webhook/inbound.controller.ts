@@ -18,7 +18,10 @@ export interface InboundEmailPayload {
 
 function verifySecret(req: Request): boolean {
     const expected = process.env.WEBHOOK_SECRET;
-    if (!expected) return false;
+    if (!expected) {
+        logger.warn("[inbound] WEBHOOK_SECRET is not set — rejecting all inbound webhooks. Set the env var to enable inbound email processing.");
+        return false;
+    }
     const raw = req.headers["x-webhook-secret"];
     const incoming = Array.isArray(raw) ? raw[0] : (raw ?? "");
     const a = Buffer.from(incoming);

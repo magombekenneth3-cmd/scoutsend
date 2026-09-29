@@ -2,10 +2,17 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getClientIp } from "./users/utils";
 
-export const API_BASE = process.env.INTERNAL_API_URL!;
+export const API_BASE = process.env.INTERNAL_API_URL ?? "http://localhost:8080";
 
 const TIMEOUT_MS = 15_000;
 const RETRY_DELAY_MS = 300;
+
+const RATE_LIMIT_HEADERS = [
+    "retry-after",
+    "x-ratelimit-limit",
+    "x-ratelimit-remaining",
+    "x-ratelimit-reset",
+] as const;
 
 export async function getToken(): Promise<string | undefined> {
     const store = await cookies();
@@ -21,6 +28,7 @@ async function doFetch(upstreamUrl: string, init: RequestInit, token?: string): 
             ...init,
             signal: controller.signal,
             headers: {
+                "X-Requested-With": "XMLHttpRequest",
                 ...(init?.body != null ? { "Content-Type": "application/json" } : {}),
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
@@ -46,33 +54,46 @@ function isRetryable(error: unknown): boolean {
     );
 }
 
+function pickRateLimitHeaders(upstreamRes: Response): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const key of RATE_LIMIT_HEADERS) {
+        const val = upstreamRes.headers.get(key);
+        if (val !== null) out[key] = val;
+    }
+    return out;
+}
+
 export async function proxyRequest(
     upstreamUrl: string,
     init?: RequestInit
 ): Promise<NextResponse> {
     const token = await getToken();
     const reqInit: RequestInit = init ?? {};
+    const method = (reqInit.method ?? "GET").toUpperCase();
+    const isSafeMethod = method === "GET" || method === "HEAD" || method === "OPTIONS";
+    const maxAttempts = isSafeMethod ? 2 : 1;
 
     let lastError: unknown;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
         if (attempt > 0) {
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
         }
         try {
             const res = await doFetch(upstreamUrl, reqInit, token);
+            const rlHeaders = pickRateLimitHeaders(res);
 
-            if (res.status === 204) return new NextResponse(null, { status: 204 });
+            if (res.status === 204) return new NextResponse(null, { status: 204, headers: rlHeaders });
 
             const contentType = res.headers.get("content-type") || "";
             if (contentType.includes("application/json")) {
                 const data = await res.json();
-                return NextResponse.json(data, { status: res.status });
+                return NextResponse.json(data, { status: res.status, headers: rlHeaders });
             }
 
             const text = await res.text();
             return NextResponse.json(
                 { error: text || `Upstream returned ${res.status}` },
-                { status: res.status }
+                { status: res.status, headers: rlHeaders }
             );
         } catch (error) {
             lastError = error;

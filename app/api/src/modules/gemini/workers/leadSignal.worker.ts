@@ -1,9 +1,11 @@
 import { Worker } from "bullmq";
+import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
-import { createRedisConnection, redis } from "../../../lib/ioredis";
+import { redis, redisConnectionOptions } from "../../../lib/ioredis";
 import { QUEUE_POLICY } from "../queue-policy";
 import { wireWorkerEvents } from "../worker-runtime";
 import { logger } from "../../../lib/logger";
+import { parseJobData } from "../../../lib/job-validation";
 import { enrichThenScore } from "../enrichToScore";
 import { runResearchAgent } from "../gemini.agent";
 import { runGenerateAgent } from "../generate.agent";
@@ -11,6 +13,14 @@ import { runReviewAgent } from "../review.agent";
 
 const policy = QUEUE_POLICY.leadSignal;
 const AGENT_TIMEOUT_MS = 5 * 60_000;
+
+const signalAccelerateLeadSchema = z.object({
+  leadId: z.string().min(1),
+  campaignId: z.string().min(1),
+  signalType: z.string().min(1),
+  confidence: z.number(),
+  source: z.string(),
+});
 
 const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
   Promise.race([
@@ -25,13 +35,7 @@ async function processJob(job: import("bullmq").Job) {
 
   switch (job.name) {
     case "signal-accelerate-lead": {
-      const { leadId, campaignId, signalType, confidence, source } = job.data as {
-        leadId: string;
-        campaignId: string;
-        signalType: string;
-        confidence: number;
-        source: string;
-      };
+      const { leadId, campaignId, signalType, confidence, source } = parseJobData(signalAccelerateLeadSchema, job);
 
       const lockKey = `signal-accelerate-lock:${leadId}`;
       const acquired = await redis.set(lockKey, "1", "PX", 5 * 60_000, "NX");
@@ -62,8 +66,8 @@ async function processJob(job: import("bullmq").Job) {
 
         const threshold =
           typeof lead?.campaign?.qualificationThreshold === "number" &&
-          lead.campaign.qualificationThreshold >= 0 &&
-          lead.campaign.qualificationThreshold <= 1
+            lead.campaign.qualificationThreshold >= 0 &&
+            lead.campaign.qualificationThreshold <= 1
             ? lead.campaign.qualificationThreshold
             : 0.40;
 
@@ -107,7 +111,7 @@ async function processJob(job: import("bullmq").Job) {
 }
 
 export const leadSignalWorker = new Worker(policy.queueName, processJob, {
-  connection: createRedisConnection(),
+  connection: redisConnectionOptions,
   concurrency: policy.concurrency,
   lockDuration: policy.lockDuration,
 });

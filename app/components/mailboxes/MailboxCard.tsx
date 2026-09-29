@@ -101,7 +101,7 @@ export function MailboxCard({
                         </span>
                         <button
                             onClick={() => onSelect(mailbox)}
-                            className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--red)] transition-colors duration-150 truncate block max-w-[180px] focus-visible:outline-none focus-visible:underline text-left"
+                            className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--red-text)] transition-colors duration-150 truncate block max-w-[180px] focus-visible:outline-none focus-visible:underline text-left"
                             title={mailbox.emailAddress}
                         >
                             {mailbox.label}

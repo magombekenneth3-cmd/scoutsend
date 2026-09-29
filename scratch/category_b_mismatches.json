@@ -1,0 +1,261 @@
+[
+  {
+    "model": "Lead",
+    "table": "Lead",
+    "field": "sequenceInitError",
+    "col": "sequenceInitError",
+    "type": "String?"
+  },
+  {
+    "model": "Lead",
+    "table": "Lead",
+    "field": "researchCard",
+    "col": "researchCard",
+    "type": "Json?"
+  },
+  {
+    "model": "Lead",
+    "table": "Lead",
+    "field": "researchCardGeneratedAt",
+    "col": "researchCardGeneratedAt",
+    "type": "DateTime?"
+  },
+  {
+    "model": "OutreachMessage",
+    "table": "OutreachMessage",
+    "field": "senderMailboxId",
+    "col": "senderMailboxId",
+    "type": "String?"
+  },
+  {
+    "model": "OutreachMessage",
+    "table": "OutreachMessage",
+    "field": "regenerationNeeded",
+    "col": "regenerationNeeded",
+    "type": "Boolean"
+  },
+  {
+    "model": "OutreachMessage",
+    "table": "OutreachMessage",
+    "field": "regenerationReason",
+    "col": "regenerationReason",
+    "type": "String?"
+  },
+  {
+    "model": "Reply",
+    "table": "Reply",
+    "field": "isRead",
+    "col": "isRead",
+    "type": "Boolean"
+  },
+  {
+    "model": "Reply",
+    "table": "Reply",
+    "field": "snoozedUntil",
+    "col": "snoozedUntil",
+    "type": "DateTime?"
+  },
+  {
+    "model": "SenderMailbox",
+    "table": "SenderMailbox",
+    "field": "spfValid",
+    "col": "spfValid",
+    "type": "Boolean?"
+  },
+  {
+    "model": "SenderMailbox",
+    "table": "SenderMailbox",
+    "field": "dkimValid",
+    "col": "dkimValid",
+    "type": "Boolean?"
+  },
+  {
+    "model": "SenderMailbox",
+    "table": "SenderMailbox",
+    "field": "dmarcValid",
+    "col": "dmarcValid",
+    "type": "Boolean?"
+  },
+  {
+    "model": "SenderMailbox",
+    "table": "SenderMailbox",
+    "field": "dkimSelector",
+    "col": "dkimSelector",
+    "type": "String?"
+  },
+  {
+    "model": "SenderMailbox",
+    "table": "SenderMailbox",
+    "field": "dnsCheckedAt",
+    "col": "dnsCheckedAt",
+    "type": "DateTime?"
+  },
+  {
+    "model": "BrandSettings",
+    "table": "BrandSettings",
+    "field": "provenStats",
+    "col": "provenStats",
+    "type": "Json?"
+  },
+  {
+    "model": "Company",
+    "table": "Company",
+    "field": "version",
+    "col": "version",
+    "type": "Int"
+  },
+  {
+    "model": "Operation",
+    "table": "Operation",
+    "field": "leaseVersion",
+    "col": "leaseVersion",
+    "type": "Int"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "traceId",
+    "col": "traceId",
+    "type": "String?"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "provider",
+    "col": "provider",
+    "type": "String?"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "payloadHash",
+    "col": "payloadHash",
+    "type": "String?"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "lastAttemptAt",
+    "col": "lastAttemptAt",
+    "type": "DateTime?"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "claimedBy",
+    "col": "claimedBy",
+    "type": "String?"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "fencingEpoch",
+    "col": "fencingEpoch",
+    "type": "Int"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "leaseVersion",
+    "col": "leaseVersion",
+    "type": "Int"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "leaseExpiresAt",
+    "col": "leaseExpiresAt",
+    "type": "DateTime?"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "reconciliationAttempts",
+    "col": "reconciliationAttempts",
+    "type": "Int"
+  },
+  {
+    "model": "SendIntent",
+    "table": "SendIntent",
+    "field": "version",
+    "col": "version",
+    "type": "Int"
+  },
+  {
+    "model": "QuotaReservation",
+    "table": "QuotaReservation",
+    "field": "operationId",
+    "col": "operationId",
+    "type": "String"
+  },
+  {
+    "model": "QuotaReservation",
+    "table": "QuotaReservation",
+    "field": "scopeId",
+    "col": "scopeId",
+    "type": "String"
+  },
+  {
+    "model": "QuotaReservation",
+    "table": "QuotaReservation",
+    "field": "windowStart",
+    "col": "windowStart",
+    "type": "DateTime"
+  },
+  {
+    "model": "QuotaReservation",
+    "table": "QuotaReservation",
+    "field": "version",
+    "col": "version",
+    "type": "Int"
+  },
+  {
+    "model": "CampaignRun",
+    "table": "CampaignRun",
+    "field": "fencingEpoch",
+    "col": "fencingEpoch",
+    "type": "Int"
+  },
+  {
+    "model": "CampaignRun",
+    "table": "CampaignRun",
+    "field": "version",
+    "col": "version",
+    "type": "Int"
+  },
+  {
+    "model": "CampaignRun",
+    "table": "CampaignRun",
+    "field": "logicalVersion",
+    "col": "logicalVersion",
+    "type": "Int"
+  },
+  {
+    "model": "CampaignRunLease",
+    "table": "CampaignRunLease",
+    "field": "workerId",
+    "col": "workerId",
+    "type": "String"
+  },
+  {
+    "model": "CampaignRunLease",
+    "table": "CampaignRunLease",
+    "field": "fencingEpoch",
+    "col": "fencingEpoch",
+    "type": "Int"
+  },
+  {
+    "model": "CampaignRunLease",
+    "table": "CampaignRunLease",
+    "field": "leaseVersion",
+    "col": "leaseVersion",
+    "type": "Int"
+  },
+  {
+    "model": "CampaignRunLease",
+    "table": "CampaignRunLease",
+    "field": "leaseExpiresAt",
+    "col": "leaseExpiresAt",
+    "type": "DateTime"
+  }
+]

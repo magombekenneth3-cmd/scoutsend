@@ -72,8 +72,10 @@ const SEED_LEADS = [
 
 async function main() {
   // Find the first user
-  const user = await prisma.user.findFirst({ select: { id: true, email: true, firstName: true } });
+  const user = await prisma.user.findFirst({ select: { id: true, email: true, firstName: true, orgMemberships: { select: { orgId: true }, take: 1 } } });
   if (!user) throw new Error("No users found in DB — register first.");
+  const orgId = user.orgMemberships[0]?.orgId;
+  if (!orgId) throw new Error("User has no organization — run migrate-orgs first.");
   console.log(`👤 Using user: ${user.email} (${user.id})`);
 
   // Check if campaign already exists
@@ -106,6 +108,7 @@ async function main() {
       timezone: "America/New_York",
       status: "DRAFT",
       createdById: user.id,
+      orgId,
     },
     select: { id: true, name: true },
   });

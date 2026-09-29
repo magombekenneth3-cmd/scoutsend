@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from "../auth/auth.types";
 import { prisma } from "../../lib/prisma";
 import { campaignQueue, realtimeQueue } from "../gemini/campaign.queue";
 import { assertCampaignOwner } from "../../lib/ownership";
+import { isUUID } from "../campaigns/validate";
 import { NotFoundError, ValidationError } from "../../lib/errors";
 import { logger } from "../../lib/logger";
 import {
@@ -17,9 +18,6 @@ import { createColumnSchema, triggerRunSchema, triggerBatchSchema } from "./lead
 import pLimit from "p-limit";
 
 const BATCH_CONCURRENCY = 10;
-
-// Fix #1: ZodError does not have `.errors` — it has `.issues`.
-// Helper keeps the pattern DRY across all three safeParse call sites.
 function zodMessage(err: ZodError): string {
     return err.issues.map((i) => i.message).join(", ");
 }
@@ -30,7 +28,8 @@ export async function createColumn(
     next: NextFunction,
 ): Promise<void> {
     try {
-        const { campaignId } = req.params as any;
+        const { campaignId } = req.params as { campaignId: string };
+        if (!isUUID(campaignId)) throw new ValidationError("Invalid campaign ID");
         await assertCampaignOwner(campaignId, req.user!.userId);
 
         const parsed = createColumnSchema.safeParse(req.body);
@@ -75,9 +74,6 @@ export async function listColumns(
     next: NextFunction,
 ): Promise<void> {
     try {
-        // Fix #2: req.params values are `string | string[]` in Express's types.
-        // Destructure then assert as string — they are always strings for named
-        // route params; the union only exists because Express types are loose.
         const campaignId = req.params.campaignId as string;
         await assertCampaignOwner(campaignId, req.user!.userId);
 
@@ -98,20 +94,14 @@ export async function triggerRun(
     next: NextFunction,
 ): Promise<void> {
     try {
-        // Fix #2 (same pattern): cast named route params to string.
         const leadId = req.params.leadId as string;
 
         const parsed = triggerRunSchema.safeParse(req.body);
         if (!parsed.success) {
-            // Fix #1: use .issues instead of .errors
             throw new ValidationError(zodMessage(parsed.error));
         }
 
         const { columnId } = parsed.data;
-
-        // Fix #3: the Prisma select included `campaign` as a relation but Lead
-        // only exposes `campaignId` as a scalar by default. Include the relation
-        // explicitly so TypeScript knows it exists on the returned object.
         const lead = await prisma.lead.findFirst({
             where: { id: leadId, deletedAt: null },
             select: {
@@ -139,7 +129,6 @@ export async function triggerRun(
         try {
             run = await prisma.leadAgentRun.create({
                 data: {
-                    // Fix #2: leadId is now typed as string, safe to pass directly.
                     leadId,
                     columnId,
                     status: "PENDING",
@@ -187,7 +176,6 @@ export async function triggerBatch(
 
         const parsed = triggerBatchSchema.safeParse(req.body);
         if (!parsed.success) {
-            // Fix #1: use .issues instead of .errors
             throw new ValidationError(zodMessage(parsed.error));
         }
 
@@ -254,12 +242,7 @@ export async function streamRun(
     req: AuthenticatedRequest,
     res: Response,
 ): Promise<void> {
-    // Fix #2: cast named route param to string.
     const runId = req.params.runId as string;
-
-    // Fix #3 + Fix #4: include `lead` and `column` as explicit relation selects
-    // so TypeScript knows they exist on the returned object. Without them Prisma
-    // only returns scalar fields and the type has no `lead` or `column` property.
     const run = await prisma.leadAgentRun.findUnique({
         where: { id: runId },
         select: {
@@ -268,10 +251,7 @@ export async function streamRun(
             result: true,
             errorMessage: true,
             completedAt: true,
-            // Fix #4: `column` must be selected as a relation — accessing
-            // `run.column` on a plain scalar select produces TS2551.
             column: { select: { fieldKey: true } },
-            // Fix #3: same for `lead` — it is a relation, not a scalar.
             lead: { select: { campaign: { select: { createdById: true } } } },
         },
     });

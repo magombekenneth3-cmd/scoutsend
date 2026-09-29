@@ -7,6 +7,13 @@ async function main() {
   const userId = "cmqljad5z0000h91ztoekxvzx"; // David Kenneth (kennethdavid256@proton.me)
   const mailboxId = "cmqlve6pg0005h91z5mnqu5ww"; // GMAIL mailbox (kennethdavid256@gmail.com)
 
+  const ownerMembership = await prisma.organizationMember.findFirst({
+    where: { userId },
+    select: { orgId: true },
+  });
+  if (!ownerMembership) throw new Error(`No organization found for user ${userId} — run migrate-orgs first.`);
+  const orgId = ownerMembership.orgId;
+
   console.log("[+] Creating campaign with 24/7 send window...");
   const campaign = await prisma.campaign.create({
     data: {
@@ -15,6 +22,7 @@ async function main() {
       icpDescription: "Startups, marketing teams, and founders interested in automating cold mailing and marketing systems.",
       status: CampaignStatus.SENDING,
       createdById: userId,
+      orgId,
       senderMailboxId: mailboxId,
       dailySendLimit: 10,
       qualificationThreshold: 0.4,

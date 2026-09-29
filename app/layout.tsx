@@ -1,13 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Syne, DM_Sans } from "next/font/google";
+import { DM_Sans, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-
-const syne = Syne({
-  variable: "--font-syne",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -17,7 +10,20 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
-/* ─── Site config ────────────────────────────────────────────────────────────── */
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
+
 const SITE_URL = "https://scoutsend.io";
 const SITE_NAME = "ScoutSend";
 const SITE_TITLE = "ScoutSend — AI Outbound Sales Engine";
@@ -25,11 +31,8 @@ const SITE_DESCRIPTION =
   "ScoutSend's AI pipeline researches every lead, writes hyper-personalised cold emails, reviews them for spam risk, and sends with domain-health protection — all on autopilot.";
 const SITE_IMAGE = `${SITE_URL}/og.png`;
 
-/* ─── Metadata ───────────────────────────────────────────────────────────────── */
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-
-  /* ── Core ── */
   title: {
     default: SITE_TITLE,
     template: `%s | ${SITE_NAME}`,
@@ -51,13 +54,9 @@ export const metadata: Metadata = {
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
-
-  /* ── Canonical ── */
   alternates: {
     canonical: "/",
   },
-
-  /* ── Open Graph ── */
   openGraph: {
     type: "website",
     url: SITE_URL,
@@ -74,8 +73,6 @@ export const metadata: Metadata = {
     ],
     locale: "en_US",
   },
-
-  /* ── Twitter / X ── */
   twitter: {
     card: "summary_large_image",
     site: "@scoutsend",
@@ -84,8 +81,6 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [SITE_IMAGE],
   },
-
-  /* ── Robots ── */
   robots: {
     index: true,
     follow: true,
@@ -97,8 +92,6 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-
-  /* ── Icons ── */
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -107,31 +100,21 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
     shortcut: "/favicon.ico",
   },
-
-  /* ── Manifest ── */
   manifest: "/site.webmanifest",
-
-  /* ── Verification (add keys when ready) ── */
   verification: {
-    google: "", // paste Google Search Console token here
-    // yandex: "",
-    // bing: "",
+    google: "",
   },
-
-  /* ── Category ── */
   category: "technology",
 };
 
-/* ─── Viewport ───────────────────────────────────────────────────────────────── */
 export const viewport: Viewport = {
-  themeColor: "#1a1a2e",
-  colorScheme: "dark",
+  themeColor: "#f9fafb",
+  colorScheme: "light dark",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
 };
 
-/* ─── JSON-LD structured data ────────────────────────────────────────────────── */
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -182,7 +165,6 @@ const jsonLd = {
   ],
 };
 
-/* ─── Layout ─────────────────────────────────────────────────────────────────── */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -191,12 +173,27 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${syne.variable} ${dmSans.variable} h-full antialiased`}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+      className={`${dmSans.variable} ${plusJakarta.variable} ${jetbrainsMono.variable} light h-full antialiased`}
     >
       <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var storedTheme = localStorage.getItem('theme');
+                var wantsDark = storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (wantsDark) {
+                  document.documentElement.classList.remove('light');
+                }
+              })();
+            `
+          }}
         />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>

@@ -1,0 +1,102 @@
+[
+  {
+    "table": "WinRecord",
+    "column": "embedding"
+  },
+  {
+    "table": "LossRecord",
+    "column": "embedding"
+  },
+  {
+    "table": "_prisma_migrations",
+    "column": "finished_at"
+  },
+  {
+    "table": "_prisma_migrations",
+    "column": "rolled_back_at"
+  },
+  {
+    "table": "_prisma_migrations",
+    "column": "started_at"
+  },
+  {
+    "table": "_prisma_migrations",
+    "column": "applied_steps_count"
+  },
+  {
+    "table": "_prisma_migrations",
+    "column": "id"
+  },
+  {
+    "table": "_prisma_migrations",
+    "column": "checksum"
+  },
+  {
+    "table": "_prisma_migrations",
+    "column": "migration_name"
+  },
+  {
+    "table": "_prisma_migrations",
+    "column": "logs"
+  },
+  {
+    "table": "QuotaReservation",
+    "column": "targetId"
+  },
+  {
+    "table": "Lead",
+    "column": "embedding"
+  },
+  {
+    "table": "CampaignRunLease",
+    "column": "expiresAt"
+  },
+  {
+    "table": "CampaignRunLease",
+    "column": "leaseToken"
+  },
+  {
+    "table": "CampaignRun",
+    "column": "startedAt"
+  },
+  {
+    "table": "CampaignRun",
+    "column": "completedAt"
+  },
+  {
+    "table": "AITrace",
+    "column": "model"
+  },
+  {
+    "table": "Operation",
+    "column": "result"
+  },
+  {
+    "table": "Operation",
+    "column": "leaseExpiresAt"
+  },
+  {
+    "table": "Operation",
+    "column": "createdAt"
+  },
+  {
+    "table": "Operation",
+    "column": "completedAt"
+  },
+  {
+    "table": "Operation",
+    "column": "error"
+  },
+  {
+    "table": "Operation",
+    "column": "leaseOwner"
+  },
+  {
+    "table": "Company",
+    "column": "embedding"
+  },
+  {
+    "table": "Reply",
+    "column": "embedding"
+  }
+]

@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, DeliveryState } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { transitionState } from "../../lib/state/transition-state";
 import {
   DELIVERABILITY_EVENT_TYPES,
   DOMAIN_HEALTH_THRESHOLDS,
@@ -81,6 +82,8 @@ function canTransition(from: string, to: string): boolean {
   return (VALID_TRANSITIONS[from] ?? []).includes(to);
 }
 
+const DOMAIN_HEALTH_MIN_VOLUME = Number(process.env.DOMAIN_HEALTH_MIN_VOLUME ?? 20);
+
 export async function recalculateDomainHealth(senderDomainId: string): Promise<void> {
   await coalesceRecalc(`domain:${senderDomainId}`, async () => {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -117,7 +120,9 @@ export async function recalculateDomainHealth(senderDomainId: string): Promise<v
       }),
     ]);
 
-    if (sentLast30Days === 0) return;
+    if (sentLast30Days < DOMAIN_HEALTH_MIN_VOLUME) {
+      return;
+    }
 
     const bounceRate = bounceCount / sentLast30Days;
     const complaintRate = complaintCount / sentLast30Days;
@@ -154,6 +159,7 @@ export async function recalculateDomainHealth(senderDomainId: string): Promise<v
     }
   });
 }
+
 
 export async function recalculateMailboxHealth(senderMailboxId: string): Promise<void> {
   await coalesceRecalc(`mailbox:${senderMailboxId}`, async () => {
@@ -210,6 +216,7 @@ export async function recalculateMailboxHealth(senderMailboxId: string): Promise
     await prisma.senderMailbox.update({
       where: { id: senderMailboxId },
       data: { bounceRate, complaintRate, health },
+      select: { id: true },
     });
 
     logger.debug(
@@ -220,46 +227,70 @@ export async function recalculateMailboxHealth(senderMailboxId: string): Promise
 }
 
 async function autoSuppressIfNeeded(
-  eventType: DeliverabilityEventType,
+  eventType: DeliverabilityEventType | string,
   metadata: Record<string, unknown>
 ): Promise<void> {
   const shouldSuppress =
     eventType === DELIVERABILITY_EVENT_TYPES.HARD_BOUNCE ||
-    eventType === DELIVERABILITY_EVENT_TYPES.SPAM_COMPLAINT;
+    eventType === DELIVERABILITY_EVENT_TYPES.BOUNCE ||
+    eventType === DELIVERABILITY_EVENT_TYPES.SPAM_COMPLAINT ||
+    eventType === DELIVERABILITY_EVENT_TYPES.UNSUBSCRIBE ||
+    eventType === "email.bounced" ||
+    eventType === "email.complained";
 
   if (!shouldSuppress) return;
 
-  const email = metadata?.email as string | undefined;
-  if (!email) return;
-
+  let email = metadata?.email as string | undefined;
   let userId = metadata?.userId as string | undefined;
+  let orgId = metadata?.orgId as string | undefined;
 
-  if (!userId) {
-    const campaignId = metadata?.campaignId as string | undefined;
-    if (campaignId) {
-      const c = await prisma.campaign.findUnique({
-        where: { id: campaignId },
-        select: { createdById: true },
-      });
-      userId = c?.createdById;
+  const outreachMessageId = (metadata?.outreachMessageId ?? metadata?.messageId) as string | undefined;
+  if (outreachMessageId && (!email || !userId)) {
+    const msg = await prisma.outreachMessage.findUnique({
+      where: { id: outreachMessageId },
+      select: {
+        lead: {
+          select: {
+            email: true,
+            campaign: { select: { createdById: true, orgId: true } },
+          },
+        },
+      },
+    });
+    if (msg?.lead) {
+      email = email ?? msg.lead.email ?? undefined;
+      userId = userId ?? msg.lead.campaign?.createdById;
+      orgId = orgId ?? msg.lead.campaign?.orgId ?? undefined;
     }
   }
 
-  if (!userId) {
-    logger.warn({ email, eventType }, "[deliverability] Cannot auto-suppress — no resolvable userId");
+  if (!userId && metadata?.campaignId) {
+    const c = await prisma.campaign.findUnique({
+      where: { id: metadata.campaignId as string },
+      select: { createdById: true, orgId: true },
+    });
+    userId = c?.createdById;
+    orgId = orgId ?? c?.orgId ?? undefined;
+  }
+
+  if (!email || !userId || !orgId) {
+    logger.warn({ email, eventType }, "[deliverability] Cannot auto-suppress — no resolvable email, userId, or orgId");
     return;
   }
 
-  const existing = await prisma.suppression.findFirst({ where: { email, userId } });
+  const existing = await prisma.suppression.findFirst({ where: { email, orgId } });
   if (existing) return;
 
   await prisma.suppression.create({
     data: {
       email,
+      orgId,
       reason:
-        eventType === DELIVERABILITY_EVENT_TYPES.HARD_BOUNCE
-          ? "Hard bounce — invalid address"
-          : "Spam complaint",
+        eventType === DELIVERABILITY_EVENT_TYPES.SPAM_COMPLAINT || eventType === "email.complained"
+          ? "Spam complaint"
+          : eventType === DELIVERABILITY_EVENT_TYPES.UNSUBSCRIBE
+            ? "Unsubscribed"
+            : "Hard bounce — invalid address",
       source: "deliverability-auto",
       userId,
     },
@@ -290,6 +321,11 @@ async function updateMessageDeliveryState(
   const mapped = stateMap[eventType];
   if (!mapped) return;
 
+  if (mapped.state === "OPENED") {
+    const userAgent = String(metadata?.userAgent ?? "").toLowerCase();
+    if (/proofpoint|mimecast|barracuda|slurp|spider|crawler|bot|preview/i.test(userAgent)) return;
+  }
+
   const campaignId = metadata?.campaignId as string | undefined;
 
   const message = await prisma.outreachMessage.findFirst({
@@ -297,18 +333,26 @@ async function updateMessageDeliveryState(
       externalMessageId,
       ...(campaignId && { lead: { campaignId } }),
     },
-    select: { id: true, deliveryState: true },
+    select: { id: true, deliveryState: true, version: true, sentAt: true },
   });
 
   if (!message) return;
 
+  if (mapped.state === "OPENED" && message.sentAt) {
+    if (Date.now() - new Date(message.sentAt).getTime() < 3000) return;
+  }
+
   if (!canTransition(message.deliveryState, mapped.state)) return;
 
-  await prisma.outreachMessage.update({
-    where: { id: message.id },
-    data: {
-      deliveryState: mapped.state as any,
-      ...(mapped.timestamp === "openedAt" && { openedAt: new Date() }),
+  await transitionState(prisma, {
+    model: "OutreachMessage",
+    entityId: message.id,
+    expectedState: message.deliveryState,
+    expectedVersion: message.version,
+    nextState: mapped.state,
+    authority: {
+      actorType: "SYSTEM",
+      actorId: "deliverability-webhook",
     },
   });
 
@@ -406,7 +450,7 @@ export async function getCampaignDeliverabilityStats(campaignId: string, userId:
   });
   if (!campaign) return null;
 
-  const [stateGroups, complaintCount] = await Promise.all([
+  const [stateGroups, complaintCount, clickedCount] = await Promise.all([
     prisma.outreachMessage.groupBy({
       by: ["deliveryState"],
       where: {
@@ -421,24 +465,33 @@ export async function getCampaignDeliverabilityStats(campaignId: string, userId:
         type: { in: ["SPAM_COMPLAINT"] },
       },
     }),
+    prisma.outreachMessage.count({
+      where: {
+        deliveryState: { notIn: ["DRAFT", "QUEUED"] },
+        lead: { campaignId, deletedAt: null },
+        clicks: { gt: 0 },
+      },
+    }),
   ]);
 
   const d = new Map(stateGroups.map((r) => [r.deliveryState as string, r._count.id]));
 
-  const bounces    = d.get("BOUNCED") ?? 0;
-  const delivered  = (d.get("DELIVERED") ?? 0) + (d.get("OPENED") ?? 0) + (d.get("REPLIED") ?? 0);
-  const opens      = (d.get("OPENED") ?? 0) + (d.get("REPLIED") ?? 0);
+  const bounces = d.get("BOUNCED") ?? 0;
+  const delivered = (d.get("DELIVERED") ?? 0) + (d.get("OPENED") ?? 0) + (d.get("REPLIED") ?? 0);
+  const opens = (d.get("OPENED") ?? 0) + (d.get("REPLIED") ?? 0);
   const emailsSent = (d.get("SENT") ?? 0) + (d.get("SENDING") ?? 0) + delivered + bounces + (d.get("SPAM") ?? 0);
 
   return {
     emailsSent,
     delivered,
     opens,
+    clicked: clickedCount,
     bounces,
     complaintCount,
     deliveryRate: emailsSent > 0 ? (delivered / emailsSent) * 100 : 0,
-    openRate:     delivered > 0  ? (opens / delivered) * 100 : 0,
-    bounceRate:   emailsSent > 0 ? (bounces / emailsSent) * 100 : 0,
+    openRate: delivered > 0 ? (opens / delivered) * 100 : 0,
+    clickRate: delivered > 0 ? (clickedCount / delivered) * 100 : 0,
+    bounceRate: emailsSent > 0 ? (bounces / emailsSent) * 100 : 0,
   };
 }
 

@@ -266,7 +266,7 @@ export function MailboxDetailPanel({ mailbox, onClose, onUpdated, onDeleted }: M
                         "flex items-center gap-2 p-3 rounded-lg border text-xs font-medium",
                         verifyResult.connected
                             ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                            : "bg-[var(--red-glow)] border-[var(--border-red)] text-[var(--red)]",
+                            : "bg-[var(--red-glow)] border-[var(--border-red)] text-[var(--red-text)]",
                     ].join(" ")}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                             {verifyResult.connected
@@ -314,7 +314,7 @@ export function MailboxDetailPanel({ mailbox, onClose, onUpdated, onDeleted }: M
                         <button
                             onClick={handleResetCount}
                             disabled={resetting || mailbox.currentSent === 0}
-                            className="mt-1 text-xs text-[var(--text-muted)] hover:text-[var(--red)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:underline"
+                            className="mt-1 text-xs text-[var(--text-muted)] hover:text-[var(--red-text)] disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:underline"
                         >
                             {resetting ? "Resetting…" : "Reset today's count"}
                         </button>
@@ -424,10 +424,10 @@ export function MailboxDetailPanel({ mailbox, onClose, onUpdated, onDeleted }: M
 
                         {saveError && (
                             <div className="flex items-start gap-2 p-3 bg-[var(--red-glow)] border border-[var(--border-red)] rounded-lg">
-                                <svg className="flex-shrink-0 mt-0.5 text-[var(--red)]" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg className="flex-shrink-0 mt-0.5 text-[var(--red-text)]" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                                 </svg>
-                                <p className="text-xs text-[var(--red)]">{saveError}</p>
+                                <p className="text-xs text-[var(--red-text)]">{saveError}</p>
                             </div>
                         )}
 

@@ -1,7 +1,63 @@
 import { prisma } from "../../lib/prisma";
-import { callGemini, extractJSON, MODELS } from "./gemini.client";
+import { z } from "zod";
+import { callGateway } from "../../lib/llm-gateway";
+import { MODELS } from "./gemini.client";
 import { logger } from "../../lib/logger";
 import { leadScoringQueue } from "./campaign.queue";
+
+const APOLLO_INDUSTRY_TAXONOMY = new Set([
+    "Accounting", "Airlines/Aviation", "Alternative Dispute Resolution",
+    "Alternative Medicine", "Animation", "Apparel & Fashion",
+    "Architecture & Planning", "Arts and Crafts", "Automotive",
+    "Aviation & Aerospace", "Banking", "Biotechnology",
+    "Broadcast Media", "Building Materials", "Business Supplies and Equipment",
+    "Capital Markets", "Chemicals", "Civic & Social Organization",
+    "Civil Engineering", "Commercial Real Estate", "Computer & Network Security",
+    "Computer Games", "Computer Hardware", "Computer Networking",
+    "Computer Software", "Construction", "Consumer Electronics",
+    "Consumer Goods", "Consumer Services", "Cosmetics",
+    "Dairy", "Defense & Space", "Design",
+    "E-Learning", "Education Management", "Electrical/Electronic Manufacturing",
+    "Entertainment", "Environmental Services", "Events Services",
+    "Executive Office", "Facilities Services", "Farming",
+    "Financial Services", "Fine Art", "Fishery",
+    "Food & Beverages", "Food Production", "Fund-Raising",
+    "Furniture", "Gambling & Casinos", "Glass, Ceramics & Concrete",
+    "Government Administration", "Government Relations", "Graphic Design",
+    "Health, Wellness and Fitness", "Higher Education", "Hospital & Health Care",
+    "Hospitality", "Human Resources", "Import and Export",
+    "Individual & Family Services", "Industrial Automation", "Information Services",
+    "Information Technology and Services", "Insurance", "International Affairs",
+    "International Trade and Development", "Internet", "Investment Banking",
+    "Investment Management", "Judiciary", "Law Enforcement",
+    "Law Practice", "Legal Services", "Legislative Office",
+    "Leisure, Travel & Tourism", "Libraries", "Logistics and Supply Chain",
+    "Luxury Goods & Jewelry", "Machinery", "Management Consulting",
+    "Maritime", "Market Research", "Marketing and Advertising",
+    "Mechanical or Industrial Engineering", "Media Production", "Medical Devices",
+    "Medical Practice", "Mental Health Care", "Military",
+    "Mining & Metals", "Motion Pictures and Film", "Museums and Institutions",
+    "Music", "Nanotechnology", "Newspapers",
+    "Non-profit Organization Management", "Oil & Energy", "Online Media",
+    "Outsourcing/Offshoring", "Package/Freight Delivery", "Packaging and Containers",
+    "Paper & Forest Products", "Performing Arts", "Pharmaceuticals",
+    "Philanthropy", "Photography", "Plastics",
+    "Political Organization", "Primary/Secondary Education", "Printing",
+    "Professional Training & Coaching", "Program Development", "Public Policy",
+    "Public Relations and Communications", "Public Safety", "Publishing",
+    "Railroad Manufacture", "Ranching", "Real Estate",
+    "Recreational Facilities and Services", "Religious Institutions", "Renewables & Environment",
+    "Research", "Restaurants", "Retail",
+    "Security and Investigations", "Semiconductors", "Shipbuilding",
+    "Sporting Goods", "Sports", "Staffing and Recruiting",
+    "Supermarkets", "Telecommunications", "Textiles",
+    "Think Tanks", "Tobacco", "Translation and Localization",
+    "Transportation/Trucking/Railroad", "Utilities", "Venture Capital & Private Equity",
+    "Veterinary", "Warehousing", "Wholesale",
+    "Wine and Spirits", "Wireless", "Writing and Editing",
+]);
+
+const AUTO_REFINE_COOLDOWN_HOURS = 168;
 
 export interface RefinedICP {
     icpDescription: string;
@@ -117,7 +173,12 @@ export async function runIcpRefinementAgent(campaignId: string): Promise<Refined
 Use this data to sharpen the ICP using the observed outreach performance and the most common qualifying lead signals. Preserve the original target market while making the ICP more actionable.`
         : `No outreach data yet — sharpen the ICP description linguistically without data-driven narrowing.`;
 
-    const { text } = await callGemini({
+    const proposal = await callGateway<{
+        icpDescription: string;
+        targetIndustry: string | null;
+        targetRegion: string | null;
+        refinementNotes: string;
+    }>({
         agentName: "icp-refinement.refiner",
         model: MODELS.RESEARCH,
         systemPrompt: `You are a senior B2B go-to-market strategist. Your job is to take a vague ICP description and rewrite it into a sharply defined, actionable targeting brief that will produce better lead qualification and email personalization downstream.
@@ -147,25 +208,18 @@ Current region filter: ${campaign.targetRegion ?? "not set"}
 ${performanceBlock}
 
 Rewrite the ICP to be more specific and actionable. Preserve the user's intent — only sharpen, never change the target market.`,
+        responseMode: "structured",
+        outputSchema: z.object({
+            icpDescription: z.string(),
+            targetIndustry: z.string().nullable(),
+            targetRegion: z.string().nullable(),
+            refinementNotes: z.string(),
+        }),
         metadata: { campaignId },
         temperature: 0.3,
     });
 
-    let refined: RefinedICP;
-    try {
-        refined = extractJSON<RefinedICP>(text);
-    } catch (err) {
-        logger.error(
-            { campaignId, err, raw: text },
-            "[icp-refinement.agent] Failed to parse Gemini response — keeping original",
-        );
-        return {
-            icpDescription: previousIcp ?? "",
-            targetIndustry: campaign.targetIndustry ?? null,
-            targetRegion: campaign.targetRegion ?? null,
-            refinementNotes: "Parse error — original ICP preserved",
-        };
-    }
+    const refined: RefinedICP = proposal.payload;
 
     const validDescription =
         typeof refined.icpDescription === "string" && refined.icpDescription.trim().length > 0
@@ -191,64 +245,90 @@ Rewrite the ICP to be more specific and actionable. Preserve the user's intent �
 
     const icpChanged = validDescription.trim() !== (previousIcp ?? "").trim();
 
-    await prisma.$transaction(async (tx) => {
-        const existingState = await tx.campaignStateStore.findUnique({
-            where: { campaignId },
-            select: { approvalStatuses: true },
-        });
+    const existingState = await prisma.campaignStateStore.findUnique({
+        where: { campaignId },
+        select: { approvalStatuses: true },
+    }).catch(() => null);
 
-        const existingApprovalStatuses =
-            (existingState?.approvalStatuses as Record<string, unknown>) ?? {};
+    const existingApprovalStatuses =
+        (existingState?.approvalStatuses as Record<string, unknown>) ?? {};
 
-        const nextApprovalStatuses = {
-            ...existingApprovalStatuses,
-            icpRefinement: {
-                previousIcp,
-                refinedIcp: validDescription,
-                notes: refinementNotes,
-                refinedAt: new Date().toISOString(),
-            },
-        };
+    const nextApprovalStatuses = {
+        ...existingApprovalStatuses,
+        icpRefinement: {
+            previousIcp,
+            refinedIcp: validDescription,
+            notes: refinementNotes,
+            refinedAt: new Date().toISOString(),
+        },
+    };
 
-        const targetIndustryUpdate =
-            typeof refined.targetIndustry === "string" && refined.targetIndustry.trim().length > 0
-                ? { targetIndustry: refined.targetIndustry.trim() }
-                : refined.targetIndustry === null
-                    ? { targetIndustry: null }
-                    : {};
+    const rawIndustry =
+        typeof refined.targetIndustry === "string" ? refined.targetIndustry.trim() : null;
 
-        const targetRegionUpdate =
-            typeof refined.targetRegion === "string" && refined.targetRegion.trim().length > 0
-                ? { targetRegion: refined.targetRegion.trim() }
-                : {};
+    const resolvedIndustry = rawIndustry
+        ? APOLLO_INDUSTRY_TAXONOMY.has(rawIndustry)
+            ? rawIndustry
+            : (Array.from(APOLLO_INDUSTRY_TAXONOMY).find(
+                  (tag) => tag.toLowerCase() === rawIndustry.toLowerCase()
+              ) ?? null)
+        : refined.targetIndustry === null
+        ? null
+        : undefined;
 
-        await tx.campaign.update({
-            where: { id: campaignId },
-            data: {
-                icpDescription: validDescription,
-                ...targetIndustryUpdate,
-                ...targetRegionUpdate,
-            },
-        });
+    if (rawIndustry && resolvedIndustry === null) {
+        logger.warn(
+            { campaignId, rawIndustry },
+            "[icp-refinement.agent] LLM returned unrecognised industry tag — preserving existing value"
+        );
+    }
 
-        await tx.campaignStateStore.upsert({
-            where: { campaignId },
-            create: {
-                campaignId,
-                currentNode: "icp-refined",
-                regenAttemptsCount: 0,
-                approvalStatuses: nextApprovalStatuses,
-            },
-            update: {
-                approvalStatuses: nextApprovalStatuses,
-            },
-        });
+    const targetIndustryUpdate =
+        resolvedIndustry !== undefined
+            ? { targetIndustry: resolvedIndustry }
+            : {};
+
+    const targetRegionUpdate =
+        typeof refined.targetRegion === "string" && refined.targetRegion.trim().length > 0
+            ? { targetRegion: refined.targetRegion.trim() }
+            : {};
+
+    await prisma.campaign.update({
+        where: { id: campaignId },
+        data: {
+            icpDescription: validDescription,
+            ...targetIndustryUpdate,
+            ...targetRegionUpdate,
+        },
     });
+
+    let attempts = 0;
+    while (attempts < 5) {
+        try {
+            await prisma.campaignStateStore.upsert({
+                where: { campaignId },
+                create: {
+                    campaignId,
+                    currentNode: "icp-refined",
+                    regenAttemptsCount: 0,
+                    approvalStatuses: nextApprovalStatuses,
+                },
+                update: {
+                    approvalStatuses: nextApprovalStatuses,
+                },
+            });
+            break;
+        } catch {
+            attempts++;
+            const delay = Math.floor(Math.random() * 200) + attempts * 100;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+    }
 
     if (icpChanged) {
         await leadScoringQueue.add(
             "rescore-after-icp-refinement",
-            { campaignId },
+            { campaignId, pipelineStageFilter: "PROSPECT" },
             {
                 jobId: `rescore-icp-${campaignId}`,
                 attempts: 2,
@@ -260,7 +340,7 @@ Rewrite the ICP to be more specific and actionable. Preserve the user's intent �
 
         logger.info(
             { campaignId, notes: refinementNotes },
-            "[icp-refinement.agent] ICP changed — rescore job queued",
+            "[icp-refinement.agent] ICP changed — PROSPECT rescore job queued",
         );
     }
 
@@ -270,4 +350,34 @@ Rewrite the ICP to be more specific and actionable. Preserve the user's intent �
     );
 
     return { ...refined, refinementNotes, icpDescription: validDescription };
+}
+
+const AUTO_REFINE_MIN_SENDS = 100;
+const AUTO_REFINE_POSITIVE_REPLY_THRESHOLD = 0.03;
+
+export async function shouldAutoRefineIcp(campaignId: string): Promise<boolean> {
+    const stats = await getCampaignPerformance(campaignId);
+    if (stats.contacted < AUTO_REFINE_MIN_SENDS) return false;
+    if (stats.positiveReplyRate === null) return false;
+    return stats.positiveReplyRate < AUTO_REFINE_POSITIVE_REPLY_THRESHOLD;
+}
+
+export async function triggerAutoIcpRefinement(campaignId: string): Promise<RefinedICP | null> {
+    const needsRefinement = await shouldAutoRefineIcp(campaignId);
+    if (!needsRefinement) return null;
+
+    const stateStore = await prisma.campaignStateStore.findUnique({
+        where: { campaignId },
+        select: { approvalStatuses: true },
+    });
+    const approvals = (stateStore?.approvalStatuses as Record<string, unknown>) ?? {};
+    const lastRefinement = approvals.icpRefinement as { refinedAt?: string } | undefined;
+    if (lastRefinement?.refinedAt) {
+        const lastRefinedAt = new Date(lastRefinement.refinedAt);
+        const hoursSinceLastRefinement = (Date.now() - lastRefinedAt.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLastRefinement < AUTO_REFINE_COOLDOWN_HOURS) return null;
+    }
+
+    logger.info({ campaignId }, "[icp-refinement.agent] Auto-triggering ICP refinement — positive reply rate below 3%");
+    return runIcpRefinementAgent(campaignId);
 }

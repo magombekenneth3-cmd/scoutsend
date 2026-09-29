@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { TopBar } from "@/app/components/dashboard/TopBar";
 import { fetchResearchReport, openResearchStream, ResearchReport, triggerResearch } from "@/app/api/research/research.api";
+import { apiFetch as authFetch, apiFetchJson, ApiError } from "@/lib/api-fetch";
+import { useToast } from "@/app/hooks/useToast";
+import { ToastRegion } from "@/app/components/dashboard/ToastRegion";
 
 
 
@@ -86,7 +89,7 @@ const SIGNAL_TYPES = [
 ];
 
 const ACTION_CFG: Record<string, { label: string; color: string; bg: string }> = {
-    HIGH_PRIORITY: { label: "High Priority", color: "var(--red)", bg: "var(--red-glow, rgba(229,72,72,0.1))" },
+    HIGH_PRIORITY: { label: "High Priority", color: "var(--red-text)", bg: "var(--red-glow, rgba(229,72,72,0.1))" },
     STANDARD: { label: "Standard", color: "#38bdf8", bg: "rgba(56,189,248,0.1)" },
     NURTURE: { label: "Nurture", color: "#a78bfa", bg: "rgba(167,139,250,0.1)" },
     DISQUALIFY: { label: "Disqualify", color: "var(--text-muted)", bg: "var(--surface-2)" },
@@ -95,9 +98,7 @@ const ACTION_CFG: Record<string, { label: string; color: string; bg: string }> =
 const SCORE_COLOR = (s: number) =>
     s >= 0.75 ? "#1D9E75" : s >= 0.5 ? "#EF9F27" : "var(--red)";
 
-function authFetch(url: string, init?: RequestInit): Promise<Response> {
-    return fetch(url, { ...init, credentials: "include" });
-}
+
 
 function scoreBar(score: number, color: string) {
     return (
@@ -426,7 +427,7 @@ function DrawerProfileTab({ lead }: { lead: Lead }) {
                                 className="px-2 py-0.5 rounded text-xs"
                                 style={{
                                     background: "var(--red-glow, rgba(229,72,72,0.1))",
-                                    color: "var(--red)",
+                                    color: "var(--red-text)",
                                     border: "1px solid rgba(229,72,72,0.2)",
                                 }}
                             >
@@ -614,6 +615,7 @@ function DrawerResearchTab({ lead }: { lead: Lead }) {
     const [elapsedMs, setElapsedMs] = useState(0);
     const cleanupRef = useRef<(() => void) | null>(null);
     const startedAtRef = useRef<number | null>(null);
+    const { toasts, addToast, dismiss } = useToast();
     const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const STALL_WARNING_MS = 15_000;
@@ -720,6 +722,7 @@ function DrawerResearchTab({ lead }: { lead: Lead }) {
                         break;
                     case "section_failed":
                         console.warn(`Research section "${event.data.section}" failed:`, event.data.message);
+                        addToast("error", `"${event.data.section}" section failed to load`);
                         break;
                     case "complete":
                         stopStreaming();
@@ -777,7 +780,7 @@ function DrawerResearchTab({ lead }: { lead: Lead }) {
                 </div>
                 {error && (
                     <div className="text-xs px-3 py-2.5 rounded-lg border border-[rgba(229,72,72,0.2)] text-left w-full max-h-40 overflow-y-auto"
-                        style={{ color: "var(--red)", background: "var(--red-glow, rgba(229,72,72,0.1))" }}>
+                        style={{ color: "var(--red-text)", background: "var(--red-glow, rgba(229,72,72,0.1))" }}>
                         <p className="font-semibold mb-1">Research Error</p>
                         <p className="opacity-95 whitespace-pre-wrap break-all leading-normal font-mono text-[10px]">
                             {error}
@@ -813,6 +816,7 @@ function DrawerResearchTab({ lead }: { lead: Lead }) {
 
     return (
         <div className="space-y-5">
+            <ToastRegion toasts={toasts} onDismiss={dismiss} />
             {streaming && (
                 <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
                     style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}>
@@ -826,7 +830,7 @@ function DrawerResearchTab({ lead }: { lead: Lead }) {
 
             {error && (
                 <div className="text-xs px-3 py-2.5 rounded-lg border border-[rgba(229,72,72,0.2)] text-left w-full max-h-40 overflow-y-auto"
-                    style={{ color: "var(--red)", background: "var(--red-glow, rgba(229,72,72,0.1))" }}>
+                    style={{ color: "var(--red-text)", background: "var(--red-glow, rgba(229,72,72,0.1))" }}>
                     <p className="font-semibold mb-1">Research Error</p>
                     <p className="opacity-95 whitespace-pre-wrap break-all leading-normal font-mono text-[10px]">
                         {error}
@@ -1024,7 +1028,7 @@ function DrawerResearchTab({ lead }: { lead: Lead }) {
                     {Array.isArray(angle.warningsAndAvoid) && angle.warningsAndAvoid.length > 0 && (
                         <ul className="space-y-1">
                             {angle.warningsAndAvoid.map((w, i) => (
-                                <li key={i} className="text-xs" style={{ color: "var(--red)" }}>⚠ {w}</li>
+                                <li key={i} className="text-xs" style={{ color: "var(--red-text)" }}>⚠ {w}</li>
                             ))}
                         </ul>
                     )}
@@ -1458,13 +1462,11 @@ export default function ResearchPage() {
             ...(filters.signals.length > 0 && { signalTypes: filters.signals.join(",") }),
         });
         try {
-            const res = await authFetch(`/api/leads?${p}`);
-            if (!res.ok) throw new Error(`${res.status}`);
-            const data = await res.json();
+            const data = await apiFetchJson<{ data: Lead[]; meta: PaginationMeta }>(`/api/leads?${p}`);
             setLeads(data.data ?? []);
             setMeta(data.meta ?? { total: 0, page: 1, limit: 20, totalPages: 1 });
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load leads");
+            setError(err instanceof ApiError ? err.message : "Failed to load leads");
         } finally {
             setLoading(false);
         }
@@ -1605,7 +1607,7 @@ export default function ResearchPage() {
                                 <div className="mx-5 mt-3 px-4 py-3 rounded-lg text-xs"
                                     style={{
                                         background: "var(--red-glow, rgba(229,72,72,0.1))",
-                                        color: "var(--red)",
+                                        color: "var(--red-text)",
                                         border: "1px solid rgba(229,72,72,0.2)",
                                     }}>
                                     {error}

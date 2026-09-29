@@ -5,6 +5,8 @@ import { callGeminiWithTools, MODELS, SchemaType, ToolDefinition } from "./gemin
 import { logger } from "../../lib/logger";
 import type { ProviderError, ProviderErrorCode } from "../../lib/linkedIn/linkedin.provider";
 import { checkTextSpam } from "./compliance.agent";
+import { assertUnipileConfigured } from "../../lib/unipile.guard";
+
 
 class InvitationLimitError extends Error {
     constructor() {
@@ -227,6 +229,7 @@ async function scheduleNextStep(
 export async function runLinkedInOutreachAgent(
     campaignId: string,
 ): Promise<{ processed: number; skipped: number; failed: number }> {
+    assertUnipileConfigured();
     const linkedin = await createLinkedInProvider(campaignId);
     if (!linkedin) {
         logger.debug({ campaignId }, "[linkedin.agent] No provider — skipping");

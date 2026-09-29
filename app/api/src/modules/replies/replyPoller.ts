@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { createMailProvider, MailboxCredentials, InboundReply, OutlookCredentials } from "../../lib/mail";
 import { logger } from "../../lib/logger";
-import { decryptJson, encryptJson, isEncrypted } from "../../lib/mail/crypto";
+import { decryptMailboxCredentials, encryptJson } from "../../lib/mail/crypto";
 import { redis } from "../../lib/ioredis";
 import { createReply } from "./replies.services";
 import pLimit from "p-limit";
@@ -57,46 +57,9 @@ async function clearPollBackoff(mailboxId: string): Promise<void> {
     await redis.del(POLL_FAIL_KEY(mailboxId));
 }
 
-function decryptCredentials(raw: unknown): MailboxCredentials {
-    if (isEncrypted(raw)) return decryptJson<MailboxCredentials>(raw as string);
-    return raw as MailboxCredentials;
-}
 
-async function findOutreachMessage(reply: InboundReply, mailboxId: string) {
-    if (reply.inReplyToId) {
-        const msg = await prisma.outreachMessage.findFirst({
-            where: {
-                externalMessageId: reply.inReplyToId,
-                lead: { campaign: { senderMailboxId: mailboxId } },
-            },
-            select: { id: true, leadId: true },
-        });
-        if (msg) return msg;
-    }
 
-    const lead = await prisma.lead.findFirst({
-        where: {
-            email: reply.fromEmail,
-            deletedAt: null,
-            campaign: { senderMailboxId: mailboxId },
-        },
-        select: {
-            id: true,
-            outreachMessages: {
-                select: { id: true },
-                where: { deliveryState: "SENT" },
-                take: 1,
-            },
-        },
-        orderBy: { createdAt: "desc" },
-    });
 
-    if (lead?.outreachMessages[0]) {
-        return { id: lead.outreachMessages[0].id, leadId: lead.id };
-    }
-
-    return null;
-}
 
 export async function pollMailboxReplies(mailboxId: string, limiters: ReplyPollLimiters = createReplyPollLimiters()): Promise<void> {
     void limiters;
@@ -109,6 +72,8 @@ export async function pollMailboxReplies(mailboxId: string, limiters: ReplyPollL
             lastReplyCheckedAt: true,
             emailAddress: true,
             providerType: true,
+            createdById: true,
+            orgId: true,
         },
     });
 
@@ -121,31 +86,39 @@ export async function pollMailboxReplies(mailboxId: string, limiters: ReplyPollL
     if (await shouldSkipDueToBackoff(mailboxId)) return;
 
     const since = mailbox.lastReplyCheckedAt ?? new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const _rawCreds = decryptCredentials(mailbox.credentials);
-    const provider = createMailProvider(_rawCreds, {
-        outlook: {
-            mailboxId,
-            redis,
-            onTokenRotation: async (newRefreshToken) => {
-                const rotated = { ..._rawCreds, refreshToken: newRefreshToken } as OutlookCredentials;
-                await prisma.senderMailbox.update({
-                    where: { id: mailboxId },
-                    data: { credentials: encryptJson(rotated) },
-                });
-            },
-        },
-    });
 
     let replies: InboundReply[] = [];
     try {
+        const _rawCreds = decryptMailboxCredentials<MailboxCredentials>(mailbox.credentials, `mailbox:${mailboxId}`);
+        const provider = createMailProvider(_rawCreds, {
+            outlook: {
+                mailboxId,
+                redis,
+                onTokenRotation: async (newRefreshToken) => {
+                    const rotated = { ..._rawCreds, refreshToken: newRefreshToken } as OutlookCredentials;
+                    await prisma.senderMailbox.update({
+                        where: { id: mailboxId },
+                        data: { credentials: encryptJson(rotated) },
+                    });
+                },
+            },
+        });
+
         replies = await provider.fetchReplies(since);
         // Clear backoff on successful fetch.
         await clearPollBackoff(mailboxId);
-    } catch (err) {
-        logger.error({ err, mailboxId }, "[replyPoller] fetchReplies error");
+    } catch (err: unknown) {
+        const safeErr = err instanceof Error
+            ? { message: err.message, name: err.name, code: (err as any).code }
+            : String(err);
+        logger.error({ err: safeErr, mailboxId }, "[replyPoller] mailbox poll/fetch error");
         // Record the failure so subsequent calls apply exponential backoff.
         await recordPollFailure(mailboxId);
-        return;
+        // Fix D: Rethrow so pollAllMailboxes().Promise.allSettled() sees status:'rejected'
+        // and increments the failed counter correctly.
+        // Without this, pollMailboxReplies returns void (resolved) and every IMAP
+        // failure is counted as succeeded.
+        throw err;
     }
 
     logger.info({ mailboxId, count: replies.length, since }, "[replyPoller] fetched replies");
@@ -183,7 +156,15 @@ export async function pollMailboxReplies(mailboxId: string, limiters: ReplyPollL
         const matched = await prisma.outreachMessage.findMany({
             where: {
                 externalMessageId: { in: inReplyToIds },
-                lead: { campaign: { senderMailboxId: mailboxId } },
+                lead: {
+                    campaign: {
+                        OR: [
+                            { senderMailboxId: mailboxId },
+                            { createdById: mailbox.createdById },
+                            ...(mailbox.orgId ? [{ orgId: mailbox.orgId }] : []),
+                        ],
+                    },
+                },
             },
             select: { id: true, leadId: true, externalMessageId: true },
         });
@@ -205,7 +186,13 @@ export async function pollMailboxReplies(mailboxId: string, limiters: ReplyPollL
             where: {
                 email: { in: fromEmails },
                 deletedAt: null,
-                campaign: { senderMailboxId: mailboxId },
+                campaign: {
+                    OR: [
+                        { senderMailboxId: mailboxId },
+                        { createdById: mailbox.createdById },
+                        ...(mailbox.orgId ? [{ orgId: mailbox.orgId }] : []),
+                    ],
+                },
             },
             select: {
                 id: true,
@@ -266,43 +253,71 @@ export async function pollMailboxReplies(mailboxId: string, limiters: ReplyPollL
 }
 
 const MAILBOX_POLL_PAGE_SIZE = 100;
+const POLL_ALL_LOCK_KEY = "reply-poller:poll-all-lock";
+const POLL_ALL_LOCK_TTL_MS = 10 * 60 * 1000;
 
-export async function pollAllMailboxes(): Promise<void> {
+export interface PollSummary {
+    totalPolled: number;
+    succeeded: number;
+    failed: number;
+}
+
+export async function pollAllMailboxes(): Promise<PollSummary> {
+    const lockAcquired = await redis.set(POLL_ALL_LOCK_KEY, "1", "PX", POLL_ALL_LOCK_TTL_MS, "NX");
+    if (!lockAcquired) {
+        logger.info("[replyPoller] pollAllMailboxes skipped — previous run still in progress");
+        return { totalPolled: 0, succeeded: 0, failed: 0 };
+    }
+
     const limiters = createReplyPollLimiters();
     const limit = limiters.mailbox;
     let cursor: string | undefined;
     let totalPolled = 0;
+    let succeeded = 0;
+    let failed = 0;
 
-    while (true) {
-        const mailboxes = await prisma.senderMailbox.findMany({
-            where: { health: { not: "BLOCKED" } },
-            select: { id: true },
-            take: MAILBOX_POLL_PAGE_SIZE,
-            ...(cursor && { skip: 1, cursor: { id: cursor } }),
-            orderBy: { id: "asc" },
-        });
+    try {
+        while (true) {
+            const mailboxes = await prisma.senderMailbox.findMany({
+                where: { health: { not: "BLOCKED" } },
+                select: { id: true },
+                take: MAILBOX_POLL_PAGE_SIZE,
+                ...(cursor && { skip: 1, cursor: { id: cursor } }),
+                orderBy: { id: "asc" },
+            });
 
-        if (mailboxes.length === 0) break;
+            if (mailboxes.length === 0) break;
 
-        logger.info({ count: mailboxes.length, cursor }, "[replyPoller] polling mailbox page");
+            logger.info({ count: mailboxes.length, cursor }, "[replyPoller] polling mailbox page");
 
-        const results = await Promise.allSettled(
-            mailboxes.map((mb) => limit(() => pollMailboxReplies(mb.id))),
-        );
+            const results = await Promise.allSettled(
+                mailboxes.map((mb) => limit(() => pollMailboxReplies(mb.id))),
+            );
 
-        for (const [i, result] of results.entries()) {
-            if (result.status === "rejected") {
-                logger.error(
-                    { err: result.reason, mailboxId: mailboxes[i].id },
-                    "[replyPoller] uncaught error polling mailbox",
-                );
+            for (const [i, result] of results.entries()) {
+                if (result.status === "rejected") {
+                    failed++;
+                    const reason = result.reason;
+                    const safeReason = reason instanceof Error
+                        ? { message: reason.message, name: reason.name, code: (reason as any).code }
+                        : String(reason);
+                    logger.error(
+                        { err: safeReason, mailboxId: mailboxes[i].id },
+                        "[replyPoller] uncaught error polling mailbox",
+                    );
+                } else {
+                    succeeded++;
+                }
             }
-        }
 
-        totalPolled += mailboxes.length;
-        if (mailboxes.length < MAILBOX_POLL_PAGE_SIZE) break;
-        cursor = mailboxes[mailboxes.length - 1].id;
+            totalPolled += mailboxes.length;
+            if (mailboxes.length < MAILBOX_POLL_PAGE_SIZE) break;
+            cursor = mailboxes[mailboxes.length - 1].id;
+        }
+    } finally {
+        await redis.del(POLL_ALL_LOCK_KEY);
     }
 
-    logger.info({ totalPolled }, "[replyPoller] polling complete");
+    logger.info({ totalPolled, succeeded, failed }, "[replyPoller] polling complete");
+    return { totalPolled, succeeded, failed };
 }

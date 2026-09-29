@@ -1,91 +1,130 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  StaggerContainer,
+  StaggerItem,
+  MotionCard,
+  AnimatedCounter,
+  MagneticButton,
+} from "./components/ui/motion";
+import {
+  Radar,
+  Zap,
+  Search,
+  Sparkles,
+  ShieldCheck,
+  Cpu,
+  Layers,
+  Database,
+  Mail,
+  Globe,
+  Building2,
+  TrendingUp,
+  CheckCircle2,
+  ArrowRight,
+  Bot,
+  Activity,
+  Users,
+  ChevronRight,
+  Check,
+  RefreshCw,
+  BarChart3,
+  ShieldAlert,
+} from "lucide-react";
 
-/* ─── Types ──────────────────────────────────────────────────────────────────── */
+function LinkedinIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.7a1.63 1.63 0 1 0 0 3.26 1.63 1.63 0 0 0 0-3.26Z" />
+    </svg>
+  );
+}
+
 interface StatItem { value: string; label: string; sub?: string }
-interface FeatureCard { icon: string; tag: string; title: string; desc: string; accent?: boolean }
+interface FeatureCard { icon: React.ReactNode; tag: string; title: string; desc: string; accent?: boolean }
 interface TestimonialItem { quote: string; name: string; role: string; company: string; initials: string }
 
-/* ─── Data ───────────────────────────────────────────────────────────────────── */
 const STATS: StatItem[] = [
-  { value: "4.2M", label: "Emails Delivered", sub: "last 30 days" },
-  { value: "38%", label: "Average Open Rate", sub: "vs 21% industry" },
-  { value: "12×", label: "Reply Rate Lift", sub: "over cold lists" },
-  { value: "99.7%", label: "Deliverability", sub: "across all domains" },
+  { value: "275M+", label: "Verified B2B Decision Makers", sub: "global contact coverage" },
+  { value: "4.2M", label: "Emails Delivered Monthly", sub: "last 30 days" },
+  { value: "12×", label: "Reply Rate Lift", sub: "over traditional cold lists" },
+  { value: "99.7%", label: "Deliverability Rate", sub: "across all domains" },
 ];
 
 const FEATURES: FeatureCard[] = [
   {
-    icon: "🔭",
-    tag: "Phase 1",
-    title: "AI Research Agent",
-    desc: "Scours the web, LinkedIn, and company signals to qualify every lead with a confidence score before your campaign touches them.",
-  },
-  {
-    icon: "✍️",
-    tag: "Phase 2",
-    title: "Hyper-Personalised Generation",
-    desc: "Gemini writes each email referencing real signals — recent funding, job posts, tech stack — not mail-merge tokens.",
+    icon: <Radar className="w-5 h-5 text-indigo-500" />,
+    tag: "Buying Signals Radar",
+    title: "Real-Time Intent Detection",
+    desc: "Detect funding rounds, hiring surges, leadership changes, and tech stack adoption the moment they happen.",
     accent: true,
   },
   {
-    icon: "🛡️",
-    tag: "Phase 3",
-    title: "Spam & Quality Review",
-    desc: "Every message scores for spam risk and personalisation quality. Risky emails are held for human review before a single send.",
+    icon: <Search className="w-5 h-5 text-violet-500" />,
+    tag: "Lead Discovery Engine",
+    title: "275M+ Decision Maker Database",
+    desc: "Filter by title, seniority, funding stage, hiring velocity, and tech stack without relying on single vendor silos.",
   },
   {
-    icon: "📬",
-    tag: "Phase 4",
-    title: "Throttled Smart Send",
-    desc: "Domain-aware sending respects daily limits, warmup schedules, and bounce thresholds to protect your sender reputation.",
+    icon: <Zap className="w-5 h-5 text-amber-500" />,
+    tag: "Waterfall Verification",
+    title: "Multi-Source Email Reveal",
+    desc: "Cascade across local DB cache, Google SERP web search, Gemini AI syntax prediction, and live DNS MX validation.",
   },
   {
-    icon: "🧠",
-    tag: "Learning Loop",
-    title: "Self-Improving AI",
-    desc: "Every approval, edit, and rejection trains the model. ScoutSend gets smarter with every campaign your team runs.",
+    icon: <Sparkles className="w-5 h-5 text-rose-500" />,
+    tag: "AI Copy Engine",
+    title: "Signal-Driven Personalisation",
+    desc: "Gemini writes tailored emails referencing real-time buying signals rather than generic mail-merge placeholders.",
   },
   {
-    icon: "📊",
-    tag: "Deliverability",
-    title: "Domain Health Monitoring",
-    desc: "Real-time bounce rates, complaint scores, and reputation health across all sender domains — with automatic throttling.",
+    icon: <ShieldCheck className="w-5 h-5 text-emerald-500" />,
+    tag: "Deliverability Shield",
+    title: "Domain Health & Spam Review",
+    desc: "Automated daily send limits, warmup schedules, and bounce rate throttling to safeguard your sender reputation.",
+  },
+  {
+    icon: <Bot className="w-5 h-5 text-sky-500" />,
+    tag: "Self-Improving Loop",
+    title: "Continuous AI Optimization",
+    desc: "Every open, click, and reply trains the model to continuously elevate response rates for your specific ICP.",
   },
 ];
 
 const DOMAIN_SECTION_BULLETS = [
-  { icon: "⚡", text: "Automatic warmup schedules for new domains" },
-  { icon: "🛑", text: "Hard stops at bounce > 10% or complaint > 0.5%" },
-  { icon: "📈", text: "Reputation score tracked across every campaign" },
+  { icon: <Zap className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />, text: "Automatic warmup schedules for new sender domains" },
+  { icon: <ShieldAlert className="w-5 h-5 text-rose-500 mt-0.5 shrink-0" />, text: "Hard stops when bounce > 5% or complaint > 0.1%" },
+  { icon: <BarChart3 className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />, text: "Real-time MX & DNS deliverability score monitoring" },
 ];
 
 const PIPELINE_STEPS = [
-  { label: "Research", color: "#6366f1", icon: "◎" },
-  { label: "Generate", color: "#8b5cf6", icon: "⊕" },
-  { label: "Review", color: "#e94560", icon: "◈" },
-  { label: "Queue", color: "#f59e0b", icon: "⊛" },
-  { label: "Send", color: "#22c55e", icon: "◉" },
+  { label: "Signal Radar", color: "#6366f1", icon: <Radar className="w-5 h-5" /> },
+  { label: "Lead Discovery", color: "#8b5cf6", icon: <Search className="w-5 h-5" /> },
+  { label: "Waterfall Reveal", color: "#ec4899", icon: <Zap className="w-5 h-5" /> },
+  { label: "AI Copy Gen", color: "var(--red)", icon: <Sparkles className="w-5 h-5" /> },
+  { label: "Smart Send", color: "var(--success)", icon: <Mail className="w-5 h-5" /> },
 ];
 
 const TESTIMONIALS: TestimonialItem[] = [
   {
-    quote: "We closed 3 enterprise deals in the first campaign. The AI found signals our SDRs would have missed completely.",
+    quote: "We closed 3 enterprise deals in the first campaign. The intent signals found leads our SDR team would have missed completely.",
     name: "Amara Nwosu",
     role: "Head of Sales",
     company: "Stackvault",
     initials: "AN",
   },
   {
-    quote: "The domain warmup and deliverability controls are the only reason we haven't burnt our sending domains. Genuinely lifesaving.",
+    quote: "The waterfall email reveal and deliverability safeguards are top tier. Our domain health stays 99%+ healthy across all campaigns.",
     name: "Priya Mehta",
     role: "Growth Lead",
     company: "Orbient",
     initials: "PM",
   },
   {
-    quote: "Our reply rate went from 1.4% to 17% in 6 weeks. The personalisation is so good that prospects think we researched them manually.",
+    quote: "Our reply rate went from 1.4% to 17% in 6 weeks. Prospects genuinely think we spent hours researching them manually.",
     name: "Tobias Kern",
     role: "Founder",
     company: "Layrlink",
@@ -93,25 +132,28 @@ const TESTIMONIALS: TestimonialItem[] = [
   },
 ];
 
-/* ─── Radar SVG Component ────────────────────────────────────────────────────── */
 function RadarOrb() {
   return (
     <div className="relative flex items-center justify-center" style={{ width: "min(420px, 100%)", height: "min(420px, 100%)" }}>
-      {/* Outer ping rings */}
       {[1, 2, 3].map((i) => (
-        <div
+        <motion.div
           key={i}
-          className="absolute rounded-full border"
+          initial={{ scale: 0.8, opacity: 0.8 }}
+          animate={{ scale: [0.8, 1.4], opacity: [0.8, 0] }}
+          transition={{
+            duration: 2.4,
+            repeat: Infinity,
+            delay: i * 0.6,
+            ease: "easeOut",
+          }}
+          className="absolute rounded-full border border-[var(--border-red)] pointer-events-none"
           style={{
             width: `${100 + i * 80}px`,
             height: `${100 + i * 80}px`,
-            borderColor: `rgba(233,69,96,${0.12 - i * 0.03})`,
-            animation: `radar-ping ${2 + i * 0.8}s ease-out ${i * 0.4}s infinite`,
           }}
         />
       ))}
 
-      {/* Static rings */}
       {[180, 260, 340, 410].map((size, i) => (
         <div
           key={i}
@@ -124,18 +166,18 @@ function RadarOrb() {
         />
       ))}
 
-      {/* Cross-hairs */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.04)" }} />
       </div>
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div style={{ width: 1, height: "100%", background: "rgba(255,255,255,0.04)" }} />
       </div>
 
-      {/* Spinning sweep */}
-      <div
-        className="absolute rounded-full overflow-hidden"
-        style={{ width: 340, height: 340, animation: "radar-spin 6s linear infinite" }}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
+        className="absolute rounded-full overflow-hidden pointer-events-none"
+        style={{ width: 340, height: 340 }}
       >
         <div
           style={{
@@ -145,126 +187,272 @@ function RadarOrb() {
             width: "50%",
             height: "50%",
             transformOrigin: "0% 100%",
-            background: "conic-gradient(from 0deg, transparent 0deg, rgba(233,69,96,0.35) 60deg, transparent 60deg)",
+            background: "conic-gradient(from 0deg, transparent 0deg, var(--red-glow) 60deg, transparent 60deg)",
             transform: "rotate(-90deg)",
           }}
         />
-      </div>
+      </motion.div>
 
-      {/* Lead dots */}
       {[
-        { x: 30, y: -80, delay: "0s", size: 5 },
-        { x: -90, y: 50, delay: "0.6s", size: 4 },
-        { x: 100, y: 60, delay: "1.2s", size: 6 },
-        { x: -30, y: -120, delay: "0.3s", size: 3 },
-        { x: 130, y: -20, delay: "1.8s", size: 4 },
-        { x: -110, y: -40, delay: "0.9s", size: 5 },
-        { x: 60, y: 130, delay: "1.5s", size: 3 },
+        { x: 30, y: -80, size: 6, label: "Stackvault Series A" },
+        { x: -90, y: 50, size: 5, label: "Orbient Hiring Surge" },
+        { x: 100, y: 60, size: 7, label: "Layrlink Tech Match" },
+        { x: -30, y: -120, size: 4, label: "VP Sales Hired" },
+        { x: 130, y: -20, size: 5, label: "HubSpot CRM" },
       ].map((dot, i) => (
-        <div
+        <motion.div
           key={i}
-          className="absolute rounded-full"
+          initial={{ opacity: 0.3, scale: 0.8 }}
+          animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
+          transition={{
+            duration: 2.2,
+            repeat: Infinity,
+            delay: i * 0.4,
+            ease: "easeInOut",
+          }}
+          className="absolute rounded-full group cursor-pointer"
           style={{
             width: dot.size,
             height: dot.size,
-            background: "#e94560",
-            boxShadow: "0 0 8px #e94560",
+            background: "var(--red)",
+            boxShadow: "0 0 10px var(--red)",
             transform: `translate(${dot.x}px, ${dot.y}px)`,
-            animation: `fade-in 0.3s ease ${dot.delay} both, pulse-red 2s ${dot.delay} ease-in-out infinite`,
           }}
         />
       ))}
 
-      {/* Centre core */}
-      <div
-        className="relative z-10 rounded-full flex items-center justify-center"
+      <motion.div
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.95 }}
+        className="relative z-10 rounded-full flex items-center justify-center cursor-pointer"
         style={{
           width: 80,
           height: 80,
-          background: "linear-gradient(135deg, #1e2340, #252b4a)",
-          border: "1px solid rgba(233,69,96,0.4)",
-          boxShadow: "0 0 40px rgba(233,69,96,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
+          background: "linear-gradient(135deg, var(--surface), var(--surface-2))",
+          border: "1px solid var(--border-red)",
+          boxShadow: "0 0 40px var(--red-glow), inset 0 1px 0 var(--glass-highlight)",
         }}
       >
-        <span style={{ fontSize: 28 }}>⊕</span>
-      </div>
+        <span style={{ fontSize: 28 }}>📡</span>
+      </motion.div>
     </div>
   );
 }
 
-/* ─── Floating Email Preview ─────────────────────────────────────────────────── */
-function EmailPreviewCard() {
+function LiveSignalsFeed() {
   return (
-    <div
-      className="animate-float"
-      style={{
-        background: "var(--surface)",
-        border: "1px solid rgba(233,69,96,0.2)",
-        borderRadius: 16,
-        padding: "20px 24px",
-        maxWidth: 320,
-        boxShadow: "0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset",
-        animationDelay: "1s",
-      }}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+      className="w-full max-w-sm rounded-2xl bg-surface/90 border border-subtle p-5 shadow-2xl backdrop-blur-xl space-y-4"
     >
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#e94560,#6366f1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>S</div>
-        <div>
-          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.2 }}>ScoutSend AI</p>
-          <p style={{ fontSize: 10, color: "var(--text-secondary)" }}>scout@acmecorp.io</p>
+      <div className="flex items-center justify-between border-b border-subtle pb-3">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-bold text-primary uppercase tracking-wider font-mono">
+            Live Buying Intent Feed
+          </span>
         </div>
-        <div className="ml-auto" style={{ fontSize: 10, color: "var(--text-muted)" }}>Just now</div>
+        <span className="text-[10px] text-muted font-mono">Real-time</span>
       </div>
 
-      {/* Subject */}
-      <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
-        Re: Stackvault's Series B — congrats on the close
-      </p>
+      <div className="space-y-3">
+        <motion.div
+          whileHover={{ x: 3 }}
+          className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-1 cursor-pointer transition-colors"
+        >
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-bold text-emerald-600 dark:text-emerald-300">💰 $14M Series A Funding</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold">96% Fit</span>
+          </div>
+          <p className="text-xs font-semibold text-primary">Stackvault Corp</p>
+          <p className="text-[11px] text-muted">VP of Sales & Founder hiring triggered</p>
+        </motion.div>
 
-      {/* Body */}
-      <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-        Hi Amara, saw the announcement yesterday — impressive raise. Given Stackvault is now scaling infra, I wanted to reach out about how we help post-Series B sales teams…
-      </p>
+        <motion.div
+          whileHover={{ x: 3 }}
+          className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 space-y-1 cursor-pointer transition-colors"
+        >
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-bold text-indigo-600 dark:text-indigo-300">🔥 Hiring Surge (6 SDRs)</span>
+            <span className="text-indigo-600 dark:text-indigo-400 font-mono font-bold">92% Fit</span>
+          </div>
+          <p className="text-xs font-semibold text-primary">Orbient Technologies</p>
+          <p className="text-[11px] text-muted">Expanding US outbound sales team</p>
+        </motion.div>
 
-      {/* Scores */}
-      <div className="flex gap-3 mt-4">
-        <div style={{ flex: 1, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 8, padding: "6px 10px" }}>
-          <p style={{ fontSize: 10, color: "#22c55e", fontWeight: 600 }}>Personalisation</p>
-          <p style={{ fontSize: 16, fontWeight: 700, color: "#22c55e", fontFamily: "var(--font-display)" }}>94</p>
+        <motion.div
+          whileHover={{ x: 3 }}
+          className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-1 cursor-pointer transition-colors"
+        >
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-bold text-sky-600 dark:text-sky-300">⚡ Tech Stack Match (HubSpot)</span>
+            <span className="text-sky-600 dark:text-sky-400 font-mono font-bold">88% Fit</span>
+          </div>
+          <p className="text-xs font-semibold text-primary">Layrlink Inc</p>
+          <p className="text-[11px] text-muted">Installed Salesforce & HubSpot CRM</p>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
+function ClayWaterfallSpreadsheetDemo() {
+  const [activeStep, setActiveStep] = useState(0);
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+
+  const steps = [
+    { label: "1. Intent Signal", icon: "⚡" },
+    { label: "2. Multi-Source Reveal", icon: "🔍" },
+    { label: "3. Gemini AI Hook", icon: "🧠" },
+    { label: "4. Deliverability", icon: "🛡️" },
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveStep((prev) => (prev + 1) % steps.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const rows = [
+    {
+      name: "Sarah Chen",
+      role: "VP of Engineering",
+      company: "Stackvault",
+      signal: "💰 $14M Series A",
+      email: "sarah@stackvault.io",
+      status: "DNS Verified",
+      hook: "Saw Stackvault's Series A expansion — scaling AI infra team...",
+      source: "Apollo + SERP",
+      match: "98%",
+    },
+    {
+      name: "Marcus Vance",
+      role: "Head of Growth",
+      company: "Orbient",
+      signal: "🔥 Hiring 6 SDRs",
+      email: "m.vance@orbient.tech",
+      status: "MX Validated",
+      hook: "Noticed 6 SDR postings at Orbient this week...",
+      source: "Gemini AI",
+      match: "94%",
+    },
+    {
+      name: "Elena Rostova",
+      role: "Chief Revenue Officer",
+      company: "Layrlink",
+      signal: "⚡ HubSpot Installed",
+      email: "elena@layrlink.com",
+      status: "Local DB",
+      hook: "Congrats on launching Layrlink's new CRM integration...",
+      source: "Domain Radar",
+      match: "91%",
+    },
+  ];
+
+  return (
+    <div className="w-full rounded-2xl bg-surface/90 border border-subtle shadow-2xl shadow-black/50 overflow-hidden text-xs backdrop-blur-xl transition-all duration-300 hover:border-indigo-500/40">
+      <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-surface-2/80 border-b border-subtle gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
+          </div>
+          <span className="font-mono font-semibold text-primary ml-2 text-[11px] flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <span>scoutsend_waterfall_table.csv</span>
+          </span>
         </div>
-        <div style={{ flex: 1, background: "rgba(233,69,96,0.06)", border: "1px solid rgba(233,69,96,0.15)", borderRadius: 8, padding: "6px 10px" }}>
-          <p style={{ fontSize: 10, color: "#e94560", fontWeight: 600 }}>Spam Risk</p>
-          <p style={{ fontSize: 16, fontWeight: 700, color: "#e94560", fontFamily: "var(--font-display)" }}>2</p>
+        <div className="flex items-center gap-1.5 overflow-x-auto relative">
+          {steps.map((s, idx) => (
+            <button
+              key={s.label}
+              onClick={() => setActiveStep(idx)}
+              className={`relative px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors z-10 ${
+                activeStep === idx ? "text-white font-bold" : "text-secondary hover:text-primary"
+              }`}
+            >
+              {activeStep === idx && (
+                <motion.div
+                  layoutId="waterfallStepPill"
+                  className="absolute inset-0 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/30 -z-10"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span>{s.icon}</span>
+              <span>{s.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Tags */}
-      <div className="flex flex-wrap gap-1 mt-3">
-        {["Series B signal", "Hiring spike", "Tech match"].map((t) => (
-          <span key={t} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: "rgba(99,102,241,0.12)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)" }}>{t}</span>
-        ))}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-surface-2/60 border-b border-subtle text-[11px] font-semibold text-muted">
+              <th className="p-3">PROSPECT</th>
+              <th className="p-3">INTENT SIGNAL</th>
+              <th className="p-3">WATERFALL REVEAL</th>
+              <th className="p-3">AI RESEARCH HOOK</th>
+              <th className="p-3">STATUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <motion.tr
+                key={i}
+                onMouseEnter={() => setHoveredRow(i)}
+                onMouseLeave={() => setHoveredRow(null)}
+                whileHover={{ backgroundColor: "rgba(99, 102, 241, 0.08)" }}
+                className={`border-b border-subtle/60 transition-colors cursor-pointer ${
+                  hoveredRow === i ? "bg-indigo-500/10" : ""
+                }`}
+              >
+                <td className="p-3">
+                  <div className="font-semibold text-primary flex items-center gap-1.5">
+                    <span>{r.name}</span>
+                  </div>
+                  <div className="text-[10px] text-muted">{r.role} · {r.company}</div>
+                </td>
+                <td className="p-3">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-sm">
+                    {r.signal}
+                  </span>
+                </td>
+                <td className="p-3 font-mono">
+                  <div className="font-medium text-emerald-400 flex items-center gap-1">
+                    <span>{r.email}</span>
+                  </div>
+                  <div className="text-[10px] text-muted flex items-center gap-1">
+                    <span>⚡ {r.source}</span>
+                    <span className="text-emerald-400 font-bold">({r.match})</span>
+                  </div>
+                </td>
+                <td className="p-3 max-w-[220px]">
+                  <p className="truncate text-secondary text-[11px] font-mono">{r.hook}</p>
+                </td>
+                <td className="p-3">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {r.status}
+                  </span>
+                </td>
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-/* ─── Scroll Reveal Hook ─────────────────────────────────────────────────────── */
-function useReveal() {
-  useEffect(() => {
-    const els = document.querySelectorAll(".reveal");
-    const obs = new IntersectionObserver(
-      (entries) => entries.forEach((e) => { if (e.isIntersecting) { (e.target as HTMLElement).classList.add("visible"); } }),
-      { threshold: 0.15 }
-    );
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, []);
-}
-
-/* ─── Nav ────────────────────────────────────────────────────────────────────── */
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState("features");
+
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", fn);
@@ -272,15 +460,17 @@ function Nav() {
   }, []);
 
   return (
-    <nav
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-      style={{ background: scrolled ? "rgba(26,26,46,0.92)" : "transparent", backdropFilter: scrolled ? "blur(20px)" : "none", borderBottom: scrolled ? "1px solid var(--border)" : "none" }}
-    >
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--red)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 16px var(--red-glow)" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <header className="fixed top-0 left-0 right-0 z-50 pt-4 px-4 pointer-events-none transition-all duration-300">
+      <nav
+        className={`max-w-6xl mx-auto px-5 py-3 rounded-2xl pointer-events-auto transition-all duration-300 flex items-center justify-between ${
+          scrolled
+            ? "bg-surface/90 border border-subtle backdrop-blur-2xl shadow-2xl shadow-black/40"
+            : "bg-surface/60 border border-subtle/50 backdrop-blur-xl"
+        }`}
+      >
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform duration-200">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="1.5" />
               <circle cx="12" cy="12" r="5" stroke="#fff" strokeWidth="1.5" />
               <circle cx="12" cy="12" r="1.5" fill="#fff" />
@@ -288,46 +478,65 @@ function Nav() {
               <line x1="12" y1="17" x2="12" y2="22" stroke="#fff" strokeWidth="1.5" />
             </svg>
           </div>
-          <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 18, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
-            Scout<span style={{ color: "var(--red)" }}>Send</span>
+          <span className="font-display font-extrabold text-lg tracking-tight text-primary">
+            Scout<span className="text-indigo-500">Send</span>
           </span>
+        </Link>
+
+        <div className="hidden md:flex items-center gap-1 bg-surface-2/70 p-1 rounded-xl border border-subtle/60 relative">
+          {[
+            { id: "features", label: "Capabilities", href: "#features" },
+            { id: "pipeline", label: "AI Pipeline", href: "#pipeline" },
+            { id: "playbooks", label: "Playbooks", href: "#playbooks" },
+            { id: "deliverability", label: "Deliverability", href: "#deliverability" },
+            { id: "pricing", label: "Pricing", href: "#pricing" },
+          ].map((item) => (
+            <a
+              key={item.id}
+              href={item.href}
+              onClick={() => setActiveSection(item.id)}
+              className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold font-display transition-colors ${
+                activeSection === item.id ? "text-primary font-bold" : "text-muted hover:text-primary"
+              }`}
+            >
+              {activeSection === item.id && (
+                <motion.div
+                  layoutId="activeNavTab"
+                  className="absolute inset-0 bg-surface rounded-lg shadow-sm border border-subtle -z-10"
+                  transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                />
+              )}
+              {item.label}
+            </a>
+          ))}
         </div>
 
-        {/* Links */}
-        <div className="hidden md:flex items-center gap-8">
-          {["Features", "How It Works", "Pricing", "Docs"].map((link, i) => {
-            const anchors = ["#features", "#pipeline", "#pricing", "#docs"];
-            return (
-              <a key={link} href={anchors[i]} style={{ fontSize: 14, color: "var(--text-secondary)", fontWeight: 500, textDecoration: "none", transition: "color 0.2s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-              >{link}</a>
-            );
-          })}
-        </div>
-
-        {/* CTAs */}
         <div className="flex items-center gap-3">
-          <a href="/auth/login" className="btn-ghost hidden md:inline-flex" style={{ fontSize: 14, padding: "8px 18px", borderRadius: 8, textDecoration: "none" }}>
+          <Link
+            href="/auth/login"
+            className="px-4 py-2 rounded-xl text-xs font-semibold font-display text-secondary hover:text-primary hover:bg-surface-2 transition-all duration-200 hidden sm:inline-flex"
+          >
             Sign in
-          </a>
-          <a href="/auth/register" className="btn-primary" style={{ fontSize: 14, padding: "8px 20px", borderRadius: 8, textDecoration: "none" }}>
-            Start free →
-          </a>
+          </Link>
+          <MagneticButton
+            onClick={() => window.location.href = "/auth/register"}
+            className="px-4 py-2 rounded-xl text-xs font-bold font-display text-white bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:from-indigo-600 hover:to-violet-700 shadow-lg shadow-indigo-500/25 flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>Start free</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </MagneticButton>
         </div>
-      </div>
-    </nav>
+      </nav>
+    </header>
   );
 }
 
-/* ─── Hero ───────────────────────────────────────────────────────────────────── */
 function Hero() {
   return (
     <section
       className="relative min-h-screen flex items-center overflow-hidden"
-      style={{ paddingTop: 80, background: "linear-gradient(160deg, var(--navy) 0%, var(--navy-mid) 60%, #0d1a3a 100%)" }}
+      style={{ paddingTop: 80, background: "linear-gradient(160deg, var(--background) 0%, var(--surface) 60%, var(--surface-2) 100%)" }}
     >
-      {/* Background grid */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -340,73 +549,64 @@ function Hero() {
         }}
       />
 
-      {/* Red gradient blob */}
       <div
         className="absolute pointer-events-none"
-        style={{ top: "10%", right: "5%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(233,69,96,0.12) 0%, transparent 70%)", filter: "blur(40px)" }}
+        style={{ top: "10%", right: "5%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, var(--red-glow) 0%, transparent 70%)", filter: "blur(40px)" }}
       />
       <div
         className="absolute pointer-events-none"
         style={{ bottom: "0%", left: "0%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)", filter: "blur(60px)" }}
       />
 
-      <div className="max-w-7xl mx-auto px-6 w-full">
+      <div className="max-w-7xl mx-auto px-6 w-full py-12">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-          {/* Left — copy */}
           <div>
-            {/* Badge */}
             <div
               className="inline-flex items-center gap-2 mb-8 animate-fade-up"
-              style={{ background: "rgba(233,69,96,0.08)", border: "1px solid rgba(233,69,96,0.25)", borderRadius: 100, padding: "6px 14px" }}
+              style={{ background: "var(--red-glow)", border: "1px solid var(--border-red)", borderRadius: 100, padding: "6px 14px" }}
             >
               <div className="status-dot" />
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red)", fontFamily: "var(--font-display)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                AI Outbound Engine
+                AI Sales Intelligence & Outbound Engine
               </span>
             </div>
 
-            {/* Headline */}
             <h1
               className="animate-fade-up delay-100"
               style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "clamp(40px, 5.5vw, 68px)", lineHeight: 1.05, letterSpacing: "-0.03em", color: "var(--text-primary)", marginBottom: 24 }}
             >
-              Scout every lead.{" "}
+              All-in-one sales intelligence.{" "}
               <br />
-              <span className="gradient-text">Send with precision.</span>
+              <span className="gradient-text">Powered by AI buying signals.</span>
             </h1>
 
-            {/* Sub */}
             <p
               className="animate-fade-up delay-200"
-              style={{ fontSize: 18, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 500, marginBottom: 40 }}
+              style={{ fontSize: 18, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 520, marginBottom: 40 }}
             >
-              ScoutSend's AI pipeline researches, writes, reviews, and sends hyper-personalised cold emails — protecting your domain reputation at every step.
+              Discover decision makers from 275M+ contacts, reveal emails via cost-optimized waterfall, and trigger personalized AI sequences when intent signals strike.
             </p>
 
-            {/* CTA row */}
             <div className="flex flex-wrap items-center gap-4 animate-fade-up delay-300">
-              <a
+              <Link
                 href="/auth/register"
                 className="btn-primary"
                 style={{ fontSize: 15, padding: "13px 28px", borderRadius: 10, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}
               >
-                Launch your first campaign
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-              </a>
-              <a
-                href="#"
+                Start free trial →
+              </Link>
+              <Link
+                href="/dashboard/find-leads"
                 className="btn-ghost"
                 style={{ fontSize: 15, padding: "13px 24px", borderRadius: 10, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polygon points="10,8 16,12 10,16" /></svg>
-                Watch demo
-              </a>
+                <span>Explore Lead Radar</span>
+              </Link>
             </div>
 
-            {/* Trust row */}
             <div className="flex flex-wrap items-center gap-6 mt-10 animate-fade-up delay-400">
-              {["No credit card", "5-min setup", "SOC 2 compliant"].map((t) => (
+              {["275M+ verified contacts", "Waterfall email reveal", "SOC 2 compliant"].map((t) => (
                 <div key={t} className="flex items-center gap-2">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5"><polyline points="20,6 9,17 4,12" /></svg>
                   <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{t}</span>
@@ -415,102 +615,214 @@ function Hero() {
             </div>
           </div>
 
-          {/* Right — radar + email card */}
-          <div className="hidden lg:flex items-center justify-center relative" style={{ minHeight: 420 }}>
-            <RadarOrb />
-            <div className="absolute" style={{ bottom: 0, right: -20 }}>
-              <EmailPreviewCard />
+          <div className="hidden lg:flex flex-col gap-4 relative">
+            <ClayWaterfallSpreadsheetDemo />
+            <div className="flex items-center justify-between text-[11px] text-muted font-mono px-2">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>150+ Data Sources Connected</span>
+              </span>
+              <span>Waterfall Success Rate: 98.4%</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom fade */}
       <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none" style={{ background: "linear-gradient(transparent, var(--navy))" }} />
     </section>
   );
 }
 
-/* ─── Stats Band ─────────────────────────────────────────────────────────────── */
 function StatsBand() {
   return (
-    <div className="stat-band">
-      <div className="max-w-7xl mx-auto px-6 py-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+    <div className="stat-band py-12">
+      <div className="max-w-7xl mx-auto px-6">
+        <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {STATS.map((s, i) => (
-            <div key={i} className="text-center reveal" style={{ transitionDelay: `${i * 0.1}s` }}>
-              <p style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 40, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1 }}>
-                {s.value}
-              </p>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginTop: 4 }}>{s.label}</p>
-              {s.sub && <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{s.sub}</p>}
-            </div>
+            <StaggerItem key={i}>
+              <MotionCard
+                enableSpotlight
+                className="p-6 rounded-2xl border border-subtle bg-surface text-center cursor-pointer"
+              >
+                <p
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 42,
+                    color: "var(--text-primary)",
+                    letterSpacing: "-0.03em",
+                    lineHeight: 1,
+                  }}
+                >
+                  <AnimatedCounter value={s.value} />
+                </p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginTop: 8 }}>
+                  {s.label}
+                </p>
+                {s.sub && (
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                    {s.sub}
+                  </p>
+                )}
+              </MotionCard>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerContainer>
       </div>
     </div>
   );
 }
 
-/* ─── Pipeline Section ───────────────────────────────────────────────────────── */
 function PipelineSection() {
-  return (
-    <section id="pipeline" className="py-[100px] bg-navy-mid">
-      <div className="max-w-7xl mx-auto px-6">
+  const [activeStep, setActiveStep] = useState(0);
 
-        <div className="text-center mb-16 reveal">
-          <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--red)", fontFamily: "var(--font-display)", marginBottom: 12 }}>
-            The Pipeline
+  const stepDetails = [
+    {
+      title: "1. Buying Signals Radar",
+      desc: "Monitors 150+ web channels for funding rounds, leadership changes, tech stack adoption, and hiring surges in real time.",
+      badge: "Real-Time Signal Detection",
+      metric: "Over 3,400 signals captured today",
+    },
+    {
+      title: "2. Lead Discovery & TAM Sourcing",
+      desc: "Filters 275M+ decision makers by exact job title, seniority level, department size, and tech stack match score.",
+      badge: "275M+ B2B Contacts",
+      metric: "98.2% Persona Match Precision",
+    },
+    {
+      title: "3. Waterfall Email Reveal",
+      desc: "Cascades across local cache, Apollo, SERP web search, Gemini AI syntax prediction, and live MX validation.",
+      badge: "Cost-Optimized Cascading",
+      metric: "99.4% Valid Email Deliverability",
+    },
+    {
+      title: "4. Signal-Driven AI Copy Engine",
+      desc: "Gemini writes hyper-personalized 1-on-1 cold emails referencing specific buying signals rather than generic templates.",
+      badge: "Context-Aware Generation",
+      metric: "12x Average Reply Rate Lift",
+    },
+    {
+      title: "5. Smart Send & Deliverability Shield",
+      desc: "Automated warmup schedules, daily inbox send caps, and instant bounce rate throttling to protect domain health.",
+      badge: "Domain Reputation Protection",
+      metric: "Zero Domain Blacklistings",
+    },
+  ];
+
+  const current = stepDetails[activeStep];
+
+  return (
+    <section id="pipeline" className="py-[100px]" style={{ background: "var(--surface-2)" }}>
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-16">
+          <p
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--red)",
+              fontFamily: "var(--font-display)",
+              marginBottom: 12,
+            }}
+          >
+            The AI Pipeline
           </p>
-          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "clamp(28px, 4vw, 48px)", letterSpacing: "-0.025em", color: "var(--text-primary)", lineHeight: 1.1 }}>
-            Four AI phases. Zero guesswork.
+          <h2
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
+              fontSize: "clamp(28px, 4vw, 48px)",
+              letterSpacing: "-0.025em",
+              color: "var(--text-primary)",
+              lineHeight: 1.1,
+            }}
+          >
+            From signal radar to sent email in 5 steps
           </h2>
           <p style={{ fontSize: 16, color: "var(--text-secondary)", marginTop: 16, maxWidth: 520, margin: "16px auto 0" }}>
-            ScoutSend runs a sequential agentic pipeline from first signal to sent email — with human review gates at every risky step.
+            ScoutSend coordinates signal discovery, waterfall email verification, and AI copy generation with real-time deliverability shielding.
           </p>
         </div>
 
-        {/* Pipeline steps */}
-        <div className="grid grid-cols-3 sm:flex sm:items-start sm:justify-center gap-4 sm:gap-0 overflow-x-auto pb-4 reveal">
+        {/* Step Selector Pills */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-10 relative">
           {PIPELINE_STEPS.map((step, i) => (
-            <div key={i} className="pipeline-step relative flex flex-col items-center gap-2" style={{ minWidth: 80, flex: 1 }}>
-              {/* Node */}
+            <button
+              key={i}
+              onClick={() => setActiveStep(i)}
+              className={`relative p-4 rounded-xl border text-left transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 ${
+                activeStep === i ? "border-red shadow-lg" : "bg-surface/60 border-subtle hover:bg-surface"
+              }`}
+            >
+              {activeStep === i && (
+                <motion.div
+                  layoutId="pipelineActivePill"
+                  className="absolute inset-0 bg-surface rounded-xl border border-red shadow-lg -z-10"
+                  transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                />
+              )}
               <div
                 style={{
-                  width: 44, height: 44,
+                  width: 40,
+                  height: 40,
                   borderRadius: "50%",
                   background: `${step.color}18`,
                   border: `1.5px solid ${step.color}50`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18, color: step.color,
-                  boxShadow: `0 0 20px ${step.color}30`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 18,
+                  color: step.color,
                 }}
               >
                 {step.icon}
               </div>
-              {/* Label */}
-              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)", textAlign: "center" }}>
+              <p
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: activeStep === i ? "var(--text-primary)" : "var(--text-secondary)",
+                  fontFamily: "var(--font-display)",
+                  textAlign: "center",
+                }}
+              >
                 {step.label}
               </p>
-              {/* Connector line is in CSS ::after */}
-              {i < PIPELINE_STEPS.length - 1 && (
-                <div
-                  className="hidden sm:block"
-                  style={{
-                    position: "absolute",
-                    top: 22, left: "calc(50% + 22px)",
-                    width: "calc(100% - 44px)", height: 1,
-                    background: `linear-gradient(90deg, ${step.color}60, ${PIPELINE_STEPS[i + 1].color}40)`,
-                  }}
-                />
-              )}
-            </div>
+            </button>
           ))}
         </div>
 
-        {/* Campaign status strip */}
+        {/* Active Step Details Panel */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeStep}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.25 }}
+            className="glow-card p-8 rounded-2xl bg-surface border border-subtle"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-500/20">
+                {current.badge}
+              </span>
+              <span className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                ⚡ {current.metric}
+              </span>
+            </div>
+
+            <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 24, color: "var(--text-primary)", marginBottom: 12 }}>
+              {current.title}
+            </h3>
+            <p style={{ fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 680 }}>
+              {current.desc}
+            </p>
+          </motion.div>
+        </AnimatePresence>
+
         <div
-          className="mt-12 reveal"
+          className="mt-12"
           style={{
             background: "var(--surface)",
             border: "1px solid var(--border)",
@@ -524,17 +836,17 @@ function PipelineSection() {
           }}
         >
           <div>
-            <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Active Campaign</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Active Campaign Radar</p>
             <p style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
-              SaaS Series B Outbound Q2
+              Series A SaaS Sales Expansion Q3
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             {[
-              { label: "Leads Researched", value: "247", color: "#6366f1" },
-              { label: "Emails Generated", value: "231", color: "#8b5cf6" },
-              { label: "Pending Review", value: "14", color: "#e94560" },
-              { label: "Sent Today", value: "25", color: "#22c55e" },
+              { label: "Intent Signals", value: "312", color: "#6366f1" },
+              { label: "Waterfall Revealed", value: "284", color: "#8b5cf6" },
+              { label: "Verified Deliverable", value: "276", color: "var(--success)" },
+              { label: "Response Rate", value: "18.4%", color: "var(--red)" },
             ].map((m) => (
               <div key={m.label} style={{ textAlign: "center", padding: "8px 16px", borderRadius: 8, background: `${m.color}10`, border: `1px solid ${m.color}25` }}>
                 <p style={{ fontSize: 20, fontWeight: 800, color: m.color, fontFamily: "var(--font-display)", lineHeight: 1 }}>{m.value}</p>
@@ -544,7 +856,7 @@ function PipelineSection() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 8, padding: "8px 14px" }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 8px #22c55e" }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#22c55e" }}>Sending</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#22c55e" }}>Live Radar Active</span>
           </div>
         </div>
       </div>
@@ -552,75 +864,79 @@ function PipelineSection() {
   );
 }
 
-/* ─── Features Bento Grid ────────────────────────────────────────────────────── */
 function FeaturesSection() {
   return (
-    <section id="features" className="py-[100px] bg-navy">
+    <section id="features" className="py-[100px]" style={{ background: "var(--background)" }}>
       <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16 reveal">
+        <div className="text-center mb-16">
           <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--red)", fontFamily: "var(--font-display)", marginBottom: 12 }}>
-            Features
+            Capabilities
           </p>
           <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "clamp(28px, 4vw, 48px)", letterSpacing: "-0.025em", color: "var(--text-primary)", lineHeight: 1.1 }}>
-            Built for outbound that <em style={{ fontStyle: "italic", color: "var(--red)" }}>actually lands</em>
+            Everything you need for <em style={{ fontStyle: "italic", color: "var(--red)" }}>modern B2B outbound</em>
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {FEATURES.map((f, i) => (
-            <div
-              key={i}
-              className="feature-card glow-card reveal"
-              style={{
-                padding: 28,
-                transitionDelay: `${i * 0.08}s`,
-                border: f.accent ? "1px solid rgba(233,69,96,0.3)" : "1px solid var(--border)",
-                background: f.accent ? "linear-gradient(135deg, rgba(233,69,96,0.06), var(--surface))" : "var(--surface)",
-              }}
-            >
-              {/* Tag */}
-              <div className="flex items-center gap-2 mb-4">
-                <span style={{ fontSize: 22 }}>{f.icon}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: f.accent ? "var(--red)" : "var(--text-muted)", fontFamily: "var(--font-display)" }}>
-                  {f.tag}
-                </span>
-              </div>
-              <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 18, color: "var(--text-primary)", marginBottom: 10, letterSpacing: "-0.01em" }}>
-                {f.title}
-              </h3>
-              <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.65 }}>
-                {f.desc}
-              </p>
-            </div>
+            <StaggerItem key={i}>
+              <MotionCard
+                enableSpotlight
+                className="glow-card h-full"
+                style={{
+                  padding: 28,
+                  borderRadius: 16,
+                  border: f.accent ? "1px solid var(--border-red)" : "1px solid var(--border)",
+                  background: f.accent ? "linear-gradient(135deg, var(--red-glow), var(--surface))" : "var(--surface)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <span style={{ fontSize: 22 }}>{f.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: f.accent ? "var(--red)" : "var(--text-muted)", fontFamily: "var(--font-display)" }}>
+                    {f.tag}
+                  </span>
+                </div>
+                <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 18, color: "var(--text-primary)", marginBottom: 10, letterSpacing: "-0.01em" }}>
+                  {f.title}
+                </h3>
+                <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.65 }}>
+                  {f.desc}
+                </p>
+              </MotionCard>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerContainer>
       </div>
     </section>
   );
 }
 
-/* ─── Domain Health Visual ───────────────────────────────────────────────────── */
 function DomainSection() {
   const domains = [
-    { name: "scout.io", health: "HEALTHY", score: 98, sent: 24, limit: 50, bounce: "0.8%", color: "#22c55e" },
-    { name: "outreach.co", health: "HEALTHY", score: 91, sent: 38, limit: 50, bounce: "1.2%", color: "#22c55e" },
-    { name: "signal.co", health: "WARNING", score: 74, sent: 50, limit: 50, bounce: "4.9%", color: "#f59e0b" },
-    { name: "reach.ai", health: "DEGRADED", score: 52, sent: 12, limit: 25, bounce: "9.3%", color: "#e94560" },
+    { name: "scoutsend.ai", health: "HEALTHY", score: 99, sent: 42, limit: 50, bounce: "0.4%", color: "#10b981" },
+    { name: "outbound.io", health: "HEALTHY", score: 94, sent: 36, limit: 50, bounce: "0.9%", color: "#10b981" },
+    { name: "signalreach.co", health: "WARNING", score: 76, sent: 48, limit: 50, bounce: "4.2%", color: "#f59e0b" },
+    { name: "salesmail.ai", health: "DEGRADED", score: 54, sent: 12, limit: 25, bounce: "8.8%", color: "#ef4444" },
   ];
 
   return (
-    <section className="py-[100px] bg-navy-mid">
+    <section id="deliverability" className="py-[100px]" style={{ background: "var(--surface-2)" }}>
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div className="reveal">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
             <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--red)", fontFamily: "var(--font-display)", marginBottom: 12 }}>
               Deliverability First
             </p>
             <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "clamp(28px, 3.5vw, 44px)", letterSpacing: "-0.025em", color: "var(--text-primary)", lineHeight: 1.1, marginBottom: 20 }}>
-              Your sending reputation is sacred. We treat it that way.
+              Sender reputation protection built in by default
             </h2>
             <p style={{ fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 32 }}>
-              ScoutSend monitors every domain in real time. The moment bounce rates or complaint scores edge toward dangerous thresholds, sending automatically throttles — before you hit a blacklist.
+              ScoutSend monitors sender domain health and DNS MX deliverability in real-time. Automatic throttling kicks in before high bounce rates damage your inbox placement.
             </p>
             <div className="flex flex-col gap-4">
               {DOMAIN_SECTION_BULLETS.map((item, i) => (
@@ -630,40 +946,39 @@ function DomainSection() {
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          <div className="reveal delay-200">
-            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}>
-              {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+          >
+            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden", boxShadow: "var(--glass-shadow-hover)" }}>
               <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Sender Domain Health</p>
-                <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Live</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Sender Domain Health Monitor</p>
+                <p style={{ fontSize: 12, color: "#10b981", fontWeight: 600 }}>● Active</p>
               </div>
-              {/* Domain rows */}
               {domains.map((d, i) => (
                 <div
                   key={i}
                   style={{ padding: "16px 24px", borderBottom: i < domains.length - 1 ? "1px solid var(--border)" : "none", display: "flex", alignItems: "center", gap: 12 }}
                 >
-                  {/* Health ring */}
                   <div style={{ width: 36, height: 36, borderRadius: "50%", border: `2px solid ${d.color}`, display: "flex", alignItems: "center", justifyContent: "center", background: `${d.color}12`, flexShrink: 0 }}>
                     <div style={{ width: 10, height: 10, borderRadius: "50%", background: d.color, boxShadow: `0 0 6px ${d.color}` }} />
                   </div>
-                  {/* Name + status */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="flex items-center gap-2">
                       <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{d.name}</p>
                       <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 20, background: `${d.color}18`, color: d.color, border: `1px solid ${d.color}30` }}>{d.health}</span>
                     </div>
-                    {/* Send progress */}
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                      <div style={{ flex: 1, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                      <div style={{ flex: 1, height: 4, borderRadius: 2, background: "var(--border)", overflow: "hidden" }}>
                         <div style={{ width: `${(d.sent / d.limit) * 100}%`, height: "100%", background: d.color, borderRadius: 2 }} />
                       </div>
                       <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{d.sent}/{d.limit} sent</span>
                     </div>
                   </div>
-                  {/* Score */}
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <p style={{ fontSize: 20, fontWeight: 800, color: d.color, fontFamily: "var(--font-display)", lineHeight: 1 }}>{d.score}</p>
                     <p style={{ fontSize: 10, color: "var(--text-muted)" }}>rep score</p>
@@ -671,111 +986,287 @@ function DomainSection() {
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
   );
 }
 
-/* ─── Testimonials ───────────────────────────────────────────────────────────── */
 function TestimonialsSection() {
   return (
-    <section className="py-[100px] bg-navy">
+    <section className="py-[100px]" style={{ background: "var(--background)" }}>
       <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16 reveal">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-16"
+        >
           <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--red)", fontFamily: "var(--font-display)", marginBottom: 12 }}>
-            Social Proof
+            Customer Results
           </p>
           <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "clamp(28px, 4vw, 48px)", letterSpacing: "-0.025em", color: "var(--text-primary)", lineHeight: 1.1 }}>
-            Teams hitting quota faster
+            Trusted by fast-growing B2B sales teams
           </h2>
-        </div>
+        </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <StaggerContainer className="grid md:grid-cols-3 gap-6">
           {TESTIMONIALS.map((t, i) => (
-            <div
-              key={i}
-              className="feature-card glow-card reveal"
-              style={{ padding: 32, transitionDelay: `${i * 0.1}s` }}
-            >
-              {/* Quote mark */}
-              <div style={{ fontSize: 48, lineHeight: 1, color: "var(--red)", fontFamily: "Georgia, serif", opacity: 0.6, marginBottom: 8 }}>"</div>
-              <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 24 }}>{t.quote}</p>
-              <div className="flex items-center gap-3">
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg, var(--red), #6366f1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff" }}>
-                  {t.initials}
+            <StaggerItem key={i}>
+              <MotionCard
+                enableSpotlight
+                className="glow-card h-full"
+                style={{ padding: 32, borderRadius: 16 }}
+              >
+                <div style={{ fontSize: 48, lineHeight: 1, color: "var(--red)", fontFamily: "Georgia, serif", opacity: 0.6, marginBottom: 8 }}>"</div>
+                <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 24 }}>{t.quote}</p>
+                <div className="flex items-center gap-3">
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg, var(--red), var(--accent))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff" }}>
+                    {t.initials}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{t.name}</p>
+                    <p style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.role} · {t.company}</p>
+                  </div>
                 </div>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{t.name}</p>
-                  <p style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.role} · {t.company}</p>
-                </div>
-              </div>
-            </div>
+              </MotionCard>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerContainer>
       </div>
     </section>
   );
 }
 
-/* ─── CTA Section ────────────────────────────────────────────────────────────── */
+function IntegrationsGrid() {
+  const integrations = [
+    { name: "Apollo.io", desc: "Multi-page B2B contact reveal", icon: <Database className="w-6 h-6 text-indigo-500" /> },
+    { name: "Google SERP & Places", desc: "Real-time web & local company search", icon: <Globe className="w-6 h-6 text-sky-500" /> },
+    { name: "Google Gemini AI", desc: "Agentic research & personalised copy", icon: <Sparkles className="w-6 h-6 text-amber-500" /> },
+    { name: "Unipile LinkedIn", desc: "Automated multi-touch LinkedIn messaging", icon: <LinkedinIcon className="w-6 h-6 text-blue-600" /> },
+    { name: "Outlook & Gmail", desc: "OAuth 2.0 mailbox sync & rotation", icon: <Mail className="w-6 h-6 text-rose-500" /> },
+    { name: "HubSpot & Salesforce", desc: "Bidirectional CRM lead & log sync", icon: <RefreshCw className="w-6 h-6 text-emerald-500" /> },
+  ];
+
+  return (
+    <section className="py-[80px]" style={{ background: "var(--background)" }}>
+      <div className="max-w-7xl mx-auto px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-12"
+        >
+          <p className="text-xs font-bold uppercase tracking-widest text-red font-display mb-2">
+            Ecosystem Integrations
+          </p>
+          <h2 className="font-display font-extrabold text-3xl md:text-4xl text-primary">
+            Powered by the top GTM & AI providers
+          </h2>
+          <p className="text-secondary mt-3 max-w-xl mx-auto text-sm">
+            ScoutSend natively connects data providers, AI engines, email mailboxes, and CRMs into a single automated pipeline.
+          </p>
+        </motion.div>
+
+        <StaggerContainer className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {integrations.map((item, idx) => (
+            <StaggerItem key={idx}>
+              <MotionCard
+                enableSpotlight
+                className="glow-card p-5 rounded-2xl bg-surface border border-subtle text-center flex flex-col items-center justify-center gap-2 hover:border-red/40 cursor-pointer h-full"
+              >
+                <div className="p-2.5 rounded-xl bg-surface-2 border border-subtle mb-1">
+                  {item.icon}
+                </div>
+                <p className="font-display font-bold text-xs text-primary">{item.name}</p>
+                <p className="text-[10px] text-muted leading-tight">{item.desc}</p>
+              </MotionCard>
+            </StaggerItem>
+          ))}
+        </StaggerContainer>
+      </div>
+    </section>
+  );
+}
+
+function GtmPlaybooksSection() {
+  const [activePlaybook, setActivePlaybook] = useState(0);
+
+  const playbooks = [
+    {
+      title: "Playbook 1: Series A Funding Spike",
+      trigger: "💰 Target company closes $10M+ funding round",
+      result: "18.4% Reply Rate · 4.2x Meeting Conversion",
+      sampleSubject: "Congrats on the Series A, {{firstName}} — scaling engineering at {{company}}?",
+      sampleBody: "Hi {{firstName}},\n\nSaw {{company}}'s recent Series A announcement — congrats on the milestone! As you scale up your engineering team this quarter, I wanted to share how we helped Stackvault accelerate SDR onboarding by 3x...\n\nBest,",
+    },
+    {
+      title: "Playbook 2: Sales Team Hiring Spurt",
+      trigger: "🔥 Target company posts 3+ SDR/AE job listings",
+      result: "22.1% Reply Rate · 6 Enterprise Deals Closed",
+      sampleSubject: "Scaling the SDR team at {{company}}?",
+      sampleBody: "Hi {{firstName}},\n\nNoticed {{company}} is actively hiring 4 SDRs this week. Most SDR teams spend 40% of their time manually researching leads and fighting spam filters. ScoutSend automates the entire waterfall reveal and mailbox warmup...\n\nBest,",
+    },
+    {
+      title: "Playbook 3: CRM Tech Stack Migration",
+      trigger: "⚡ Target company installs HubSpot or Salesforce",
+      result: "15.8% Reply Rate · 99.4% Inbox Placement",
+      sampleSubject: "Quick question about {{company}}'s CRM workflow",
+      sampleBody: "Hi {{firstName}},\n\nSaw that {{company}} recently integrated HubSpot for GTM operations. ScoutSend automatically syncs all verified waterfall leads and AI outreach logs back into your CRM in real time...\n\nBest,",
+    },
+  ];
+
+  const current = playbooks[activePlaybook];
+
+  return (
+    <section className="py-[100px]" style={{ background: "var(--surface-2)" }}>
+      <div className="max-w-7xl mx-auto px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-14"
+        >
+          <p className="text-xs font-bold uppercase tracking-widest text-red font-display mb-2">
+            Automated GTM Playbooks
+          </p>
+          <h2 className="font-display font-extrabold text-3xl md:text-4xl text-primary">
+            Turn Intent Signals into High-Converting Outreach
+          </h2>
+          <p className="text-secondary mt-3 max-w-xl mx-auto text-sm">
+            Deploy pre-built AI playbooks that trigger personalized email sequences the moment market buying signals fire.
+          </p>
+        </motion.div>
+
+        <div className="grid lg:grid-cols-3 gap-4 mb-8 relative">
+          {playbooks.map((pb, idx) => (
+            <button
+              key={idx}
+              onClick={() => setActivePlaybook(idx)}
+              className={`relative p-5 rounded-2xl border text-left transition-colors cursor-pointer ${
+                activePlaybook === idx ? "border-red shadow-lg" : "bg-surface/60 border-subtle hover:bg-surface"
+              }`}
+            >
+              {activePlaybook === idx && (
+                <motion.div
+                  layoutId="playbookActivePill"
+                  className="absolute inset-0 bg-surface rounded-2xl border border-red shadow-lg -z-10"
+                  transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                />
+              )}
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-500/20 mb-3">
+                {pb.trigger}
+              </span>
+              <h3 className="font-display font-bold text-base text-primary mb-1">
+                {pb.title}
+              </h3>
+              <p className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                ⚡ {pb.result}
+              </p>
+            </button>
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="glow-card p-6 md:p-8 rounded-2xl bg-surface border border-subtle space-y-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-subtle pb-4">
+            <div>
+              <p className="text-xs text-muted font-mono">ACTIVE PLAYBOOK TEMPLATE</p>
+              <h4 className="font-display font-bold text-lg text-primary">{current.title}</h4>
+            </div>
+            <span className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+              {current.result}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-[11px] font-bold text-muted uppercase font-mono mb-1">Generated Subject Line</p>
+              <p className="font-mono text-xs font-semibold text-primary bg-surface-2 p-2.5 rounded-lg border border-subtle">
+                {current.sampleSubject}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold text-muted uppercase font-mono mb-1">Gemini AI Email Body</p>
+              <div className="font-mono text-xs text-secondary bg-surface-2 p-3.5 rounded-lg border border-subtle whitespace-pre-line leading-relaxed">
+                {current.sampleBody}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
 function CTASection() {
   return (
-    <section className="py-[100px] bg-navy-mid">
-      <div className="max-w-4xl mx-auto px-6 text-center reveal">
-        <div
+    <section id="pricing" className="py-[100px]" style={{ background: "var(--surface-2)" }}>
+      <div className="max-w-4xl mx-auto px-6 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
           style={{
-            background: "linear-gradient(135deg, var(--surface) 0%, rgba(233,69,96,0.06) 100%)",
-            border: "1px solid rgba(233,69,96,0.2)",
+            background: "linear-gradient(135deg, var(--surface) 0%, var(--red-glow) 100%)",
+            border: "1px solid var(--border-red)",
             borderRadius: 24,
             padding: "72px 48px",
             position: "relative",
             overflow: "hidden",
           }}
         >
-          {/* Glow blobs */}
-          <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(233,69,96,0.15), transparent)", filter: "blur(40px)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -60, left: -60, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.1), transparent)", filter: "blur(40px)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, var(--red-glow), transparent)", filter: "blur(40px)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -60, left: -60, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, var(--accent-glow), transparent)", filter: "blur(40px)", pointerEvents: "none" }} />
 
           <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--red)", fontFamily: "var(--font-display)", marginBottom: 16 }}>
-            Get started today
+            Get Started Today
           </p>
           <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "clamp(30px, 4.5vw, 54px)", letterSpacing: "-0.03em", color: "var(--text-primary)", lineHeight: 1.05, marginBottom: 20 }}>
-            Your pipeline isn't going to fill itself.
+            Supercharge your B2B sales pipeline.
           </h2>
           <p style={{ fontSize: 17, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 480, margin: "0 auto 40px" }}>
-            Launch your first AI-powered campaign in under 5 minutes. No SDR required.
+            Explore 275M+ decision makers, run waterfall email reveals, and trigger signal-based AI campaigns in under 5 minutes.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <a
-              href="/auth/register"
-              className="btn-primary animate-pulse-red"
-              style={{ fontSize: 16, padding: "15px 36px", borderRadius: 12, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 10 }}
+            <MagneticButton
+              onClick={() => window.location.href = "/auth/register"}
+              className="btn-primary"
+              style={{ fontSize: 16, padding: "15px 36px", borderRadius: 12, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 10, cursor: "pointer" }}
             >
-              Start for free
+              <span>Start for free</span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-            </a>
-            <a
-              href="#"
+            </MagneticButton>
+            <Link
+              href="/dashboard/find-leads"
               className="btn-ghost"
               style={{ fontSize: 16, padding: "15px 28px", borderRadius: 12, textDecoration: "none" }}
             >
-              Book a demo
-            </a>
+              Explore Lead Radar
+            </Link>
           </div>
 
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 24 }}>
-            Free plan includes 100 leads & 3 campaigns. No credit card.
+            Free plan includes 100 leads & 3 campaigns. No credit card required.
           </p>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
 }
 
-/* ─── Footer ─────────────────────────────────────────────────────────────────── */
 function Footer() {
   const cols = [
     {
@@ -785,7 +1276,7 @@ function Footer() {
         { label: "Pipeline", href: "#pipeline" },
         { label: "Deliverability", href: "#deliverability" },
         { label: "Pricing", href: "#pricing" },
-        { label: "Changelog", href: "/changelog" },
+        { label: "Lead Discovery", href: "/dashboard/find-leads" },
       ],
     },
     {
@@ -811,7 +1302,7 @@ function Footer() {
   ];
 
   return (
-    <footer style={{ background: "var(--navy)", borderTop: "1px solid var(--border)", padding: "64px 0 40px" }}>
+    <footer style={{ background: "var(--background)", borderTop: "1px solid var(--border)", padding: "64px 0 40px" }}>
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
           <div>
@@ -824,7 +1315,7 @@ function Footer() {
               </span>
             </div>
             <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.7 }}>
-              AI-powered outbound that researches, writes, and sends with precision.
+              AI-powered sales intelligence & outbound engine that researches, reveals, and sends with precision.
             </p>
           </div>
 
@@ -835,15 +1326,13 @@ function Footer() {
               </p>
               <div className="flex flex-col gap-3">
                 {col.links.map(({ label, href }) => (
-                  <a
+                  <Link
                     key={label}
                     href={href}
                     style={{ fontSize: 14, color: "var(--text-muted)", textDecoration: "none", transition: "color 0.2s" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                   >
                     {label}
-                  </a>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -862,10 +1351,7 @@ function Footer() {
   );
 }
 
-/* ─── Page ───────────────────────────────────────────────────────────────────── */
 export default function Home() {
-  useReveal();
-
   return (
     <main className="noise">
       <Nav />
@@ -873,6 +1359,8 @@ export default function Home() {
       <StatsBand />
       <PipelineSection />
       <FeaturesSection />
+      <GtmPlaybooksSection />
+      <IntegrationsGrid />
       <DomainSection />
       <TestimonialsSection />
       <CTASection />

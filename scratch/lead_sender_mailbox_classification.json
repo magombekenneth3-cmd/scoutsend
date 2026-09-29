@@ -1,0 +1,3173 @@
+[
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 18,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 36,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/lib/BackFill.ts",
+    "line": 59,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leadsWithSignals = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/company/company-engagement.service.ts",
+    "line": 17,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/leads/eligibility.service.ts",
+    "line": 68,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/linkedInAgent/linkedDiscovery.persistence.ts",
+    "line": 45,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const existingLead = await tx.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/lib/linkedInAgent/linkedDiscovery.persistence.ts",
+    "line": 63,
+    "model": "Lead",
+    "op": "create",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const createdLead = await tx.lead.create({"
+  },
+  {
+    "file": "app/api/src/lib/ownership.ts",
+    "line": 49,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/prospect-discovery/email-reveal.ts",
+    "line": 182,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const localSibling = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/lib/providers/apify-linkedin.provider.ts",
+    "line": 148,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/providers/apify-linkedin.provider.ts",
+    "line": 180,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({ where: { id: lead.id }, data: patch });"
+  },
+  {
+    "file": "app/api/src/lib/send/campaign-convergence.engine.ts",
+    "line": 122,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const scheduledLeads = await tx.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 63,
+    "model": "Lead",
+    "op": "create",
+    "bucket": "5. Test-only",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 73,
+    "model": "SenderMailbox",
+    "op": "create",
+    "bucket": "5. Test-only",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.create({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 94,
+    "model": "SenderMailbox",
+    "op": "delete",
+    "bucket": "5. Test-only",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.delete({ where: { id: testMailboxId } }).catch(() => null);"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 95,
+    "model": "Lead",
+    "op": "delete",
+    "bucket": "5. Test-only",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.delete({ where: { id: testLeadId } }).catch(() => null);"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.integration.test.ts",
+    "line": 240,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "5. Test-only",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 79,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/outbound-authorization.service.ts",
+    "line": 113,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const txLead = await tx.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-dispatch.worker.ts",
+    "line": 195,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 169,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-finalize.service.ts",
+    "line": 360,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-quota.service.ts",
+    "line": 55,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await client.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/lib/send/send-quota.service.ts",
+    "line": 296,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/lib/send/unknown-reconciliation.sweeper.ts",
+    "line": 188,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "3. Reachable scheduled job",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/middleware/org-access.middleware.ts",
+    "line": 50,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const r = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/middleware/org-access.middleware.ts",
+    "line": 58,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const r = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.controller.ts",
+    "line": 167,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await tx.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/Deliverybilityevents/deliverbility.service.ts",
+    "line": 216,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 21,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 57,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.controller.ts",
+    "line": 82,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 114,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 121,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 128,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/calendar/calendar.tools.ts",
+    "line": 142,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/crm/crm-sync.service.ts",
+    "line": 89,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/crm/crm-sync.service.ts",
+    "line": 160,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/campaign-health.agent.ts",
+    "line": 366,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1313,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1507,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.lead.findFirst("
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1547,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.lead.findFirst("
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1582,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.lead.findFirst("
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1616,
+    "model": "Lead",
+    "op": "create",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.lead.create("
+  },
+  {
+    "file": "app/api/src/modules/gemini/community-intent.agent.ts",
+    "line": 1695,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.lead.findFirst("
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 51,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 156,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discovery-script.agent.ts",
+    "line": 188,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discoveryLib/insert.service.ts",
+    "line": 34,
+    "model": "Lead",
+    "op": "create",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "tx.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/discoveryLib/ranking.ts",
+    "line": 48,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const scoredLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 291,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const candidates = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 494,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const current = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 556,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 563,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 611,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({ where: { id: lead.id }, data: updateData });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 665,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 795,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichmentData: true } });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 902,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichmentData: true } });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 939,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1047,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1091,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1118,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1130,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1302,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1383,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1394,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1559,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const existingEmailRows = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1660,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1670,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.agent.ts",
+    "line": 1779,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/email-enrichment.queue.ts",
+    "line": 197,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-cache.ts",
+    "line": 46,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 352,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 466,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 495,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const rescored = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-refreshment.agent.ts",
+    "line": 547,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const staleLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 451,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const current = await tx.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 727,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/enrichment-waterfall.agent.ts",
+    "line": 777,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leadCampaign = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/followup.agent.ts",
+    "line": 538,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1269,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1430,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1474,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1509,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 1634,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2019,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2146,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2173,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2508,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.lead.findUnique("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2529,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "? await tx.lead.update("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2561,
+    "model": "Lead",
+    "op": "create",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": ": await tx.lead.create("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2680,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.findUnique("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2694,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update("
+  },
+  {
+    "file": "app/api/src/modules/gemini/gemini.agent.ts",
+    "line": 2725,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead"
+  },
+  {
+    "file": "app/api/src/modules/gemini/job-intel.agent.ts",
+    "line": 1111,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-agent.agent.ts",
+    "line": 160,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const updated = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-research.agent.ts",
+    "line": 791,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1192,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": ": await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1770,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/lead-scoring.agent.ts",
+    "line": 1987,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/multi-source-discovery.agent.ts",
+    "line": 103,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/multi-source-discovery.agent.ts",
+    "line": 107,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/orchestration.graph.ts",
+    "line": 232,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const unscoredLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/orchestration.service.ts",
+    "line": 207,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/research.agent.ts",
+    "line": 551,
+    "model": "Lead",
+    "op": "findUniqueOrThrow",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return prisma.lead.findUniqueOrThrow({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/seed-warmup.agent.ts",
+    "line": 12,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 393,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 408,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1018,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const alternativeMailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1407,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1471,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1663,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/send.agent.ts",
+    "line": 1760,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/signal-ingestion.agent.ts",
+    "line": 53,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/tech-detection.agent.ts",
+    "line": 1045,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 108,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 139,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/warmup.agent.ts",
+    "line": 214,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/leadSignal.worker.ts",
+    "line": 58,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 393,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "for (const row of await prisma.senderMailbox.findMany({ select: { id: true, timezone: true, lastResetAt: true } })) {"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 395,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 540,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 676,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const qualifiedLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/maintenance.worker.ts",
+    "line": 723,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 145,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 812,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const scoredLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/orchestrator.worker.ts",
+    "line": 908,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const scoredLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 37,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const scored = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 48,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { linkedinUrl: true } });"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 64,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const scored = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 77,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/scoring.worker.ts",
+    "line": 115,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 48,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 84,
+    "model": "SenderMailbox",
+    "op": "findUniqueOrThrow",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.senderMailbox.findUniqueOrThrow({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 124,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 285,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/gemini/workers/seedWarmup.worker.ts",
+    "line": 443,
+    "model": "SenderMailbox",
+    "op": "findUniqueOrThrow",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const customerMailbox = await prisma.senderMailbox.findUniqueOrThrow({"
+  },
+  {
+    "file": "app/api/src/modules/lead-agent/lead-agent.controller.ts",
+    "line": 105,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/lead-agent/lead-agent.controller.ts",
+    "line": 191,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 600,
+    "model": "Lead",
+    "op": "create",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 841,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 983,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1018,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const owned = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1087,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const ownedLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1168,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1208,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1221,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const committee = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1275,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1303,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.controller.ts",
+    "line": 1353,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 64,
+    "model": "Lead",
+    "op": "create",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return await prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 109,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 164,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 208,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const currentLead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 226,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/leads/leads.service.ts",
+    "line": 243,
+    "model": "Lead",
+    "op": "update",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return prisma.lead.update({"
+  },
+  {
+    "file": "app/api/src/modules/lookalike/seed-resolver.ts",
+    "line": 41,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.controller.ts",
+    "line": 42,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 124,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 642,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/messages/message.service.ts",
+    "line": 658,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 201,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 837,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "leads = (await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 855,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "leads = (await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/outreach/generate-message.execution.ts",
+    "line": 1011,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 916,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const dbLeads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1129,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1438,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/prospecting/prospecting.routes.ts",
+    "line": 1524,
+    "model": "Lead",
+    "op": "create",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.lead.create({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 111,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 123,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 192,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const currentLead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 302,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/pipeline.service.ts",
+    "line": 335,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "4. Indirectly reachable service",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const currentLead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.contoller.ts",
+    "line": 29,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 467,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.lead.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1237,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replies.services.ts",
+    "line": 1260,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await tx.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 82,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 115,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 144,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 167,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 183,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 225,
+    "model": "Lead",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const leads = await prisma.lead.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 285,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/replies/replyPoller.ts",
+    "line": 313,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 19,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 35,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 64,
+    "model": "SenderMailbox",
+    "op": "create",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return await prisma.senderMailbox.create({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 106,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 146,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 206,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return prisma.senderMailbox.update({ where: { id }, data: updateData });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 223,
+    "model": "SenderMailbox",
+    "op": "delete",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return prisma.senderMailbox.delete({ where: { id } });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 236,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "return prisma.senderMailbox.update({ where: { id }, data: { currentSent: 0 } });"
+  },
+  {
+    "file": "app/api/src/modules/senderMailbox/senderMailbox.services.ts",
+    "line": 241,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "? await prisma.senderMailbox.findUnique({ where: { id } })"
+  },
+  {
+    "file": "app/api/src/modules/webhook/delivery.worker.ts",
+    "line": 107,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "2. Reachable background worker",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await tx.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 148,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await tx.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 219,
+    "model": "SenderMailbox",
+    "op": "findUnique",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailbox = await prisma.senderMailbox.findUnique({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 291,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 320,
+    "model": "SenderMailbox",
+    "op": "update",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": true,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "await prisma.senderMailbox.update({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/deliverypoll.ts",
+    "line": 332,
+    "model": "SenderMailbox",
+    "op": "findMany",
+    "bucket": "6. Dead/dormant",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "spfValid",
+      "dkimValid",
+      "dmarcValid",
+      "dkimSelector",
+      "dnsCheckedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const mailboxes = await prisma.senderMailbox.findMany({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/inbound.controller.ts",
+    "line": 91,
+    "model": "Lead",
+    "op": "findFirst",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findFirst({"
+  },
+  {
+    "file": "app/api/src/modules/webhook/linkedin.controller.ts",
+    "line": 70,
+    "model": "Lead",
+    "op": "findUnique",
+    "bucket": "1. Reachable HTTP/API",
+    "implicitlySelectsMissingFields": false,
+    "missingFields": [
+      "sequenceInitError",
+      "researchCard",
+      "researchCardGeneratedAt"
+    ],
+    "callerNeedsField": false,
+    "snippet": "const lead = await prisma.lead.findUnique({"
+  }
+]

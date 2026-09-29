@@ -18,7 +18,10 @@ export async function getCalendlyAuthUrl(
         const { id } = req.params as { id: string };
         const userId = req.user!.userId;
 
-        const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });
+        const mailbox = await prisma.senderMailbox.findUnique({
+            where: { id },
+            select: { id: true, createdById: true },
+        });
         if (!mailbox) throw new NotFoundError("Sender mailbox");
         if (mailbox.createdById !== userId) throw new ForbiddenError();
 
@@ -51,7 +54,10 @@ export async function handleCalendlyCallback(
     try {
         const { mailboxId, userId } = decryptCalendlyState(state);
 
-        const mailbox = await prisma.senderMailbox.findUnique({ where: { id: mailboxId } });
+        const mailbox = await prisma.senderMailbox.findUnique({
+            where: { id: mailboxId },
+            select: { id: true, createdById: true },
+        });
         if (!mailbox || mailbox.createdById !== userId) {
             res.redirect(failUrl);
             return;
@@ -73,7 +79,10 @@ export async function disconnectCalendly(
         const { id } = req.params as { id: string };
         const userId = req.user!.userId;
 
-        const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });
+        const mailbox = await prisma.senderMailbox.findUnique({
+            where: { id },
+            select: { id: true, createdById: true },
+        });
         if (!mailbox) throw new NotFoundError("Sender mailbox");
         if (mailbox.createdById !== userId) throw new ForbiddenError();
 

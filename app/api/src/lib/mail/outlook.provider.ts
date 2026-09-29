@@ -4,6 +4,7 @@ import {
     InboundReply,
     MailProvider,
     OutlookCredentials,
+    ProviderCapabilities,
     SendEmailParams,
     SendResult,
 } from "./types";
@@ -44,6 +45,16 @@ export class OutlookProvider implements MailProvider {
         private creds: OutlookCredentials,
         private opts: OutlookProviderOptions = {}
     ) { }
+
+    getCapabilities(): ProviderCapabilities {
+        return {
+            // Outlook does not accept a client-supplied idempotency key.
+            supportsIdempotency: false,
+            // Graph API exposes GET /me/messages/{id} — reconciliation can confirm delivery.
+            supportsLookup: true,
+            reconciliationStrategy: "LOOKUP",
+        };
+    }
 
     private cacheKey(): string | null {
         return this.opts.mailboxId ? `outlook:token:${this.opts.mailboxId}` : null;
@@ -236,24 +247,98 @@ export class OutlookProvider implements MailProvider {
     async fetchReplies(since: Date): Promise<InboundReply[]> {
         try {
             const filter = `receivedDateTime ge ${since.toISOString()}`;
-            const res = await this.graphFetch<{ value: GraphMessage[] }>(
-                `/me/mailFolders/Inbox/messages?$filter=${encodeURIComponent(filter)}&$top=100&$select=id,subject,body,from,receivedDateTime,internetMessageId,conversationId`,
+            const inReplyToProp = "String {00020386-0000-0000-C000-000000000046} Name In-Reply-To";
+            const res = await this.graphFetch<{ value: Array<GraphMessage & { singleValueExtendedProperties?: Array<{ id: string; value: string }> }> }>(
+                `/me/mailFolders/Inbox/messages?$filter=${encodeURIComponent(filter)}&$expand=${encodeURIComponent(`singleValueExtendedProperties($filter=id eq '${inReplyToProp}')`)}&$top=100&$select=id,subject,body,from,receivedDateTime,internetMessageId,conversationId`,
             );
 
-            return (res.value ?? []).map((msg) => ({
-                providerMessageId: msg.id,
-                inReplyToId: null,
-                fromEmail: msg.from?.emailAddress?.address ?? "",
-                subject: msg.subject ?? "",
-                bodyText:
-                    msg.body?.contentType === "text"
-                        ? msg.body.content
-                        : msg.body?.content?.replace(/<[^>]+>/g, " ").trim() ?? "",
-                receivedAt: new Date(msg.receivedDateTime),
-            }));
-        } catch (err) {
-            logger.error({ err }, "[OutlookProvider] fetchReplies failed");
-            return [];
+            return (res.value ?? []).map((msg) => {
+                const rawInReplyTo = msg.singleValueExtendedProperties?.find(
+                    (p) => p.id === inReplyToProp,
+                )?.value ?? null;
+                const inReplyToId = rawInReplyTo ? rawInReplyTo.replace(/^<|>$/g, "").trim() : null;
+                const providerMessageId = msg.internetMessageId
+                    ? msg.internetMessageId.replace(/^<|>$/g, "")
+                    : msg.id;
+
+                return {
+                    providerMessageId,
+                    inReplyToId,
+                    fromEmail: msg.from?.emailAddress?.address ?? "",
+                    subject: msg.subject ?? "",
+                    bodyText:
+                        msg.body?.contentType === "text"
+                            ? msg.body.content
+                            : msg.body?.content?.replace(/<[^>]+>/g, " ").trim() ?? "",
+                    receivedAt: new Date(msg.receivedDateTime),
+                };
+            });
+        } catch (err: unknown) {
+            const safeErr = err instanceof Error
+                ? { message: err.message, name: err.name, code: (err as any).code }
+                : String(err);
+            logger.error({ err: safeErr }, "[OutlookProvider] fetchReplies failed");
+            throw err;
         }
+    }
+
+    async findMessageFolder(externalId: string): Promise<import("./types").MessageFolder> {
+        try {
+            const msg = await this.graphFetch<{ parentFolderId: string; inferenceClassification: string }>(
+                `/me/messages/${externalId}?$select=parentFolderId,inferenceClassification`,
+            );
+            const folderId = msg.parentFolderId?.toLowerCase() ?? "";
+            if (folderId.includes("junk") || folderId.includes("spam")) return "SPAM";
+            if (folderId.includes("inbox")) return "INBOX";
+            return "OTHER";
+        } catch {
+            return "OTHER";
+        }
+    }
+
+    async moveToInbox(externalId: string): Promise<void> {
+        await this.graphFetch(`/me/messages/${externalId}/move`, {
+            method: "POST",
+            body: JSON.stringify({ destinationId: "inbox" }),
+        });
+    }
+
+    async markAsRead(externalId: string): Promise<void> {
+        await this.graphFetch(`/me/messages/${externalId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ isRead: true }),
+        });
+    }
+
+    async markAsImportant(externalId: string): Promise<void> {
+        await this.graphFetch(`/me/messages/${externalId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ importance: "high", flag: { flagStatus: "flagged" } }),
+        });
+    }
+
+    async moveToPrimary(externalId: string): Promise<void> {
+        await this.graphFetch(`/me/messages/${externalId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ inferenceClassification: "focused" }),
+        });
+    }
+
+    async sendReplyInThread(params: {
+        to: string;
+        subject: string;
+        body: string;
+        inReplyTo: string;
+        references?: string;
+    }): Promise<SendResult> {
+        return this.sendEmail({
+            from: this.creds.emailAddress,
+            to: params.to,
+            subject: params.subject.startsWith("Re:") ? params.subject : `Re: ${params.subject}`,
+            html: `<p>${params.body}</p>`,
+            text: params.body,
+            inReplyTo: params.inReplyTo,
+            references: params.references,
+        });
     }
 }

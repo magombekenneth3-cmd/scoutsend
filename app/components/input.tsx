@@ -28,14 +28,14 @@ export function InputField({
     valid,
 }: InputFieldProps) {
     const borderColor = error
-        ? "rgba(248,113,113,0.5)"
+        ? "var(--danger-border)"
         : valid
-            ? "rgba(34,197,94,0.35)"
-            : "rgba(255,255,255,0.07)";
+            ? "var(--success-border)"
+            : "var(--border)";
 
-    const focusShadow = "0 0 0 3px rgba(233,69,96,0.08)";
-    const validShadow = "0 0 0 3px rgba(34,197,94,0.06)";
-    const errorShadow = "0 0 0 3px rgba(248,113,113,0.06)";
+    const focusShadow = "0 0 0 3px var(--red-glow)";
+    const validShadow = "0 0 0 3px var(--success-bg)";
+    const errorShadow = "0 0 0 3px var(--danger-bg)";
     const restShadow = "none";
 
     const currentShadow = error ? errorShadow : valid ? validShadow : restShadow;
@@ -48,7 +48,7 @@ export function InputField({
                     display: "block",
                     fontSize: 11,
                     fontWeight: 700,
-                    color: "#8892b0",
+                    color: "var(--text-secondary)",
                     marginBottom: 7,
                     letterSpacing: "0.06em",
                     textTransform: "uppercase" as const,
@@ -69,10 +69,10 @@ export function InputField({
                     style={{
                         width: "100%",
                         height: 44,
-                        background: "#1e2340",
+                        background: "var(--surface)",
                         border: `1px solid ${borderColor}`,
                         borderRadius: 10,
-                        color: "#f0f2ff",
+                        color: "var(--text-primary)",
                         fontFamily: "var(--font-body)",
                         fontSize: 14,
                         padding: rightSlot ? "0 40px 0 14px" : "0 14px",
@@ -81,7 +81,7 @@ export function InputField({
                         boxShadow: currentShadow,
                     }}
                     onFocus={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(233,69,96,0.5)";
+                        e.currentTarget.style.borderColor = "var(--border-red)";
                         e.currentTarget.style.boxShadow = focusShadow;
                     }}
                     onBlurCapture={(e) => {
@@ -103,7 +103,7 @@ export function InputField({
                 )}
             </div>
             {error && (
-                <p style={{ fontSize: 12, color: "#f87171", marginTop: 5 }}>{error}</p>
+                <p style={{ fontSize: 12, color: "var(--danger)", marginTop: 5 }}>{error}</p>
             )}
         </div>
     );

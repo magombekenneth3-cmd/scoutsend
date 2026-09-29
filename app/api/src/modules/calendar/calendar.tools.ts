@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import { encryptJson, decryptJson, isEncrypted } from "../../lib/mail/crypto";
+import { encryptJson, decryptJson } from "../../lib/mail/crypto";
 
 interface CalendlyTokens {
     accessToken: string;
@@ -100,8 +100,13 @@ async function doRefresh(tokens: CalendlyTokens): Promise<CalendlyTokens> {
 
 function decryptTokens(raw: unknown): CalendlyTokens | null {
     if (!raw) return null;
-    if (isEncrypted(raw)) return decryptJson<CalendlyTokens>(raw);
-    return raw as CalendlyTokens;
+    if (typeof raw !== "string") {
+        throw new Error(
+            "Calendly token is stored in plaintext — encryption migration required. " +
+            "Re-connect your Calendly integration to re-encrypt the stored token."
+        );
+    }
+    return decryptJson<CalendlyTokens>(raw);
 }
 
 export async function storeCalendlyTokens(mailboxId: string, code: string): Promise<void> {

@@ -1,17 +1,20 @@
 import { SignalType, type CompanySignal } from "@prisma/client";
 import pLimit from "p-limit";
 import { prisma } from "../../lib/prisma";
-import { callGemini, extractJSON, MODELS } from "./gemini.client";
+import { MODELS } from "./gemini.client";
+import { callGateway, JobSignalArraySchema } from "../../lib/llm-gateway";
+import type { JobSignalArrayOutput } from "../../lib/llm-gateway";
 import { logger } from "../../lib/logger";
 import { upsertCompanySignal } from "../../lib/company/company.upsert";
 
 const JOB_INTEL_SOURCE = "job_intel";
-const JOB_INTEL_BATCH_SIZE = 30;
+const JOB_INTEL_BATCH_SIZE = 10;
 const COMPANY_CONCURRENCY = 4;
 const SEARCH_QUERY_CONCURRENCY = 3;
 const SERPER_RESULTS_PER_QUERY = 6;
-const SERPER_MAX_ATTEMPTS = 3;
+const SERPER_MAX_ATTEMPTS = 2;
 const SERPER_RETRY_BASE_DELAY_MS = 400;
+const SERPER_FETCH_TIMEOUT_MS = 10000;
 const MIN_RELIABLE_QUERY_RATIO = 0.5;
 const REFRESH_WINDOW_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -255,12 +258,8 @@ function scoreFreshness(raw: string | undefined): number {
 function buildSearchQueries(companyName: string): string[] {
     const year = new Date().getFullYear();
     return [
-        `"${companyName}" hiring jobs ${year}`,
-        `"${companyName}" careers open positions`,
-        `"${companyName}" site:greenhouse.io`,
-        `"${companyName}" site:jobs.lever.co`,
-        `"${companyName}" site:jobs.ashbyhq.com`,
-        `"${companyName}" site:myworkdayjobs.com`,
+        `"${companyName}" jobs hiring ${year}`,
+        `"${companyName}" (site:greenhouse.io OR site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:myworkdayjobs.com OR site:careers.smartrecruiters.com)`,
     ];
 }
 
@@ -268,6 +267,7 @@ const RETRYABLE_SERPER_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 async function fetchSerperQuery(query: string): Promise<SerperResult[]> {
     const res = await fetch("https://google.serper.dev/search", {
+        signal: AbortSignal.timeout(SERPER_FETCH_TIMEOUT_MS),
         method: "POST",
         headers: {
             "X-API-KEY": process.env.SERPER_API_KEY!,
@@ -720,27 +720,26 @@ async function extractJobSignalsWithRetry(params: {
     for (let attempt = 1; attempt <= MAX_GEMINI_ATTEMPTS; attempt++) {
         const startedAt = Date.now();
         try {
-            const { text } = await callGemini({
+            const proposal = await callGateway<JobSignalArrayOutput>({
                 agentName: "job-intel.signal-extractor",
                 model: MODELS.RESEARCH,
+                responseMode: "text",
+                outputSchema: JobSignalArraySchema,
                 systemPrompt,
                 userPrompt:
                     attempt === 1
                         ? basePrompt
                         : `${basePrompt}\n\nYour previous response was not valid JSON matching the required schema. Return ONLY the JSON array, with no markdown fences or commentary.`,
+                proposalContext: { contextHash: companyName },
                 temperature: attempt === 1 ? 0.2 : 0,
             });
             metrics.geminiCalls++;
             metrics.geminiLatencyMs += Date.now() - startedAt;
 
-            try {
-                const validated = mergeSignalsByDepartment(validateJobSignals(extractJSON<unknown>(text)));
-                return validated.filter((s) => s.confidence >= MIN_AI_CONFIDENCE);
-            } catch {
-                const repaired = attemptJsonRepair(text);
-                const validated = mergeSignalsByDepartment(validateJobSignals(extractJSON<unknown>(repaired)));
-                return validated.filter((s) => s.confidence >= MIN_AI_CONFIDENCE);
-            }
+            // Gateway has already validated the array shape via Zod.
+            // validateJobSignals applies additional business-level field filtering.
+            const validated = mergeSignalsByDepartment(validateJobSignals(proposal.payload));
+            return validated.filter((s) => s.confidence >= MIN_AI_CONFIDENCE);
         } catch (err) {
             metrics.geminiCalls++;
             metrics.geminiLatencyMs += Date.now() - startedAt;
@@ -749,7 +748,7 @@ async function extractJobSignalsWithRetry(params: {
         }
     }
 
-    logger.warn({ err: lastError, companyName }, "[job-intel] Gemini extraction failed after retries");
+    logger.warn({ err: lastError, companyName }, "[job-intel] Gateway extraction failed after retries");
     return [];
 }
 
@@ -982,7 +981,6 @@ async function persistLeadOnlySignals(params: {
         data: leads.flatMap((lead) =>
             signals.map((signal) => ({
                 leadId: lead.id,
-                type: signal.signalType,
                 signalType: signal.signalType,
                 value: signal.value,
                 confidence: signal.confidence,

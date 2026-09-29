@@ -8,7 +8,7 @@ interface ICPAlignmentSectionProps {
 
 export function ICPAlignmentSection({ alignment }: ICPAlignmentSectionProps) {
   const displayScore = alignment.overallFitScore;
-  const scoreColor = displayScore >= 80 ? "text-emerald-400" : displayScore >= 55 ? "text-amber-400" : "text-[var(--red)]";
+  const scoreColor = displayScore >= 80 ? "text-emerald-400" : displayScore >= 55 ? "text-amber-400" : "text-[var(--red-text)]";
   const scoreBg = displayScore >= 80 ? "bg-emerald-400/10 border-emerald-400/20" : displayScore >= 55 ? "bg-amber-400/10 border-amber-400/20" : "bg-[var(--red-glow)] border-[var(--border-red)]";
 
   return (

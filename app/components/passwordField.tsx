@@ -54,7 +54,7 @@ export function PasswordField({
                             background: "none",
                             border: "none",
                             cursor: "pointer",
-                            color: "#8892b0",
+                            color: "var(--text-secondary)",
                             padding: 0,
                             display: "flex",
                             alignItems: "center",
@@ -81,7 +81,7 @@ export function PasswordField({
 
             {strength && (
                 <div style={{ marginTop: 8 }}>
-                    <div style={{ height: 3, borderRadius: 2, background: "#252b4a", overflow: "hidden" }}>
+                    <div style={{ height: 3, borderRadius: 2, background: "var(--surface-2)", overflow: "hidden" }}>
                         <div
                             style={{
                                 height: "100%",

@@ -92,23 +92,25 @@ export async function handleProviderDeliveryEvent(
         select: {
           lead: {
             select: {
-              campaign: { select: { createdById: true } },
+              campaign: { select: { createdById: true, orgId: true } },
             },
           },
         },
       });
       const ownerId = ownerMsg?.lead?.campaign?.createdById;
+      const ownerOrgId = ownerMsg?.lead?.campaign?.orgId;
 
-      if (ownerId) {
+      if (ownerId && ownerOrgId) {
         await prisma.suppression.upsert({
           where: {
-            email_userId: { email: payload.recipientEmail, userId: ownerId },
+            email_orgId: { email: payload.recipientEmail, orgId: ownerOrgId },
           },
           create: {
             email: payload.recipientEmail,
             reason: payload.event,
             source: "delivery-webhook",
             userId: ownerId,
+            orgId: ownerOrgId,
           },
           update: {},
         });
@@ -171,6 +173,8 @@ async function updateMailboxDeliverabilityMetrics(
 
     const total = mailbox.totalSent;
     const rateField = state === "BOUNCED" ? "bounceRate" : "complaintRate";
+    const ALLOWED_RATE_FIELDS = new Set(["bounceRate", "complaintRate"]);
+    if (!ALLOWED_RATE_FIELDS.has(rateField)) throw new Error(`[deliverbility] Invalid rateField: ${rateField}`);
 
     await tx.$executeRaw`
             UPDATE "SenderMailbox"
@@ -217,6 +221,8 @@ async function updateDomainDeliverabilityMetrics(
 
     const total = domain.totalSent;
     const rateField = state === "BOUNCED" ? "bounceRate" : "complaintRate";
+    const ALLOWED_RATE_FIELDS = new Set(["bounceRate", "complaintRate"]);
+    if (!ALLOWED_RATE_FIELDS.has(rateField)) throw new Error(`[deliverbility] Invalid rateField: ${rateField}`);
 
     await tx.$executeRaw`
             UPDATE "SenderDomain"

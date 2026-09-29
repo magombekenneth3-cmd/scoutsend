@@ -1,8 +1,8 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../auth/auth.types";
-import { UserRole } from "@prisma/client";
 import { z } from "zod";
 import * as UsersService from "./users.service";
+import { UserRole } from "@prisma/client";
 
 const listQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
@@ -100,11 +100,6 @@ export async function updateProfile(
         const updated = await UsersService.updateProfile(req.user!.userId, data);
         res.status(200).json(updated);
     } catch (error) {
-        const statusCode = (error as any).statusCode;
-        if (statusCode) {
-            res.status(statusCode).json({ error: (error as Error).message });
-            return;
-        }
         next(error);
     }
 }

@@ -1,20 +1,31 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import pLimit from "p-limit";
 import { prisma } from "../../lib/prisma";
-import { callGemini, extractJSON, MODELS } from "./gemini.client";
+import { MODELS } from "./gemini.client";
+import { callGateway } from "../../lib/llm-gateway";
+import type { GatewayCallOptions } from "../../lib/llm-gateway";
+import {
+    IntentQueriesSchema,
+    CommunityLeadArraySchema,
+} from "../../lib/llm-gateway";
+import type {
+    IntentQueriesOutput,
+    CommunityLeadArrayOutput,
+} from "../../lib/llm-gateway";
 import { logger } from "../../lib/logger";
 import {
     upsertCompany,
     upsertCompanySignal,
     extractDomain,
 } from "../../lib/company/company.upsert";
+import { resolveSerperApiKey } from "../../lib/prospect-discovery/shared";
 
 type PrismaTx = Omit<
     PrismaClient,
     "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
 >;
 
-type CallGeminiParams = Parameters<typeof callGemini>[0];
+
 
 const FETCH_TIMEOUT_MS = 10_000;
 const MIN_CONFIDENCE = 0.65;
@@ -60,12 +71,25 @@ interface SearchJobResult {
     failed: boolean;
 }
 
-const COMMUNITY_SOURCES: Array<{ name: CommunitySource; siteFilter: string }> =
-    [
+interface ExtractIntentLeadsResult {
+    leads: CommunityLead[];
+    skipReasons: Record<string, number>;
+}
+
+const COMMUNITY_SOURCES: Array<{
+    name: CommunitySource;
+    siteFilter: string;
+}> = [
         { name: "reddit", siteFilter: "site:reddit.com" },
         { name: "hacker_news", siteFilter: "site:news.ycombinator.com" },
         { name: "indie_hackers", siteFilter: "site:indiehackers.com" },
     ];
+
+const SOURCE_HOSTNAMES: Record<CommunitySource, string> = {
+    reddit: "reddit.com",
+    hacker_news: "news.ycombinator.com",
+    indie_hackers: "indiehackers.com",
+};
 
 const DISALLOWED_DOMAINS = new Set([
     "gmail.com",
@@ -119,11 +143,32 @@ const DISALLOWED_COMPANY_NAMES = new Set([
     "student",
 ]);
 
-const DOMAIN_PATTERN = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
-const RESERVED_TLD_SUFFIXES = [".local", ".test", ".invalid", ".example", ".temp"];
-const COMPANY_SUFFIX_PATTERN = /\b(incorporated|corporation|company|holdings|limited|group|inc|llc|ltd|corp)\b/g;
+const DOMAIN_PATTERN =
+    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+
+const RESERVED_TLD_SUFFIXES = [
+    ".local",
+    ".test",
+    ".invalid",
+    ".example",
+    ".temp",
+];
+
+const COMPANY_SUFFIX_PATTERN =
+    /\b(incorporated|corporation|company|holdings|limited|group|inc|llc|ltd|corp)\b/gi;
+
 const EMAIL_PATTERN =
     /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+const TRACKING_PARAMS = new Set([
+    "ref",
+    "fbclid",
+    "gclid",
+]);
+
+const TRACKING_PARAM_PREFIXES = [
+    "utm_",
+];
 
 function isNonEmptyString(value: unknown): value is string {
     return typeof value === "string" && value.trim().length > 0;
@@ -138,15 +183,26 @@ function sleep(ms: number): Promise<void> {
 }
 
 function truncate(text: string, maxLength: number): string {
-    return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
+    return text.length > maxLength
+        ? `${text.slice(0, maxLength)}…`
+        : text;
 }
 
 function extractCreatedFlag(value: unknown): boolean | null {
-    if (typeof value !== "object" || value === null) return null;
-    const created = (value as Record<string, unknown>).created;
-    if (typeof created === "boolean") return created;
-    const wasCreated = (value as Record<string, unknown>).wasCreated;
-    if (typeof wasCreated === "boolean") return wasCreated;
+    if (typeof value !== "object" || value === null) {
+        return null;
+    }
+
+    const record = value as Record<string, unknown>;
+
+    if (typeof record.created === "boolean") {
+        return record.created;
+    }
+
+    if (typeof record.wasCreated === "boolean") {
+        return record.wasCreated;
+    }
+
     return null;
 }
 
@@ -158,8 +214,14 @@ function cleanText(value: string): string {
     return value.replace(/\s+/g, " ").trim();
 }
 
-function isValidCommunitySource(value: unknown): value is CommunitySource {
-    return value === "reddit" || value === "hacker_news" || value === "indie_hackers";
+function isValidCommunitySource(
+    value: unknown,
+): value is CommunitySource {
+    return (
+        value === "reddit" ||
+        value === "hacker_news" ||
+        value === "indie_hackers"
+    );
 }
 
 function isValidEmail(email: string): boolean {
@@ -167,94 +229,254 @@ function isValidEmail(email: string): boolean {
 }
 
 function normalizeCompanyName(name: string): string {
-    return name
+    return cleanText(name)
         .toLowerCase()
         .replace(/[.,'"]/g, "")
         .replace(COMPANY_SUFFIX_PATTERN, "")
         .replace(/\s+/g, "");
 }
 
-function normalizeDomain(domain: string | null | undefined): string | null {
-    if (!isNonEmptyString(domain)) return null;
-    const lower = domain.toLowerCase().trim().replace(/^www\./, "");
-    if (!DOMAIN_PATTERN.test(lower)) return null;
-    if (RESERVED_TLD_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return null;
-    return lower;
+function normalizeDomain(
+    domain: string | null | undefined,
+): string | null {
+    if (!isNonEmptyString(domain)) {
+        return null;
+    }
+
+    let normalized = domain.trim().toLowerCase();
+
+    normalized = normalized
+        .replace(/^[a-z][a-z0-9+.-]*:\/\//i, "")
+        .split("/")[0]
+        .split("?")[0]
+        .split("#")[0]
+        .replace(/^www\./, "")
+        .replace(/\.$/, "");
+
+    if (!DOMAIN_PATTERN.test(normalized)) {
+        return null;
+    }
+
+    if (
+        RESERVED_TLD_SUFFIXES.some((suffix) =>
+            normalized.endsWith(suffix),
+        )
+    ) {
+        return null;
+    }
+
+    return normalized;
 }
 
 function normalizeUrlForComparison(url: string): string {
     try {
         const parsed = new URL(url);
-        return `${parsed.hostname.replace(/^www\./, "")}${parsed.pathname.replace(/\/$/, "")}`.toLowerCase();
+
+        const hostname = parsed.hostname
+            .replace(/^www\./i, "")
+            .toLowerCase();
+
+        const path = parsed.pathname.replace(/\/+$/, "") || "";
+
+        const params = new URLSearchParams(parsed.search);
+
+        for (const key of [...params.keys()]) {
+            const lower = key.toLowerCase();
+
+            if (
+                TRACKING_PARAMS.has(lower) ||
+                TRACKING_PARAM_PREFIXES.some((prefix) =>
+                    lower.startsWith(prefix),
+                )
+            ) {
+                params.delete(key);
+            }
+        }
+
+        params.sort();
+
+        const search = params.toString();
+
+        return `${hostname}${path}${search ? `?${search}` : ""
+            }`.toLowerCase();
     } catch {
-        return url.trim().toLowerCase();
+        return url.trim().toLowerCase().replace(/\/+$/, "");
     }
 }
 
-function isKnownResultUrl(url: string, results: SerperResult[]): boolean {
+function isKnownResultUrl(
+    url: string,
+    results: SerperResult[],
+): boolean {
     const normalized = normalizeUrlForComparison(url);
-    return results.some((result) => normalizeUrlForComparison(result.link) === normalized);
+
+    return results.some(
+        (result) =>
+            normalizeUrlForComparison(result.link) === normalized,
+    );
 }
 
-function dedupeAndCapResults(results: SerperResult[], cap: number): SerperResult[] {
+function isExpectedSourceUrl(
+    url: string,
+    source: CommunitySource,
+): boolean {
+    try {
+        const hostname = new URL(url).hostname
+            .toLowerCase()
+            .replace(/^www\./, "");
+
+        const expected = SOURCE_HOSTNAMES[source];
+
+        return (
+            hostname === expected ||
+            hostname.endsWith(`.${expected}`)
+        );
+    } catch {
+        return false;
+    }
+}
+
+function dedupeAndCapResults(
+    results: SerperResult[],
+    cap: number,
+): SerperResult[] {
     const seen = new Set<string>();
     const deduped: SerperResult[] = [];
+
     for (const result of results) {
-        if (!isNonEmptyString(result.link) || seen.has(result.link)) continue;
-        seen.add(result.link);
+        if (!isNonEmptyString(result.link)) {
+            continue;
+        }
+
+        const normalizedUrl = normalizeUrlForComparison(result.link);
+
+        if (seen.has(normalizedUrl)) {
+            continue;
+        }
+
+        seen.add(normalizedUrl);
         deduped.push(result);
-        if (deduped.length >= cap) break;
+
+        if (deduped.length >= cap) {
+            break;
+        }
     }
+
     return deduped;
 }
 
-function parseCommunityLead(raw: unknown, fallbackSource: CommunitySource): CommunityLead | null {
-    if (typeof raw !== "object" || raw === null) return null;
+function parseCommunityLead(
+    raw: unknown,
+    fallbackSource: CommunitySource,
+): CommunityLead | null {
+    if (typeof raw !== "object" || raw === null) {
+        return null;
+    }
+
     const obj = raw as Record<string, unknown>;
 
-    if (!isNonEmptyString(obj.companyName)) return null;
-    if (!isNonEmptyString(obj.intentSignal)) return null;
-    if (!isNonEmptyString(obj.postUrl)) return null;
-    if (!isFiniteNumber(obj.confidence)) return null;
+    if (!isNonEmptyString(obj.companyName)) {
+        return null;
+    }
+
+    if (!isNonEmptyString(obj.intentSignal)) {
+        return null;
+    }
+
+    if (!isNonEmptyString(obj.postUrl)) {
+        return null;
+    }
+
+    if (!isFiniteNumber(obj.confidence)) {
+        return null;
+    }
 
     return {
         companyName: cleanText(obj.companyName),
-        website: coerceOptionalString(obj.website) ?? undefined,
-        firstName: coerceOptionalString(obj.firstName) ?? undefined,
-        title: coerceOptionalString(obj.title) ?? undefined,
-        email: coerceOptionalString(obj.email) ?? undefined,
+        website:
+            coerceOptionalString(obj.website) ?? undefined,
+        firstName:
+            coerceOptionalString(obj.firstName) ?? undefined,
+        title:
+            coerceOptionalString(obj.title) ?? undefined,
+        email:
+            coerceOptionalString(obj.email)?.toLowerCase() ??
+            undefined,
         intentSignal: cleanText(obj.intentSignal),
-        confidence: Math.min(1, Math.max(0, obj.confidence)),
-        explanation: isNonEmptyString(obj.explanation) ? cleanText(obj.explanation) : "",
+        confidence: Math.min(
+            1,
+            Math.max(0, obj.confidence),
+        ),
+        explanation: isNonEmptyString(obj.explanation)
+            ? cleanText(obj.explanation)
+            : "",
         postUrl: obj.postUrl.trim(),
-        source: isValidCommunitySource(obj.source) ? obj.source : fallbackSource,
+        source: fallbackSource,
     };
 }
 
-function parseQueriesResponse(raw: unknown): string[] | null {
-    if (typeof raw !== "object" || raw === null) return null;
+function parseQueriesResponse(
+    raw: unknown,
+): string[] | null {
+    if (typeof raw !== "object" || raw === null) {
+        return null;
+    }
+
     const obj = raw as Record<string, unknown>;
-    if (!Array.isArray(obj.queries)) return null;
-    return obj.queries.filter(isNonEmptyString).slice(0, MAX_QUERIES);
+
+    if (!Array.isArray(obj.queries)) {
+        return null;
+    }
+
+    const queries = obj.queries
+        .filter(isNonEmptyString)
+        .map((query) => cleanText(query))
+        .filter(Boolean)
+        .slice(0, MAX_QUERIES);
+
+    return queries.length > 0 ? queries : null;
 }
 
-function validateBusinessLead(lead: CommunityLead): boolean {
-    const normalizedName = normalizeCompanyName(lead.companyName);
-    if (DISALLOWED_COMPANY_NAMES.has(normalizedName) || normalizedName.length < 2) {
+function validateBusinessLead(
+    lead: CommunityLead,
+): boolean {
+    const normalizedName = normalizeCompanyName(
+        lead.companyName,
+    );
+
+    if (
+        DISALLOWED_COMPANY_NAMES.has(normalizedName) ||
+        normalizedName.length < 2
+    ) {
         return false;
     }
 
     if (lead.website) {
-        const websiteDomain = normalizeDomain(extractDomain(lead.website));
-        if (!websiteDomain || DISALLOWED_DOMAINS.has(websiteDomain)) {
+        const websiteDomain = normalizeDomain(
+            extractDomain(lead.website),
+        );
+
+        if (
+            !websiteDomain ||
+            DISALLOWED_DOMAINS.has(websiteDomain)
+        ) {
             return false;
         }
     }
 
     if (lead.email) {
-        if (!isValidEmail(lead.email)) return false;
-        const emailDomain = normalizeDomain(lead.email.split("@")[1]);
-        if (!emailDomain || DISALLOWED_DOMAINS.has(emailDomain)) {
+        if (!isValidEmail(lead.email)) {
+            return false;
+        }
+
+        const emailDomain = normalizeDomain(
+            lead.email.split("@")[1],
+        );
+
+        if (
+            !emailDomain ||
+            DISALLOWED_DOMAINS.has(emailDomain)
+        ) {
             return false;
         }
     }
@@ -266,149 +488,311 @@ function validateBusinessLead(lead: CommunityLead): boolean {
     return true;
 }
 
-function resolveLeadDomain(lead: CommunityLead): string | null {
-    const websiteDomain = normalizeDomain(extractDomain(lead.website));
-    if (websiteDomain) return websiteDomain;
+function resolveLeadDomain(
+    lead: CommunityLead,
+): string | null {
+    const websiteDomain = normalizeDomain(
+        extractDomain(lead.website),
+    );
 
-    const emailDomain = normalizeDomain(lead.email?.split("@")[1]);
-    if (emailDomain && !DISALLOWED_DOMAINS.has(emailDomain)) return emailDomain;
+    if (websiteDomain) {
+        return websiteDomain;
+    }
+
+    const emailDomain = normalizeDomain(
+        lead.email?.split("@")[1],
+    );
+
+    if (
+        emailDomain &&
+        !DISALLOWED_DOMAINS.has(emailDomain)
+    ) {
+        return emailDomain;
+    }
 
     return null;
 }
 
-async function serperSearch(query: string): Promise<{ results: SerperResult[]; failed: boolean }> {
-    if (!isNonEmptyString(process.env.SERPER_API_KEY)) {
-        logger.error("[community-intent] SERPER_API_KEY is not configured");
-        return { results: [], failed: true };
+async function serperSearch(
+    query: string,
+): Promise<{
+    results: SerperResult[];
+    failed: boolean;
+}> {
+    const serperApiKey = resolveSerperApiKey();
+
+    if (!isNonEmptyString(serperApiKey)) {
+        logger.error(
+            "[community-intent] SERPER_API_KEY / SERPER_API_KEYS is not configured",
+        );
+
+        return {
+            results: [],
+            failed: true,
+        };
     }
 
     let lastError: unknown;
 
-    for (let attempt = 1; attempt <= SEARCH_MAX_ATTEMPTS; attempt++) {
+    for (
+        let attempt = 1;
+        attempt <= SEARCH_MAX_ATTEMPTS;
+        attempt++
+    ) {
         try {
-            const res = await fetch("https://google.serper.dev/search", {
-                method: "POST",
-                headers: {
-                    "X-API-KEY": process.env.SERPER_API_KEY,
-                    "Content-Type": "application/json",
+            const res = await fetch(
+                "https://google.serper.dev/search",
+                {
+                    method: "POST",
+                    headers: {
+                        "X-API-KEY": serperApiKey,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        q: query,
+                        num: SERPER_RESULTS_PER_QUERY,
+                    }),
+                    signal: AbortSignal.timeout(
+                        FETCH_TIMEOUT_MS,
+                    ),
                 },
-                body: JSON.stringify({ q: query, num: SERPER_RESULTS_PER_QUERY }),
-                signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-            });
+            );
 
             if (res.ok) {
-                const data = (await res.json()) as { organic?: SerperResult[] };
-                return { results: Array.isArray(data.organic) ? data.organic : [], failed: false };
+                const data = (await res.json()) as {
+                    organic?: SerperResult[];
+                };
+
+                return {
+                    results: Array.isArray(data.organic)
+                        ? data.organic
+                        : [],
+                    failed: false,
+                };
             }
 
-            if (res.status === 429 || res.status >= 500) {
-                lastError = new Error(`Serper request failed with status ${res.status}`);
+            if (
+                res.status === 429 ||
+                res.status >= 500
+            ) {
+                lastError = new Error(
+                    `Serper request failed with status ${res.status}`,
+                );
+
                 if (attempt < SEARCH_MAX_ATTEMPTS) {
-                    const retryAfterHeader = res.headers.get("retry-after");
-                    const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : null;
+                    const retryAfterHeader =
+                        res.headers.get("retry-after");
+
+                    const retryAfterMs =
+                        retryAfterHeader
+                            ? Number(retryAfterHeader) *
+                            1000
+                            : null;
+
                     const delay =
-                        retryAfterMs && Number.isFinite(retryAfterMs)
+                        retryAfterMs !== null &&
+                            Number.isFinite(retryAfterMs) &&
+                            retryAfterMs > 0
                             ? retryAfterMs
-                            : SEARCH_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1);
+                            : SEARCH_RETRY_BASE_DELAY_MS *
+                            2 ** (attempt - 1);
+
                     logger.warn(
-                        { query, status: res.status, attempt },
+                        {
+                            query,
+                            status: res.status,
+                            attempt,
+                        },
                         "[community-intent] Serper request failed, retrying",
                     );
+
                     await sleep(delay);
                     continue;
                 }
             }
 
-            logger.warn({ query, status: res.status }, "[community-intent] Serper request failed");
-            return { results: [], failed: true };
+            logger.warn(
+                {
+                    query,
+                    status: res.status,
+                },
+                "[community-intent] Serper request failed",
+            );
+
+            return {
+                results: [],
+                failed: true,
+            };
         } catch (err) {
             lastError = err;
+
             if (attempt < SEARCH_MAX_ATTEMPTS) {
-                logger.warn({ err, query, attempt }, "[community-intent] Serper request threw, retrying");
-                await sleep(SEARCH_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+                logger.warn(
+                    {
+                        err,
+                        query,
+                        attempt,
+                    },
+                    "[community-intent] Serper request threw, retrying",
+                );
+
+                await sleep(
+                    SEARCH_RETRY_BASE_DELAY_MS *
+                    2 ** (attempt - 1),
+                );
+
                 continue;
             }
         }
     }
 
-    logger.warn({ err: lastError, query }, "[community-intent] Serper request failed after retries");
-    return { results: [], failed: true };
+    logger.warn(
+        {
+            err: lastError,
+            query,
+        },
+        "[community-intent] Serper request failed after retries",
+    );
+
+    return {
+        results: [],
+        failed: true,
+    };
 }
 
 async function callGeminiForJSON<T>(
-    params: CallGeminiParams & { parse: (raw: unknown) => T | null; maxAttempts?: number },
+    params: Omit<GatewayCallOptions<unknown>, "parse"> & {
+        outputSchema: GatewayCallOptions<unknown>["outputSchema"];
+        parse: (raw: unknown) => T | null;
+        maxAttempts?: number;
+    },
 ): Promise<T | null> {
-    const { parse, maxAttempts = GEMINI_MAX_ATTEMPTS, ...geminiParams } = params;
-    const { agentName, temperature: baseTemperature } = geminiParams;
+    const {
+        parse,
+        maxAttempts = GEMINI_MAX_ATTEMPTS,
+        ...gatewayParams
+    } = params;
+
+    const {
+        agentName,
+        temperature: baseTemperature,
+    } = gatewayParams;
 
     let lastError: unknown;
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    for (
+        let attempt = 1;
+        attempt <= maxAttempts;
+        attempt++
+    ) {
         const attemptStartedAt = Date.now();
+
         try {
-            const { text } = await callGemini({
-                ...geminiParams,
-                temperature: attempt === 1 ? baseTemperature : 0,
+            const proposal = await callGateway<unknown>({
+                ...gatewayParams,
+                temperature:
+                    attempt === 1
+                        ? baseTemperature
+                        : 0,
             });
 
-            const parsed = parse(extractJSON<unknown>(text));
+            const parsed = parse(proposal.payload);
+
             if (parsed !== null) {
                 logger.info(
-                    { agentName, attempt, durationMs: Date.now() - attemptStartedAt },
-                    "[community-intent] Gemini call succeeded",
+                    {
+                        agentName,
+                        attempt,
+                        durationMs:
+                            Date.now() -
+                            attemptStartedAt,
+                    },
+                    "[community-intent] Gateway call succeeded",
                 );
+
                 return parsed;
             }
 
-            lastError = new Error("Response failed shape validation");
+            lastError = new Error(
+                "Response failed shape validation",
+            );
         } catch (err) {
             lastError = err;
         }
 
         logger.warn(
-            { agentName, attempt, maxAttempts, err: lastError, durationMs: Date.now() - attemptStartedAt },
-            "[community-intent] Gemini call failed",
+            {
+                agentName,
+                attempt,
+                maxAttempts,
+                err: lastError,
+                durationMs:
+                    Date.now() -
+                    attemptStartedAt,
+            },
+            "[community-intent] Gateway call failed",
         );
 
         if (attempt < maxAttempts) {
-            await sleep(GEMINI_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) + Math.random() * 100);
+            await sleep(
+                GEMINI_RETRY_BASE_DELAY_MS *
+                2 ** (attempt - 1) +
+                Math.random() * 100,
+            );
         }
     }
 
-    logger.error({ agentName, err: lastError }, "[community-intent] Gemini call failed after all retries");
+    logger.error(
+        {
+            agentName,
+            err: lastError,
+        },
+        "[community-intent] Gateway call failed after all retries",
+    );
+
     return null;
 }
+
 
 async function buildIntentQueries(params: {
     icpDescription: string;
     targetIndustry?: string;
 }): Promise<string[]> {
-    const { icpDescription, targetIndustry } = params;
+    const {
+        icpDescription,
+        targetIndustry,
+    } = params;
 
-    const result = await callGeminiForJSON<string[]>({
-        agentName: "community-intent.query-builder",
-        model: MODELS.RESEARCH,
-        systemPrompt: `Generate exactly 3 short search queries to find community posts (Reddit, HN, Indie Hackers) from people expressing pain points that match this ICP.
+    const result =
+        await callGeminiForJSON<string[]>({
+            agentName:
+                "community-intent.query-builder",
+            model: MODELS.RESEARCH,
+            responseMode: "text",
+            outputSchema: IntentQueriesSchema,
+            systemPrompt: `Generate exactly 3 short search queries to find community posts (Reddit, HN, Indie Hackers) from people expressing pain points that match this ICP.
 
 Focus on posts like:
-  "looking for a tool for…"
-  "switching from X to Y"
-  "need help with…"
-  "any recommendations for…"
+"looking for a tool for…"
+"switching from X to Y"
+"need help with…"
+"any recommendations for…"
 
 Wrap the key intent phrase in double quotes for exact-match search precision, e.g. "looking for" CRM, "switching from" Salesforce. Vary the phrasing across the 3 queries so they target different intent expressions rather than near-duplicates of each other.
 
 Return ONLY JSON: { "queries": string[] }
 
 Each query should be ≤10 words, including quotes. Do NOT include "site:" in the queries.`,
-        userPrompt: `ICP: ${icpDescription}
+            userPrompt: `ICP: ${icpDescription}
 Industry: ${targetIndustry ?? "general"}`,
-        temperature: 0.4,
-        parse: parseQueriesResponse,
-    });
+            temperature: 0.4,
+            parse: (payload) => parseQueriesResponse(payload),
+        });
 
     if (result === null) {
-        throw new Error("Failed to generate intent queries: Gemini returned an unparseable response after retries");
+        throw new Error(
+            "Failed to generate intent queries: Gateway returned an unparseable response after retries",
+        );
     }
 
     return result;
@@ -419,89 +803,176 @@ async function extractIntentLeads(params: {
     queries: string[];
     icpDescription: string;
     source: CommunitySource;
-}): Promise<CommunityLead[]> {
-    const { results, queries, icpDescription, source } = params;
+}): Promise<ExtractIntentLeadsResult> {
+    const {
+        results,
+        queries,
+        icpDescription,
+        source,
+    } = params;
 
-    if (results.length === 0) return [];
+    const skipReasons: Record<string, number> = {};
 
-    const rawArray = await callGeminiForJSON<unknown[]>({
-        agentName: "community-intent.extractor",
-        model: MODELS.RESEARCH,
-        systemPrompt: `Analyse community posts (Reddit / HN / Indie Hackers) for companies with active buying intent.
+    const recordSkip = (reason: string) => {
+        skipReasons[reason] =
+            (skipReasons[reason] ?? 0) + 1;
+    };
+
+    if (results.length === 0) {
+        return {
+            leads: [],
+            skipReasons,
+        };
+    }
+
+    const rawArray =
+        await callGeminiForJSON<unknown[]>({
+            agentName:
+                "community-intent.extractor",
+            model: MODELS.RESEARCH,
+            responseMode: "text",
+            outputSchema: CommunityLeadArraySchema,
+            systemPrompt: `Analyse community posts (Reddit / HN / Indie Hackers) for companies with active buying intent.
 
 Active buying intent indicators:
-  "looking for a tool / software / solution for…"
-  "switching from X to Y"
-  "hiring a team to handle…"
-  "any recommendations for…"
-  Expressing pain with a current vendor
+"looking for a tool / software / solution for…"
+"switching from X to Y"
+"hiring a team to handle…"
+"any recommendations for…"
+Expressing pain with a current vendor
 
 Return ONLY a JSON array:
 [
-  {
-    "companyName": string (the poster's employer ONLY if explicitly named by the poster themselves, e.g. "I run Acme" or "we built Acme" — never inferred from indirect cues, tone, or guesswork; use "Unknown" if not explicitly stated),
-    "website": string | null,
-    "firstName": string | null,
-    "title": string | null,
-    "intentSignal": string (≤80 chars — what they are looking for),
-    "confidence": number (0.0–1.0 — strength of buying intent),
-    "explanation": string (≤120 chars — why this is a signal),
-    "postUrl": string (the post's URL, copied exactly from the listing below — never invented or modified)
-  }
+{
+"companyName": string (the poster's employer ONLY if explicitly named by the poster themselves, e.g. "I run Acme" or "we built Acme" — never inferred from indirect cues, tone, or guesswork; use "Unknown" if not explicitly stated),
+"website": string | null,
+"firstName": string | null,
+"title": string | null,
+"email": string | null,
+"intentSignal": string (≤80 chars — what they are looking for),
+"confidence": number (0.0–1.0 — strength of buying intent),
+"explanation": string (≤120 chars — why this is a signal),
+"postUrl": string (the post's URL, copied exactly from the listing below — never invented or modified)
+}
 ]
 
 Rules:
-  • Confidence ≥ 0.65 only.
-  • Skip purely personal/hobby posts — focus on business context.
-  • Exclude "Unknown" company names.
-  • Return [] if nothing qualifies.`,
-        userPrompt: `ICP: ${icpDescription}
+• Confidence ≥ 0.65 only.
+• Skip purely personal/hobby posts — focus on business context.
+• Exclude "Unknown" company names.
+• Never infer company, website, name, title, or email.
+• Return [] if nothing qualifies.`,
+            userPrompt: `ICP: ${icpDescription}
 Community source: ${source}
 Search queries used: ${queries.join(", ")}
 
 Posts:
 ${results
-                .map(
-                    (r, i) =>
-                        `${i + 1}. ${truncate(r.title, MAX_TITLE_LENGTH)}\n   ${r.link}\n   ${truncate(r.snippet, MAX_SNIPPET_LENGTH)}`,
-                )
-                .join("\n\n")}`,
-        temperature: 0.2,
-        parse: (raw) => (Array.isArray(raw) ? raw : null),
-    });
+                    .map(
+                        (r, i) =>
+                            `${i + 1}. ${truncate(
+                                r.title,
+                                MAX_TITLE_LENGTH,
+                            )}\n   ${r.link}\n   ${truncate(
+                                r.snippet,
+                                MAX_SNIPPET_LENGTH,
+                            )}`,
+                    )
+                    .join("\n\n")}`,
+            temperature: 0.2,
+            parse: (raw) =>
+                Array.isArray(raw) ? raw : null,
+        });
 
     if (rawArray === null) {
-        logger.warn({ source, queries }, "[community-intent] Extractor returned no usable response after retries");
-        return [];
+        logger.warn(
+            {
+                source,
+                queries,
+            },
+            "[community-intent] Extractor returned no usable response after retries",
+        );
+
+        return {
+            leads: [],
+            skipReasons,
+        };
     }
 
     const parsed = rawArray
-        .map((item) => parseCommunityLead(item, source))
-        .filter((l): l is CommunityLead => l !== null)
-        .filter((l) => {
-            const verified = isKnownResultUrl(l.postUrl, results);
+        .map((item) =>
+            parseCommunityLead(item, source),
+        )
+        .filter(
+            (lead): lead is CommunityLead =>
+                lead !== null,
+        )
+        .filter((lead) => {
+            const verified =
+                isKnownResultUrl(
+                    lead.postUrl,
+                    results,
+                ) &&
+                isExpectedSourceUrl(
+                    lead.postUrl,
+                    source,
+                );
+
             if (!verified) {
+                recordSkip("unverifiable_url");
+
                 logger.info(
-                    { source, postUrl: l.postUrl },
+                    {
+                        source,
+                        postUrl: lead.postUrl,
+                    },
                     "[community-intent] Dropped lead with unverifiable postUrl",
                 );
             }
+
             return verified;
         });
 
-    const beforeFilterCount = parsed.length;
-    const filtered = parsed.filter(
-        (l) => l.confidence >= MIN_CONFIDENCE && l.companyName.toLowerCase().trim() !== "unknown",
-    );
+    const filtered = parsed.filter((lead) => {
+        if (lead.confidence < MIN_CONFIDENCE) {
+            recordSkip("low_confidence");
+            return false;
+        }
 
-    if (beforeFilterCount !== filtered.length) {
+        if (
+            lead.companyName
+                .toLowerCase()
+                .trim() === "unknown"
+        ) {
+            recordSkip("unknown_company");
+            return false;
+        }
+
+        if (!validateBusinessLead(lead)) {
+            recordSkip("invalid_business_lead");
+            return false;
+        }
+
+        return true;
+    });
+
+    if (parsed.length !== filtered.length) {
         logger.info(
-            { source, queries, dropped: beforeFilterCount - filtered.length },
-            "[community-intent] Dropped low-confidence or unknown-company leads",
+            {
+                source,
+                queries,
+                dropped:
+                    parsed.length -
+                    filtered.length,
+            },
+            "[community-intent] Dropped invalid extracted leads",
         );
     }
 
-    return filtered;
+    return {
+        leads: filtered,
+        skipReasons,
+    };
 }
 
 export async function runCommunityIntentAgent(
@@ -509,312 +980,854 @@ export async function runCommunityIntentAgent(
 ): Promise<void> {
     const runStartedAt = Date.now();
 
-    const campaign = await prisma.campaign.findUnique({
-        where: { id: campaignId },
-        select: { icpDescription: true, targetIndustry: true },
-    });
+    const campaign =
+        await prisma.campaign.findUnique({
+            where: {
+                id: campaignId,
+            },
+            select: {
+                icpDescription: true,
+                targetIndustry: true,
+            },
+        });
 
-    if (!campaign) throw new Error(`Campaign ${campaignId} not found`);
+    if (!campaign) {
+        throw new Error(
+            `Campaign ${campaignId} not found`,
+        );
+    }
 
     let queries: string[];
+
     try {
         queries = await buildIntentQueries({
-            icpDescription: campaign.icpDescription,
-            targetIndustry: campaign.targetIndustry ?? undefined,
+            icpDescription:
+                campaign.icpDescription,
+            targetIndustry:
+                campaign.targetIndustry ??
+                undefined,
         });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        logger.error({ err, campaignId }, "[community-intent] Failed to build intent queries");
+        const message =
+            err instanceof Error
+                ? err.message
+                : String(err);
+
+        logger.error(
+            {
+                err,
+                campaignId,
+            },
+            "[community-intent] Failed to build intent queries",
+        );
+
         await prisma.discoveryRun.create({
             data: {
                 sourceType: "COMMUNITY_INTENT",
                 status: "FAILED",
                 campaignId,
                 query: "",
-                startedAt: new Date(runStartedAt),
+                startedAt: new Date(
+                    runStartedAt,
+                ),
                 completedAt: new Date(),
                 errorMessage: message,
             },
         });
+
         throw err;
     }
 
-    const runRecord = await prisma.discoveryRun.create({
-        data: {
-            sourceType: "COMMUNITY_INTENT",
-            status: "RUNNING",
-            campaignId,
-            query: queries.join(", "),
-            startedAt: new Date(runStartedAt),
-        },
-    });
+    const runRecord =
+        await prisma.discoveryRun.create({
+            data: {
+                sourceType: "COMMUNITY_INTENT",
+                status: "RUNNING",
+                campaignId,
+                query: queries.join(", "),
+                startedAt: new Date(
+                    runStartedAt,
+                ),
+            },
+        });
 
     let created = 0;
     let skipped = 0;
     let failedLeadWrites = 0;
-    const processedCompanyIds = new Set<string>();
+
+    const processedCompanyIds =
+        new Set<string>();
+
     let newLeadsWithSignals = 0;
     let companySignalsCreated = 0;
     let companySignalCreationUnknown = 0;
 
+    const skipReasons: Record<
+        string,
+        number
+    > = {};
+
+    const recordSkip = (
+        reason: string,
+        count = 1,
+    ) => {
+        skipReasons[reason] =
+            (skipReasons[reason] ?? 0) +
+            count;
+    };
+
     try {
         logger.info(
-            { campaignId, queries },
+            {
+                campaignId,
+                queries,
+            },
             "[community-intent] Starting community scan",
         );
 
         if (queries.length === 0) {
-            logger.warn({ campaignId }, "[community-intent] No queries generated, ending run");
             await prisma.discoveryRun.update({
-                where: { id: runRecord.id },
+                where: {
+                    id: runRecord.id,
+                },
                 data: {
                     status: "COMPLETED",
                     companiesFound: 0,
                     leadsFound: 0,
                     signalsFound: 0,
                     completedAt: new Date(),
+                    metadata:
+                        {
+                            skipReasons,
+                        } as unknown as Prisma.InputJsonValue,
                 },
             });
+
             return;
         }
 
-        const searchJobs: Array<{ source: CommunitySource; query: string }> = COMMUNITY_SOURCES.flatMap(
-            (src) => queries.map((q) => ({ source: src.name, query: q })),
+        const searchJobs: Array<{
+            source: CommunitySource;
+            query: string;
+        }> = COMMUNITY_SOURCES.flatMap(
+            (source) =>
+                queries.map((query) => ({
+                    source: source.name,
+                    query,
+                })),
         );
 
-        const searchLimit = pLimit(SEARCH_CONCURRENCY);
-        const searchPhaseStartedAt = Date.now();
-
-        const searchResults: SearchJobResult[] = await Promise.all(
-            searchJobs.map(({ source, query }) =>
-                searchLimit(async () => {
-                    const sourceConfig = COMMUNITY_SOURCES.find((s) => s.name === source)!;
-                    const { results, failed } = await serperSearch(`${sourceConfig.siteFilter} ${query}`);
-                    return { results, source, query, failed };
-                }),
-            ),
+        const searchLimit = pLimit(
+            SEARCH_CONCURRENCY,
         );
 
-        const searchPhaseDurationMs = Date.now() - searchPhaseStartedAt;
+        const searchPhaseStartedAt =
+            Date.now();
 
-        const failedSearchCount = searchResults.filter((r) => r.failed).length;
-        const allSearchesFailed = failedSearchCount === searchResults.length;
+        const searchResults: SearchJobResult[] =
+            await Promise.all(
+                searchJobs.map(
+                    ({
+                        source,
+                        query,
+                    }) =>
+                        searchLimit(
+                            async () => {
+                                const sourceConfig =
+                                    COMMUNITY_SOURCES.find(
+                                        (item) =>
+                                            item.name ===
+                                            source,
+                                    );
 
-        const resultsBySource = new Map<CommunitySource, { results: SerperResult[]; queries: string[] }>();
-        for (const { source, query, results } of searchResults) {
-            const bucket = resultsBySource.get(source);
+                                if (!sourceConfig) {
+                                    return {
+                                        results: [],
+                                        source,
+                                        query,
+                                        failed: true,
+                                    };
+                                }
+
+                                const {
+                                    results,
+                                    failed,
+                                } =
+                                    await serperSearch(
+                                        `${sourceConfig.siteFilter} ${query}`,
+                                    );
+
+                                return {
+                                    results,
+                                    source,
+                                    query,
+                                    failed,
+                                };
+                            },
+                        ),
+                ),
+            );
+
+        const searchPhaseDurationMs =
+            Date.now() -
+            searchPhaseStartedAt;
+
+        const failedSearchCount =
+            searchResults.filter(
+                (result) =>
+                    result.failed,
+            ).length;
+
+        const allSearchesFailed =
+            searchResults.length > 0 &&
+            failedSearchCount ===
+            searchResults.length;
+
+        const resultsBySource =
+            new Map<
+                CommunitySource,
+                {
+                    results: SerperResult[];
+                    queries: string[];
+                }
+            >();
+
+        for (const {
+            source,
+            query,
+            results,
+        } of searchResults) {
+            const bucket =
+                resultsBySource.get(
+                    source,
+                );
+
             if (bucket) {
-                bucket.results.push(...results);
-                bucket.queries.push(query);
+                bucket.results.push(
+                    ...results,
+                );
+                bucket.queries.push(
+                    query,
+                );
             } else {
-                resultsBySource.set(source, { results: [...results], queries: [query] });
+                resultsBySource.set(
+                    source,
+                    {
+                        results: [
+                            ...results,
+                        ],
+                        queries: [
+                            query,
+                        ],
+                    },
+                );
             }
         }
 
-        const extractionLimit = pLimit(EXTRACTION_CONCURRENCY);
-        const extractionPhaseStartedAt = Date.now();
-
-        const allLeadSets = await Promise.all(
-            Array.from(resultsBySource.entries()).map(([source, bucket]) =>
-                extractionLimit(() =>
-                    extractIntentLeads({
-                        results: dedupeAndCapResults(bucket.results, MAX_RESULTS_PER_EXTRACTION),
-                        queries: bucket.queries,
-                        icpDescription: campaign.icpDescription,
-                        source,
-                    }),
-                ),
-            ),
+        const extractionLimit = pLimit(
+            EXTRACTION_CONCURRENCY,
         );
 
-        const extractionPhaseDurationMs = Date.now() - extractionPhaseStartedAt;
-        const allLeads = allLeadSets.flat();
+        const extractionPhaseStartedAt =
+            Date.now();
+
+        const extractionResults =
+            await Promise.all(
+                Array.from(
+                    resultsBySource.entries(),
+                ).map(
+                    ([
+                        source,
+                        bucket,
+                    ]) =>
+                        extractionLimit(
+                            () =>
+                                extractIntentLeads(
+                                    {
+                                        results:
+                                            dedupeAndCapResults(
+                                                bucket.results,
+                                                MAX_RESULTS_PER_EXTRACTION,
+                                            ),
+                                        queries:
+                                            bucket.queries,
+                                        icpDescription:
+                                            campaign.icpDescription,
+                                        source,
+                                    },
+                                ),
+                        ),
+                ),
+            );
+
+        const extractionPhaseDurationMs =
+            Date.now() -
+            extractionPhaseStartedAt;
+
+        const allLeads =
+            extractionResults.flatMap(
+                (result) =>
+                    result.leads,
+            );
+
+        for (const result of extractionResults) {
+            for (const [
+                reason,
+                count,
+            ] of Object.entries(
+                result.skipReasons,
+            )) {
+                recordSkip(
+                    reason,
+                    count,
+                );
+            }
+        }
 
         if (allLeads.length === 0) {
-            const status = allSearchesFailed ? "FAILED" : "COMPLETED";
-            logger.info(
-                { campaignId, failedSearchCount, totalSearches: searchResults.length },
-                "[community-intent] No intent leads found",
-            );
-            await prisma.discoveryRun.update({
-                where: { id: runRecord.id },
-                data: {
-                    status,
-                    companiesFound: 0,
-                    leadsFound: 0,
-                    signalsFound: 0,
-                    completedAt: new Date(),
-                    errorMessage: allSearchesFailed
-                        ? `All ${searchResults.length} search requests failed`
-                        : null,
+            const status =
+                allSearchesFailed
+                    ? "FAILED"
+                    : "COMPLETED";
+
+            await prisma.discoveryRun.update(
+                {
+                    where: {
+                        id: runRecord.id,
+                    },
+                    data: {
+                        status,
+                        companiesFound: 0,
+                        leadsFound: 0,
+                        signalsFound: 0,
+                        completedAt:
+                            new Date(),
+                        errorMessage:
+                            allSearchesFailed
+                                ? `All ${searchResults.length} search requests failed`
+                                : null,
+                        metadata:
+                            {
+                                skipReasons,
+                            } as unknown as Prisma.InputJsonValue,
+                    },
                 },
-            });
+            );
+
             if (allSearchesFailed) {
-                throw new Error(`All ${searchResults.length} community search requests failed`);
+                throw new Error(
+                    `All ${searchResults.length} community search requests failed`,
+                );
             }
+
             return;
         }
 
-        const existingLeads = await prisma.lead.findMany({
-            where: { campaignId, deletedAt: null },
-            select: { companyName: true, domain: true },
-        });
+        const existingLeads =
+            await prisma.lead.findMany({
+                where: {
+                    campaignId,
+                    deletedAt: null,
+                },
+                select: {
+                    companyName: true,
+                    domain: true,
+                },
+            });
 
-        const existingNames = new Set(existingLeads.map((l) => normalizeCompanyName(l.companyName)));
-        const existingDomains = new Set(
-            existingLeads
-                .map((l) => l.domain)
-                .filter((d): d is string => isNonEmptyString(d))
-                .map((d) => d.toLowerCase()),
+        const existingNames =
+            new Set(
+                existingLeads.map(
+                    (lead) =>
+                        normalizeCompanyName(
+                            lead.companyName,
+                        ),
+                ),
+            );
+
+        const existingDomains =
+            new Set(
+                existingLeads
+                    .map(
+                        (lead) =>
+                            normalizeDomain(
+                                lead.domain,
+                            ),
+                    )
+                    .filter(
+                        (
+                            domain,
+                        ): domain is string =>
+                            domain !== null,
+                    ),
+            );
+
+        const seenNamesThisRun =
+            new Set<string>();
+
+        const seenDomainsThisRun =
+            new Set<string>();
+
+        const uniqueLeads =
+            allLeads.filter(
+                (lead) => {
+                    const nameKey =
+                        normalizeCompanyName(
+                            lead.companyName,
+                        );
+
+                    if (
+                        existingNames.has(
+                            nameKey,
+                        ) ||
+                        seenNamesThisRun.has(
+                            nameKey,
+                        )
+                    ) {
+                        recordSkip(
+                            "duplicate_company_prewrite",
+                        );
+
+                        return false;
+                    }
+
+                    const domainKey =
+                        resolveLeadDomain(
+                            lead,
+                        );
+
+                    if (
+                        domainKey &&
+                        (existingDomains.has(
+                            domainKey,
+                        ) ||
+                            seenDomainsThisRun.has(
+                                domainKey,
+                            ))
+                    ) {
+                        recordSkip(
+                            "duplicate_domain_prewrite",
+                        );
+
+                        return false;
+                    }
+
+                    seenNamesThisRun.add(
+                        nameKey,
+                    );
+
+                    if (domainKey) {
+                        seenDomainsThisRun.add(
+                            domainKey,
+                        );
+                    }
+
+                    return true;
+                },
+            );
+
+        const limit = pLimit(
+            LEAD_TRANSACTION_CONCURRENCY,
         );
 
-        const seenNamesThisRun = new Set<string>();
-        const seenDomainsThisRun = new Set<string>();
-
-        const uniqueLeads = allLeads.filter((lead) => {
-            if (!validateBusinessLead(lead)) return false;
-
-            const nameKey = normalizeCompanyName(lead.companyName);
-            if (existingNames.has(nameKey) || seenNamesThisRun.has(nameKey)) return false;
-
-            const domainKey = resolveLeadDomain(lead);
-            if (domainKey && (existingDomains.has(domainKey) || seenDomainsThisRun.has(domainKey))) return false;
-
-            seenNamesThisRun.add(nameKey);
-            if (domainKey) seenDomainsThisRun.add(domainKey);
-            return true;
-        });
-
-        const limit = pLimit(LEAD_TRANSACTION_CONCURRENCY);
-        const writePhaseStartedAt = Date.now();
+        const writePhaseStartedAt =
+            Date.now();
 
         await Promise.all(
             uniqueLeads.map((lead) =>
                 limit(async () => {
                     try {
-                        const result = await prisma.$transaction(
-                            async (tx: PrismaTx) => {
-                                const companyId = await upsertCompany(
-                                    { name: lead.companyName, website: lead.website },
-                                    tx,
-                                );
+                        const result =
+                            await prisma.$transaction(
+                                async (
+                                    tx: PrismaTx,
+                                ) => {
+                                    const companyId =
+                                        await upsertCompany(
+                                            {
+                                                name: lead.companyName,
+                                                website:
+                                                    lead.website,
+                                            },
+                                            tx,
+                                        );
 
-                                const signalUpsertResult = await upsertCompanySignal(
-                                    {
-                                        companyId,
-                                        signalType: "INTENT_SIGNAL",
-                                        value: lead.intentSignal,
-                                        confidence: lead.confidence,
-                                        source: lead.source,
-                                        explanation: lead.explanation,
-                                    },
-                                    tx,
-                                );
+                                    const signalUpsertResult =
+                                        await upsertCompanySignal(
+                                            {
+                                                companyId,
+                                                signalType:
+                                                    "INTENT_SIGNAL",
+                                                value:
+                                                    lead.intentSignal,
+                                                confidence:
+                                                    lead.confidence,
+                                                source:
+                                                    lead.source,
+                                                explanation:
+                                                    lead.explanation,
+                                            },
+                                            tx,
+                                        );
 
-                                if (lead.email) {
-                                    const globalEmailExists = await tx.lead.findFirst({
-                                        where: { email: lead.email },
-                                        select: { id: true },
-                                    });
-                                    if (globalEmailExists) {
+                                    const upsertExistingLeadSignal =
+                                        async (
+                                            existingLeadId: string,
+                                        ) =>
+                                            tx.leadSignal.upsert(
+                                                {
+                                                    where: {
+                                                        leadId_signalType_value:
+                                                        {
+                                                            leadId:
+                                                                existingLeadId,
+                                                            signalType:
+                                                                "INTENT_SIGNAL",
+                                                            value:
+                                                                lead.intentSignal,
+                                                        },
+                                                    },
+                                                    create:
+                                                    {
+                                                        leadId:
+                                                            existingLeadId,
+                                                        signalType:
+                                                            "INTENT_SIGNAL",
+                                                        value:
+                                                            lead.intentSignal,
+                                                        confidence:
+                                                            lead.confidence,
+                                                        source:
+                                                            lead.source,
+                                                        explanation:
+                                                            lead.explanation,
+                                                    },
+                                                    update:
+                                                    {
+                                                        lastSeenAt:
+                                                            new Date(),
+                                                        confidence:
+                                                            lead.confidence,
+                                                        source:
+                                                            lead.source,
+                                                        explanation:
+                                                            lead.explanation,
+                                                    },
+                                                },
+                                            );
+
+                                    if (lead.email) {
+                                        const globalEmailExists =
+                                            await tx.lead.findFirst(
+                                                {
+                                                    where: {
+                                                        email:
+                                                            lead.email,
+                                                    },
+                                                    select:
+                                                    {
+                                                        id: true,
+                                                    },
+                                                },
+                                            );
+
+                                        if (
+                                            globalEmailExists
+                                        ) {
+                                            await upsertExistingLeadSignal(
+                                                globalEmailExists.id,
+                                            );
+
+                                            return {
+                                                wasCreated:
+                                                    false,
+                                                companyId,
+                                                reason:
+                                                    "duplicate_email",
+                                                signalUpsertResult,
+                                            };
+                                        }
+                                    }
+
+                                    const leadDomain =
+                                        resolveLeadDomain(
+                                            lead,
+                                        );
+
+                                    if (
+                                        leadDomain
+                                    ) {
+                                        const domainExists =
+                                            await tx.lead.findFirst(
+                                                {
+                                                    where: {
+                                                        campaignId,
+                                                        domain:
+                                                            leadDomain,
+                                                        deletedAt:
+                                                            null,
+                                                    },
+                                                    select:
+                                                    {
+                                                        id: true,
+                                                    },
+                                                },
+                                            );
+
+                                        if (
+                                            domainExists
+                                        ) {
+                                            await upsertExistingLeadSignal(
+                                                domainExists.id,
+                                            );
+
+                                            return {
+                                                wasCreated:
+                                                    false,
+                                                companyId,
+                                                reason:
+                                                    "duplicate_domain",
+                                                signalUpsertResult,
+                                            };
+                                        }
+                                    }
+
+                                    const existingLead =
+                                        await tx.lead.findFirst(
+                                            {
+                                                where: {
+                                                    campaignId,
+                                                    companyId,
+                                                    deletedAt:
+                                                        null,
+                                                },
+                                                select:
+                                                {
+                                                    id: true,
+                                                },
+                                            },
+                                        );
+
+                                    if (
+                                        existingLead
+                                    ) {
+                                        await upsertExistingLeadSignal(
+                                            existingLead.id,
+                                        );
+
                                         return {
-                                            wasCreated: false,
+                                            wasCreated:
+                                                false,
                                             companyId,
-                                            reason: "duplicate_email",
+                                            reason:
+                                                "duplicate_company",
                                             signalUpsertResult,
                                         };
                                     }
-                                }
 
-                                const leadDomain = resolveLeadDomain(lead);
+                                    try {
+                                        const newLead =
+                                            await tx.lead.create(
+                                                {
+                                                    data: {
+                                                        companyName:
+                                                            lead.companyName,
+                                                        website:
+                                                            lead.website,
+                                                        domain:
+                                                            leadDomain,
+                                                        email:
+                                                            lead.email,
+                                                        emailStatus:
+                                                            lead.email
+                                                                ? "PENDING_VERIFICATION"
+                                                                : "NOT_ATTEMPTED",
+                                                        emailSource:
+                                                            lead.email
+                                                                ? "community_intent"
+                                                                : undefined,
+                                                        firstName:
+                                                            lead.firstName,
+                                                        title:
+                                                            lead.title,
+                                                        source:
+                                                            lead.source,
+                                                        campaignId,
+                                                        companyId,
+                                                        enrichmentData:
+                                                            {
+                                                                discoveredAt:
+                                                                    new Date().toISOString(),
+                                                                discoverySource:
+                                                                    lead.source,
+                                                                communityPostUrl:
+                                                                    lead.postUrl,
+                                                                searchQueries:
+                                                                    queries,
+                                                            } as unknown as Prisma.InputJsonValue,
+                                                    },
+                                                },
+                                            );
 
-                                if (leadDomain) {
-                                    const domainExists = await tx.lead.findFirst({
-                                        where: { campaignId, domain: leadDomain },
-                                        select: { id: true },
-                                    });
-                                    if (domainExists) {
+                                        await tx.leadSignal.create(
+                                            {
+                                                data: {
+                                                    leadId:
+                                                        newLead.id,
+                                                    signalType:
+                                                        "INTENT_SIGNAL",
+                                                    value:
+                                                        lead.intentSignal,
+                                                    confidence:
+                                                        lead.confidence,
+                                                    source:
+                                                        lead.source,
+                                                    explanation:
+                                                        lead.explanation,
+                                                },
+                                            },
+                                        );
+
                                         return {
-                                            wasCreated: false,
+                                            wasCreated:
+                                                true,
                                             companyId,
-                                            reason: "duplicate_domain",
+                                            reason:
+                                                null as
+                                                | string
+                                                | null,
                                             signalUpsertResult,
                                         };
+                                    } catch (err) {
+                                        if (
+                                            err instanceof
+                                            Prisma.PrismaClientKnownRequestError &&
+                                            err.code ===
+                                            "P2002"
+                                        ) {
+                                            const winner =
+                                                await tx.lead.findFirst(
+                                                    {
+                                                        where: {
+                                                            campaignId,
+                                                            deletedAt:
+                                                                null,
+                                                            OR: [
+                                                                {
+                                                                    companyId,
+                                                                },
+                                                                ...(leadDomain
+                                                                    ? [
+                                                                        {
+                                                                            domain:
+                                                                                leadDomain,
+                                                                        },
+                                                                    ]
+                                                                    : []),
+                                                                ...(lead.email
+                                                                    ? [
+                                                                        {
+                                                                            email:
+                                                                                lead.email,
+                                                                        },
+                                                                    ]
+                                                                    : []),
+                                                            ],
+                                                        },
+                                                        select:
+                                                        {
+                                                            id: true,
+                                                        },
+                                                    },
+                                                );
+
+                                            if (
+                                                winner
+                                            ) {
+                                                await upsertExistingLeadSignal(
+                                                    winner.id,
+                                                );
+
+                                                return {
+                                                    wasCreated:
+                                                        false,
+                                                    companyId,
+                                                    reason:
+                                                        "duplicate_race",
+                                                    signalUpsertResult,
+                                                };
+                                            }
+                                        }
+
+                                        throw err;
                                     }
-                                }
+                                },
+                                {
+                                    timeout:
+                                        LEAD_TRANSACTION_TIMEOUT_MS,
+                                },
+                            );
 
-                                const existingLead = await tx.lead.findFirst({
-                                    where: { campaignId, companyId },
-                                    select: { id: true },
-                                });
-                                if (existingLead) {
-                                    return {
-                                        wasCreated: false,
-                                        companyId,
-                                        reason: "duplicate_company",
-                                        signalUpsertResult,
-                                    };
-                                }
-
-                                const newLead = await tx.lead.create({
-                                    data: {
-                                        companyName: lead.companyName,
-                                        website: lead.website,
-                                        domain: leadDomain,
-                                        firstName: lead.firstName,
-                                        title: lead.title,
-                                        source: lead.source,
-                                        campaignId,
-                                        companyId,
-                                        enrichmentData: {
-                                            discoveredAt: new Date().toISOString(),
-                                            discoverySource: lead.source,
-                                            communityPostUrl: lead.postUrl,
-                                        } as unknown as Prisma.InputJsonValue,
-                                    },
-                                });
-
-                                await tx.leadSignal.create({
-                                    data: {
-                                        leadId: newLead.id,
-                                        signalType: "INTENT_SIGNAL",
-                                        value: lead.intentSignal,
-                                        confidence: lead.confidence,
-                                        source: lead.source,
-                                        explanation: lead.explanation,
-                                    },
-                                });
-
-                                return { wasCreated: true, companyId, reason: null as string | null, signalUpsertResult };
-                            },
-                            { timeout: LEAD_TRANSACTION_TIMEOUT_MS },
-                        );
-
-                        if (result.companyId) {
-                            processedCompanyIds.add(result.companyId);
+                        if (
+                            result.companyId
+                        ) {
+                            processedCompanyIds.add(
+                                result.companyId,
+                            );
                         }
 
-                        const signalCreationFlag = extractCreatedFlag(result.signalUpsertResult);
-                        if (signalCreationFlag === true) {
+                        const signalCreationFlag =
+                            extractCreatedFlag(
+                                result.signalUpsertResult,
+                            );
+
+                        if (
+                            signalCreationFlag ===
+                            true
+                        ) {
                             companySignalsCreated++;
-                        } else if (signalCreationFlag === null) {
+                        } else if (
+                            signalCreationFlag ===
+                            null
+                        ) {
                             companySignalCreationUnknown++;
                         }
 
-                        if (result.wasCreated) {
+                        if (
+                            result.wasCreated
+                        ) {
                             created++;
                             newLeadsWithSignals++;
                         } else {
                             skipped++;
+
+                            if (
+                                result.reason
+                            ) {
+                                recordSkip(
+                                    result.reason,
+                                );
+                            }
+
                             logger.info(
-                                { companyName: lead.companyName, reason: result.reason },
+                                {
+                                    companyName:
+                                        lead.companyName,
+                                    reason:
+                                        result.reason,
+                                },
                                 "[community-intent] Skipped duplicate lead",
                             );
                         }
                     } catch (err) {
                         failedLeadWrites++;
+
                         logger.warn(
-                            { err, companyName: lead.companyName },
+                            {
+                                err,
+                                companyName:
+                                    lead.companyName,
+                            },
                             "[community-intent] Failed to create lead",
                         );
                     }
@@ -822,27 +1835,73 @@ export async function runCommunityIntentAgent(
             ),
         );
 
-        const writePhaseDurationMs = Date.now() - writePhaseStartedAt;
+        const writePhaseDurationMs =
+            Date.now() -
+            writePhaseStartedAt;
 
         const avgConfidence =
             uniqueLeads.length > 0
-                ? uniqueLeads.reduce((sum, l) => sum + l.confidence, 0) / uniqueLeads.length
+                ? uniqueLeads.reduce(
+                    (sum, lead) =>
+                        sum +
+                        lead.confidence,
+                    0,
+                ) / uniqueLeads.length
                 : 0;
 
-        await prisma.discoveryRun.update({
-            where: { id: runRecord.id },
-            data: {
-                status: "COMPLETED",
-                companiesFound: processedCompanyIds.size,
-                leadsFound: created,
-                signalsFound: companySignalCreationUnknown > 0 ? newLeadsWithSignals : companySignalsCreated,
-                completedAt: new Date(),
-            },
-        });
+        const signalsFound =
+            companySignalCreationUnknown >
+                0
+                ? newLeadsWithSignals
+                : companySignalsCreated;
 
-        if (companySignalCreationUnknown > 0) {
+        await prisma.discoveryRun.update(
+            {
+                where: {
+                    id: runRecord.id,
+                },
+                data: {
+                    status: "COMPLETED",
+                    companiesFound:
+                        processedCompanyIds.size,
+                    leadsFound: created,
+                    signalsFound,
+                    completedAt:
+                        new Date(),
+                    metadata:
+                        {
+                            skipReasons,
+                            failedLeadWrites,
+                            candidatesConsidered:
+                                allLeads.length,
+                            uniqueCandidates:
+                                uniqueLeads.length,
+                            newLeadsWithSignals,
+                            companySignalsCreated,
+                            companySignalCreationUnknown,
+                            avgConfidence:
+                                Number(
+                                    avgConfidence.toFixed(
+                                        3,
+                                    ),
+                                ),
+                            failedSearchCount,
+                            totalSearches:
+                                searchResults.length,
+                        } as unknown as Prisma.InputJsonValue,
+                },
+            },
+        );
+
+        if (
+            companySignalCreationUnknown >
+            0
+        ) {
             logger.warn(
-                { campaignId, companySignalCreationUnknown },
+                {
+                    campaignId,
+                    companySignalCreationUnknown,
+                },
                 "[community-intent] upsertCompanySignal did not report created/wasCreated; signalsFound fell back to newLeadsWithSignals",
             );
         }
@@ -853,32 +1912,62 @@ export async function runCommunityIntentAgent(
                 created,
                 skipped,
                 failedLeadWrites,
-                candidatesConsidered: allLeads.length,
-                uniqueCandidates: uniqueLeads.length,
+                candidatesConsidered:
+                    allLeads.length,
+                uniqueCandidates:
+                    uniqueLeads.length,
                 newLeadsWithSignals,
                 companySignalsCreated,
                 companySignalCreationUnknown,
-                avgConfidence: Number(avgConfidence.toFixed(3)),
+                skipReasons,
+                avgConfidence:
+                    Number(
+                        avgConfidence.toFixed(
+                            3,
+                        ),
+                    ),
                 failedSearchCount,
-                totalSearches: searchResults.length,
+                totalSearches:
+                    searchResults.length,
                 searchPhaseDurationMs,
                 extractionPhaseDurationMs,
                 writePhaseDurationMs,
-                totalDurationMs: Date.now() - runStartedAt,
+                totalDurationMs:
+                    Date.now() -
+                    runStartedAt,
             },
             "[community-intent] Scan complete",
         );
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        logger.error({ err, campaignId }, "[community-intent] Scan failed");
+        const message =
+            err instanceof Error
+                ? err.message
+                : String(err);
+
+        logger.error(
+            {
+                err,
+                campaignId,
+            },
+            "[community-intent] Scan failed",
+        );
+
         await prisma.discoveryRun.update({
-            where: { id: runRecord.id },
+            where: {
+                id: runRecord.id,
+            },
             data: {
                 status: "FAILED",
                 errorMessage: message,
                 completedAt: new Date(),
+                metadata:
+                    {
+                        skipReasons,
+                        failedLeadWrites,
+                    } as unknown as Prisma.InputJsonValue,
             },
         });
+
         throw err;
     }
 }

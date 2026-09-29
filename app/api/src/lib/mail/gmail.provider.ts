@@ -4,6 +4,8 @@ import {
     GmailCredentials,
     InboundReply,
     MailProvider,
+    MessageFolder,
+    ProviderCapabilities,
     SendEmailParams,
     SendResult,
 } from "./types";
@@ -14,6 +16,7 @@ function makeRfc2822(params: SendEmailParams): string {
         `From: ${params.from}`,
         `To: ${params.to}`,
         `Subject: ${params.subject}`,
+        `Date: ${new Date().toUTCString()}`,
         `MIME-Version: 1.0`,
         `Content-Type: multipart/alternative; boundary="${boundary}"`,
     ];
@@ -83,6 +86,16 @@ export class GmailProvider implements MailProvider {
         this.auth = new google.auth.OAuth2(creds.clientId, creds.clientSecret);
         this.auth.setCredentials({ refresh_token: creds.refreshToken });
         this.gmail = google.gmail({ version: "v1", auth: this.auth });
+    }
+
+    getCapabilities(): ProviderCapabilities {
+        return {
+            // Gmail does not accept a client-supplied idempotency key.
+            supportsIdempotency: false,
+            // Gmail allows message lookup by id — reconciliation can confirm delivery.
+            supportsLookup: true,
+            reconciliationStrategy: "LOOKUP",
+        };
     }
 
     async verify(): Promise<boolean> {
@@ -165,9 +178,80 @@ export class GmailProvider implements MailProvider {
             }
 
             return replies;
-        } catch (err) {
-            logger.error({ err }, "[GmailProvider] fetchReplies failed");
-            return [];
+        } catch (err: unknown) {
+            const safeErr = err instanceof Error
+                ? { message: err.message, name: err.name, code: (err as any).code }
+                : String(err);
+            logger.error({ err: safeErr }, "[GmailProvider] fetchReplies failed");
+            throw err;
         }
+    }
+
+    async findMessageFolder(externalId: string): Promise<MessageFolder> {
+        const res = await this.gmail.users.messages.get({
+            userId: "me",
+            id: externalId,
+            format: "minimal",
+        });
+        const labels = res.data.labelIds ?? [];
+        if (labels.includes("SPAM")) return "SPAM";
+        if (labels.includes("INBOX")) return "INBOX";
+        return "OTHER";
+    }
+
+    async moveToInbox(externalId: string): Promise<void> {
+        await this.gmail.users.messages.modify({
+            userId: "me",
+            id: externalId,
+            requestBody: {
+                removeLabelIds: ["SPAM"],
+                addLabelIds: ["INBOX"],
+            },
+        });
+    }
+
+    async markAsRead(externalId: string): Promise<void> {
+        await this.gmail.users.messages.modify({
+            userId: "me",
+            id: externalId,
+            requestBody: { removeLabelIds: ["UNREAD"] },
+        });
+    }
+
+    async markAsImportant(externalId: string): Promise<void> {
+        await this.gmail.users.messages.modify({
+            userId: "me",
+            id: externalId,
+            requestBody: { addLabelIds: ["STARRED", "IMPORTANT"] },
+        });
+    }
+
+    async moveToPrimary(externalId: string): Promise<void> {
+        await this.gmail.users.messages.modify({
+            userId: "me",
+            id: externalId,
+            requestBody: {
+                removeLabelIds: ["CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_SOCIAL", "CATEGORY_FORUMS"],
+                addLabelIds: ["CATEGORY_PERSONAL", "INBOX"],
+            },
+        });
+    }
+
+    async sendReplyInThread(params: {
+        to: string;
+        subject: string;
+        body: string;
+        inReplyTo: string;
+        references?: string;
+    }): Promise<SendResult> {
+        return this.sendEmail({
+            from: this.creds.emailAddress,
+            to: params.to,
+            subject: params.subject.startsWith("Re:") ? params.subject : `Re: ${params.subject}`,
+            html: `<p>${params.body}</p>`,
+            text: params.body,
+            inReplyTo: params.inReplyTo,
+            references: params.references,
+        });
     }
 }

@@ -475,6 +475,16 @@ export async function runLookalikeAgent(input: LookalikeInput): Promise<Lookalik
         detail: `${top.length} companies found (${competitorLeadsFound} competitor users), ${skippedAlreadyEnriched} already in campaign`,
     });
 
+    if (competitorLeadsFound > 0) {
+        emitCampaignEvent({
+            campaignId,
+            type: "active",
+            jobName: "competitor-intelligence",
+            label: "Competitor Intelligence",
+            detail: `${competitorLeadsFound} lead${competitorLeadsFound !== 1 ? "s" : ""} use competitor tools — confirm your differentiators to personalise displacement emails.`,
+        });
+    }
+
     logger.info(
         { campaignId, leads: top.length, competitorLeads: competitorLeadsFound, skipped: skippedAlreadyEnriched, userId },
         "[lookalike] Agent complete"

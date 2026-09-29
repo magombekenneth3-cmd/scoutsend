@@ -1,12 +1,18 @@
 import { Worker } from "bullmq";
+import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
-import { createRedisConnection } from "../../../lib/ioredis";
+import { redisConnectionOptions } from "../../../lib/ioredis";
 import { QUEUE_POLICY } from "../queue-policy";
 import { wireWorkerEvents } from "../worker-runtime";
 import { logger } from "../../../lib/logger";
+import { parseJobData } from "../../../lib/job-validation";
 import { runSendAgent } from "../send.agent";
 
 const policy = QUEUE_POLICY.send;
+
+const sendBatchSchema = z.object({
+  campaignId: z.string().min(1),
+});
 
 async function hasActivePipeline(campaignId: string): Promise<boolean> {
   const job = await prisma.queueJob.findFirst({
@@ -25,7 +31,7 @@ async function processJob(job: import("bullmq").Job) {
 
   switch (job.name) {
     case "send-batch": {
-      const { campaignId } = job.data as { campaignId: string };
+      const { campaignId } = parseJobData(sendBatchSchema, job);
       log.info({ campaignId }, "[send.worker] send-batch start");
 
       if (await hasActivePipeline(campaignId)) {
@@ -53,7 +59,7 @@ async function processJob(job: import("bullmq").Job) {
 }
 
 export const sendWorker = new Worker(policy.queueName, processJob, {
-  connection: createRedisConnection(),
+  connection: redisConnectionOptions,
   concurrency: policy.concurrency,
   lockDuration: policy.lockDuration,
 });

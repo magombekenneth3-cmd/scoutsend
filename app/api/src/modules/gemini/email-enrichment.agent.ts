@@ -1,11 +1,14 @@
 import { prisma } from "../../lib/prisma";
 import { logger } from "../../lib/logger";
+import { acquireLeadLock } from "../../lib/prisma-locks";
 import { emailGenerationQueue } from "./campaign.queue";
 import { emailEnrichmentQueue } from "./email-enrichment.queue";
+import { enqueueCompanyScrape, enqueueCompanyScrapes } from "./company-scrape.queue";
 import { createLinkedInProvider } from "../../lib/linkedIn";
 import pLimit from "p-limit";
 import { Prisma } from "@prisma/client";
 import { enrichPersonWaterfall } from "../../lib/providers";
+import { discoverDomainEmails, matchLeadToDiscovery } from "../../lib/website-email-discovery";
 import dns from "dns";
 import { ApiKeyVault } from "../../lib/key-manager";
 import {
@@ -14,11 +17,15 @@ import {
     setCachedEnrichmentValue,
     type CachedEmailResolution,
 } from "./enrichment-cache";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import { populateTechSignals } from "./discoveryLib/builtWith";
+import { emitCampaignEvent } from "../../lib/campaign-events";
+import { assertPublicHttpUrl } from "../../lib/url-safety";
+import { redis } from "../../lib/ioredis";
+import { recordEnrichmentCost, isCampaignBudgetExhausted } from "./enrichment-cost.service";
 
 const APOLLO_RETRY_BASE_MS = 2_000;
 const APOLLO_REVEAL_MAX_RETRIES = 2;
+
 const APOLLO_BULK_MATCH_SIZE = 10;
 const EXTERNAL_FETCH_TIMEOUT_MS = 10_000;
 const HUNTER_MIN_SCORE = 70;
@@ -29,14 +36,14 @@ const ZEROBOUNCE_BLOCK_STATUSES = new Set(["invalid", "spamtrap", "abuse", "do_n
 const apolloEnrichVault = new ApiKeyVault("apollo-enrich", "APOLLO_API_KEYS");
 const hunterVault = new ApiKeyVault("hunter", "HUNTER_API_KEYS");
 
-
 const CROSS_CAMPAIGN_CACHE_MAX_AGE_DAYS = 30;
+const COMPANY_CONTEXT_FRESHNESS_MS = 14 * 24 * 60 * 60_000;
 
 const MAX_VERIFICATION_RETRIES = 5;
 const VERIFICATION_RETRY_BASE_DELAY_MS = 10 * 60_000;
 const VERIFICATION_RETRY_MAX_DELAY_MS = 6 * 60 * 60_000;
-
-// ─── Status / Source enums ────────────────────────────────────────────────────
+const SERPER_TIMEOUT_MS = 5_000;
+const WEBSITE_DISCOVERY_CACHE_TTL_S = 60 * 60 * 24 * 7;
 
 export const EMAIL_STATUS = {
     NOT_ATTEMPTED: "NOT_ATTEMPTED",
@@ -53,26 +60,17 @@ export const EMAIL_SOURCE = {
     HUNTER: "HUNTER",
     CAMPAIGN_CACHE: "CAMPAIGN_CACHE",
     WATERFALL: "WATERFALL",
+    WEBSITE_DIRECT: "WEBSITE_DIRECT",
+    WEBSITE_PATTERN: "WEBSITE_PATTERN",
+    HARVESTAPI: "HARVESTAPI",
 } as const;
 export type EmailSource = (typeof EMAIL_SOURCE)[keyof typeof EMAIL_SOURCE];
 
-// ─── Zerobounce discriminated union ──────────────────────────────────────────
-
-/**
- * Every call site must explicitly handle all four outcomes:
- *
- *   "verified"          – Zerobounce responded; use verified + catchAll flags.
- *   "blocked"           – Address is on the block-list; treat as NOT_FOUND.
- *   "not_configured"    – ZEROBOUNCE_API_KEY absent; save unverified / skip.
- *   "transient_failure" – Network error or non-OK HTTP; schedule a retry.
- */
 export type EmailVerificationOutcome =
     | { kind: "verified"; verified: boolean; catchAll: boolean }
     | { kind: "blocked" }
     | { kind: "not_configured" }
     | { kind: "transient_failure"; reason: string };
-
-// ─── Internal types ────────────────────────────────────────────────────────────
 
 interface CachedEmailResult {
     email: string;
@@ -88,12 +86,11 @@ interface VerificationRetryState {
     exhausted: boolean;
 }
 
-// ─── Env guard ────────────────────────────────────────────────────────────────
-
 function assertEnv(): void {
-    const missing = (["APOLLO_API_KEYS", "HUNTER_API_KEYS"] as const).filter(k => !process.env[k]);
-    if (missing.length > 0) {
-        logger.warn({ missing }, "[email-enrichment] Missing optional env vars — some enrichment sources will be skipped");
+    const hasApollo = Boolean(process.env.APOLLO_API_KEYS || process.env.APOLLO_API_KEY);
+    const hasHunter = Boolean(process.env.HUNTER_API_KEYS || process.env.HUNTER_API_KEY);
+    if (!hasApollo || !hasHunter) {
+        logger.info({ hasApollo, hasHunter }, "[email-enrichment] Checking optional enrichment API keys");
     }
     if (!process.env.ZEROBOUNCE_API_KEY) {
         logger.warn(
@@ -102,8 +99,6 @@ function assertEnv(): void {
     }
 }
 
-// ─── Domain extraction ────────────────────────────────────────────────────────
-
 function extractDomain(enrichmentData: unknown, website: string | null | undefined): string | null {
     if (enrichmentData && typeof enrichmentData === "object") {
         const d = enrichmentData as Record<string, unknown>;
@@ -111,11 +106,52 @@ function extractDomain(enrichmentData: unknown, website: string | null | undefin
     }
     if (website) {
         try {
-            return new URL(website).hostname.replace(/^www\./, "");
+            const w = website.trim();
+            const href = /^https?:\/\//i.test(w) ? w : `https://${w}`;
+            return new URL(href).hostname.replace(/^www\./, "");
         } catch {
             return null;
         }
     }
+    return null;
+}
+
+async function discoverWebsiteViaSerp(companyName: string): Promise<string | null> {
+    const serperKey = process.env.SERPER_API_KEY || process.env.SERPER_API_KEYS;
+    if (!serperKey) return null;
+
+    const cacheKey = `website-discovery:serp:${Buffer.from(companyName.toLowerCase()).toString("base64url")}`;
+    try {
+        const cached = await redis.get(cacheKey);
+        if (cached) return cached;
+    } catch { }
+
+    try {
+        const res = await fetch("https://google.serper.dev/search", {
+            method: "POST",
+            headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+            body: JSON.stringify({ q: `${companyName} official website`, num: 5 }),
+            signal: AbortSignal.timeout(SERPER_TIMEOUT_MS),
+        });
+        if (!res.ok) return null;
+
+        const data = (await res.json()) as { organic?: Array<{ link?: string }> };
+        const hits = data.organic ?? [];
+
+        for (const hit of hits) {
+            const link = hit.link?.trim();
+            if (!link) continue;
+            try {
+                const validated = await assertPublicHttpUrl(link);
+                const website = validated.origin;
+                await redis.set(cacheKey, website, "EX", WEBSITE_DISCOVERY_CACHE_TTL_S).catch(() => null);
+                return website;
+            } catch { }
+        }
+    } catch (err) {
+        logger.warn({ err, companyName }, "[email-enrichment] SERP website discovery failed");
+    }
+
     return null;
 }
 
@@ -158,8 +194,6 @@ async function cacheResolvedEmail(params: {
     await setCachedEnrichmentValue(key, "person", params.resolution);
 }
 
-// ─── enrichmentData helpers ───────────────────────────────────────────────────
-
 function readEnrichmentData(value: unknown): Record<string, unknown> {
     return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -177,7 +211,69 @@ function nextRetryState(existing: Record<string, unknown>, reason: string): Veri
     };
 }
 
-// ─── Cross-campaign email cache ───────────────────────────────────────────────
+const NICKNAME_GROUPS: string[][] = [
+    ["robert", "rob", "bob", "bobby"],
+    ["david", "dave"],
+    ["michael", "mike"],
+    ["alexander", "alexandra", "alex"],
+    ["daniel", "dan", "danny"],
+    ["christopher", "christian", "chris"],
+    ["matthew", "matt"],
+    ["william", "will", "bill", "billy"],
+    ["james", "jim", "jimmy"],
+    ["thomas", "tom", "tommy"],
+    ["benjamin", "ben"],
+    ["samuel", "samantha", "sam"],
+    ["joseph", "joe", "joey"],
+    ["nicholas", "nick"],
+    ["gregory", "greg"],
+    ["timothy", "tim"],
+    ["steven", "stephen", "steve"],
+    ["jonathan", "john", "jon", "jack"],
+    ["richard", "rick", "dick"],
+    ["charles", "charlie", "chuck"],
+    ["andrew", "andy"],
+    ["anthony", "tony"],
+];
+
+function cleanName(raw: string): string {
+    return raw
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\b(jr|sr|iii|ii|iv|esq|phd|md)\b/gi, "")
+        .replace(/[^a-z\s]/g, " ")
+        .trim();
+}
+
+function areFirstNamesEquivalent(firstA: string, firstB: string): boolean {
+    const normA = cleanName(firstA).split(/\s+/)[0] ?? "";
+    const normB = cleanName(firstB).split(/\s+/)[0] ?? "";
+
+    if (!normA || !normB) return false;
+    if (normA === normB) return true;
+    if (normA.startsWith(normB) || normB.startsWith(normA)) return true;
+
+    for (const group of NICKNAME_GROUPS) {
+        if (group.includes(normA) && group.includes(normB)) return true;
+    }
+    return false;
+}
+
+function isNameMatch(
+    firstA: string | null | undefined,
+    lastA: string | null | undefined,
+    firstB: string | null | undefined,
+    lastB: string | null | undefined,
+): boolean {
+    if (!firstA || !lastA || !firstB || !lastB) return false;
+
+    const normLastA = cleanName(lastA).split(/\s+/)[0] ?? "";
+    const normLastB = cleanName(lastB).split(/\s+/)[0] ?? "";
+
+    if (!normLastA || !normLastB || normLastA !== normLastB) return false;
+
+    return areFirstNamesEquivalent(firstA, firstB);
+}
 
 async function crossCampaignEmailCache(params: {
     companyId: string | null;
@@ -193,30 +289,31 @@ async function crossCampaignEmailCache(params: {
 
     const freshnessCutoff = new Date(Date.now() - CROSS_CAMPAIGN_CACHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
 
-    const sibling = await prisma.lead.findFirst({
+    const candidates = await prisma.lead.findMany({
         where: {
             companyId,
-            firstName,
-            lastName,
             emailStatus: EMAIL_STATUS.FOUND,
             email: { not: null },
             id: { not: currentLeadId },
             deletedAt: null,
             lastEnrichedAt: { gte: freshnessCutoff },
         },
-        select: { email: true, emailCatchAll: true },
+        select: { firstName: true, lastName: true, email: true, emailCatchAll: true },
         orderBy: { lastEnrichedAt: "desc" },
+        take: 20,
     });
 
-    if (!sibling?.email) return null;
+    for (const candidate of candidates) {
+        if (candidate.email && isNameMatch(firstName, lastName, candidate.firstName, candidate.lastName)) {
+            const { blocked } = await isEmailBlockedForCampaign(candidate.email, campaignId, userId);
+            if (!blocked) {
+                return { email: candidate.email, catchAll: candidate.emailCatchAll };
+            }
+        }
+    }
 
-    const { blocked } = await isEmailBlockedForCampaign(sibling.email, campaignId, userId);
-    if (blocked) return null;
-
-    return { email: sibling.email, catchAll: sibling.emailCatchAll };
+    return null;
 }
-
-// ─── Apollo reveal ────────────────────────────────────────────────────────────
 
 async function revealEmailsViaApollo(apolloIds: string[]): Promise<Map<string, string>> {
     if (apolloIds.length === 0) return new Map();
@@ -224,7 +321,11 @@ async function revealEmailsViaApollo(apolloIds: string[]): Promise<Map<string, s
     let key: string;
     try {
         key = await apolloEnrichVault.acquireKey();
-    } catch {
+    } catch (err) {
+        logger.warn(
+            { err: err instanceof Error ? err.message : String(err), apolloIdsCount: apolloIds.length },
+            "[email-enrichment] revealEmailsViaApollo key acquisition failed — failing over to Hunter/Website/Waterfall pipeline",
+        );
         return new Map();
     }
 
@@ -284,8 +385,6 @@ async function revealEmailsViaApollo(apolloIds: string[]): Promise<Map<string, s
     logger.warn({ err: lastError, apolloIds }, "[email-enrichment] revealEmailsViaApollo exhausted retries");
     return result;
 }
-
-// ─── Hunter ───────────────────────────────────────────────────────────────────
 
 async function findEmailViaHunter(params: {
     domain: string;
@@ -352,13 +451,6 @@ async function findEmailViaHunter(params: {
     return null;
 }
 
-
-// ─── Zerobounce ───────────────────────────────────────────────────────────────
-
-/**
- * Returns a discriminated union — never returns null.
- * Callers must switch on `outcome.kind` and handle every branch.
- */
 async function verifyEmailZerobounce(email: string): Promise<EmailVerificationOutcome> {
     if (!process.env.ZEROBOUNCE_API_KEY) return { kind: "not_configured" };
 
@@ -393,42 +485,97 @@ async function verifyEmailZerobounce(email: string): Promise<EmailVerificationOu
     }
 }
 
-// ─── Company context scraping ─────────────────────────────────────────────────
+const inFlightCompanyScrapes = new Map<string, Promise<void>>();
 
-async function scrapeAndPersistCompanyContext(leadId: string, website: string): Promise<void> {
-    const { scrapeCompanyText } = await import("../../lib/scrape");
-    const text = await scrapeCompanyText(website);
-    if (!text) return;
-
-    const truncated = text.slice(0, 4_000);
-
+export async function scrapeAndPersistCompanyContext(
+    leadId: string,
+    website: string,
+    forceRefresh = false,
+): Promise<void> {
     const current = await prisma.lead.findUnique({
         where: { id: leadId },
-        select: { enrichmentData: true },
+        select: { companyId: true, enrichmentData: true },
     });
 
-    const existing = readEnrichmentData(current?.enrichmentData);
+    if (!current?.companyId) return;
+    const companyId = current.companyId;
+
+    const alreadyRunning = inFlightCompanyScrapes.get(companyId);
+    if (alreadyRunning) {
+        await alreadyRunning;
+        return;
+    }
+
+    const run = (async () => {
+        const company = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { enrichmentData: true, lastEnrichedAt: true },
+        });
+
+        const existingCompanyData = readEnrichmentData(company?.enrichmentData);
+        const isFresh =
+            !forceRefresh &&
+            !!company?.lastEnrichedAt &&
+            Date.now() - company.lastEnrichedAt.getTime() < COMPANY_CONTEXT_FRESHNESS_MS &&
+            Array.isArray(existingCompanyData.scrapedPages);
+
+        if (!isFresh) {
+            const { scrapeSubpages } = await import("../../lib/scrape");
+            const pages = await scrapeSubpages(website);
+
+            if (pages.length > 0) {
+                await prisma.company.update({
+                    where: { id: companyId },
+                    data: {
+                        enrichmentData: {
+                            ...existingCompanyData,
+                            scrapedPages: pages as unknown as Prisma.InputJsonValue,
+                            scrapedAt: new Date().toISOString(),
+                        },
+                        lastEnrichedAt: new Date(),
+                    },
+                });
+            }
+        }
+
+        const existingLeadData = readEnrichmentData(current.enrichmentData);
+        const domain = extractDomain(existingLeadData, website);
+        if (domain) {
+            await populateTechSignals([{ companyId, domain }]).catch(() => null);
+        }
+    })();
+
+    inFlightCompanyScrapes.set(companyId, run);
+    try {
+        await run;
+    } finally {
+        inFlightCompanyScrapes.delete(companyId);
+    }
+}
+
+export async function forceReenrichLead(leadId: string): Promise<void> {
+    const lead = await prisma.lead.findUnique({
+        where: { id: leadId },
+        select: { id: true, website: true, companyId: true },
+    });
+
+    if (!lead) return;
 
     await prisma.lead.update({
         where: { id: leadId },
         data: {
-            enrichmentData: {
-                ...existing,
-                scrapedHomepageText: truncated,
-                scrapedAt: new Date().toISOString(),
-            },
+            emailStatus: EMAIL_STATUS.NOT_ATTEMPTED,
+            lastEnrichedAt: null,
         },
     });
+
+    if (lead.website) {
+        await scrapeAndPersistCompanyContext(leadId, lead.website, true).catch(() => { });
+    }
+
+    await runEmailEnrichmentAgent(leadId);
 }
 
-// ─── LinkedIn profile hydration ───────────────────────────────────────────────
-
-/**
- * Shared helper used by both single-lead and batch paths.
- * Mutates `lead.firstName` / `lead.lastName` in-place so downstream steps
- * can use the hydrated values without re-querying the DB.
- * Returns true if any fields were updated.
- */
 async function hydrateLeadFromLinkedIn(lead: {
     id: string;
     linkedinUrl: string | null;
@@ -473,8 +620,6 @@ async function hydrateLeadFromLinkedIn(lead: {
         return false;
     }
 }
-
-// ─── Suppression helpers ──────────────────────────────────────────────────────
 
 function isBlockedByMap(
     email: string,
@@ -534,8 +679,6 @@ async function isEmailBlockedForCampaign(
     return { blocked: false, reason: "" };
 }
 
-// ─── Campaign queue helper ────────────────────────────────────────────────────
-
 async function maybeScheduleGenerate(campaignId: string): Promise<void> {
     const campaign = await prisma.campaign.findUnique({
         where: { id: campaignId },
@@ -551,13 +694,6 @@ async function maybeScheduleGenerate(campaignId: string): Promise<void> {
     }
 }
 
-// ─── DB write helpers ─────────────────────────────────────────────────────────
-
-/**
- * Writes an email as FOUND.
- * `expectedCurrentStatus` must be passed so the guard works whether we're
- * promoting from PENDING (first-pass enrichment) or PENDING_VERIFICATION (retry).
- */
 async function saveFoundEmail(params: {
     leadId: string;
     email: string;
@@ -597,6 +733,14 @@ async function saveFoundEmail(params: {
         return;
     }
 
+    emitCampaignEvent({
+        campaignId,
+        type: "progress",
+        jobName: "emailEnrichment",
+        label: "Email Enrichment",
+        detail: `Verified email discovered`,
+    });
+
     await maybeScheduleGenerate(campaignId);
 }
 
@@ -612,8 +756,6 @@ async function markEmailNotFound(leadId: string, expectedCurrentStatus: EmailSta
         );
     }
 }
-
-// ─── Pending-verification helpers ─────────────────────────────────────────────
 
 async function scheduleVerificationRetry(leadId: string, retryCount: number): Promise<void> {
     const delay = Math.min(
@@ -688,31 +830,20 @@ async function markPendingVerification(params: {
     await scheduleVerificationRetry(leadId, retryState.retryCount);
 }
 
-// ─── Core verify-then-save ────────────────────────────────────────────────────
-
-/**
- * FIX (section 3): Single canonical function that handles every Zerobounce
- * outcome. Previously inlined at every call site with stale null-check logic;
- * now all call sites use this function, keeping single-lead and retry paths
- * consistent.
- *
- * `expectedCurrentStatus` controls the optimistic-concurrency guard so the
- * same function works for both first-pass (PENDING) and retry (PENDING_VERIFICATION).
- */
-async function hasValidMxRecord(email: string): Promise<boolean> {
+async function hasValidMxRecord(email: string): Promise<"VALID" | "INVALID" | "TRANSIENT_ERROR"> {
     const domain = email.split("@")[1];
-    if (!domain) return false;
+    if (!domain) return "INVALID";
     try {
         const records = await dns.promises.resolveMx(domain);
-        return records && records.length > 0;
+        return records && records.length > 0 ? "VALID" : "INVALID";
     } catch (err: unknown) {
         const errorCode = err && typeof err === "object" && "code" in err && typeof (err as { code?: unknown }).code === "string"
             ? (err as { code: string }).code
             : undefined;
         if (errorCode === "ENOTFOUND" || errorCode === "ENODATA") {
-            return false;
+            return "INVALID";
         }
-        return true;
+        return "TRANSIENT_ERROR";
     }
 }
 
@@ -748,9 +879,13 @@ async function resolveAndSaveEmail(params: {
     } = params;
 
     if (!process.env.ZEROBOUNCE_API_KEY || !shouldAttemptPaidVerification({ qualificationScore, recommendedAction })) {
-        const hasMx = await hasValidMxRecord(email);
-        if (!hasMx) {
+        const mxStatus = await hasValidMxRecord(email);
+        if (mxStatus === "INVALID") {
             await markEmailNotFound(leadId, expectedCurrentStatus);
+            return;
+        }
+        if (mxStatus === "TRANSIENT_ERROR") {
+            await markPendingVerification({ leadId, email, source, campaignId, reason: "transient_dns_failure", expectedCurrentStatus });
             return;
         }
         await saveFoundEmail({
@@ -801,8 +936,6 @@ async function resolveAndSaveEmail(params: {
     }
 }
 
-// ─── Public: retry verification for a PENDING_VERIFICATION lead ───────────────
-
 export async function retryEmailVerification(leadId: string): Promise<void> {
     const lead = await prisma.lead.findUnique({
         where: { id: leadId },
@@ -828,11 +961,24 @@ export async function retryEmailVerification(leadId: string): Promise<void> {
         return;
     }
 
+    const claimed = await prisma.lead.updateMany({
+        where: {
+            id: leadId,
+            emailStatus: EMAIL_STATUS.PENDING_VERIFICATION,
+        },
+        data: { emailStatus: EMAIL_STATUS.PENDING },
+    });
+
+    if (claimed.count === 0) {
+        logger.info({ leadId }, "[email-enrichment] retryEmailVerification: lost verification claim race — skipping");
+        return;
+    }
+
     const outcome = await verifyEmailZerobounce(lead.email);
 
     switch (outcome.kind) {
         case "blocked":
-            await markEmailNotFound(leadId, EMAIL_STATUS.PENDING_VERIFICATION);
+            await markEmailNotFound(leadId, EMAIL_STATUS.PENDING);
             logger.info({ leadId }, "[email-enrichment] retryEmailVerification: blocked on retry — marked NOT_FOUND");
             return;
 
@@ -841,8 +987,9 @@ export async function retryEmailVerification(leadId: string): Promise<void> {
             const retryState = nextRetryState(existing, outcome.reason);
 
             await prisma.lead.updateMany({
-                where: { id: leadId, emailStatus: EMAIL_STATUS.PENDING_VERIFICATION },
+                where: { id: leadId, emailStatus: EMAIL_STATUS.PENDING },
                 data: {
+                    emailStatus: EMAIL_STATUS.PENDING_VERIFICATION,
                     lastEnrichedAt: new Date(),
                     enrichmentData: { ...existing, emailVerification: retryState } as Prisma.InputJsonValue,
                 },
@@ -863,7 +1010,7 @@ export async function retryEmailVerification(leadId: string): Promise<void> {
         case "not_configured":
             const hasMx = await hasValidMxRecord(lead.email);
             if (!hasMx) {
-                await markEmailNotFound(leadId, EMAIL_STATUS.PENDING_VERIFICATION);
+                await markEmailNotFound(leadId, EMAIL_STATUS.PENDING);
                 return;
             }
             await saveFoundEmail({
@@ -873,7 +1020,7 @@ export async function retryEmailVerification(leadId: string): Promise<void> {
                 verified: false,
                 catchAll: false,
                 campaignId: lead.campaignId,
-                expectedCurrentStatus: EMAIL_STATUS.PENDING_VERIFICATION,
+                expectedCurrentStatus: EMAIL_STATUS.PENDING,
             });
             logger.info({ leadId }, "[email-enrichment] retryEmailVerification: ZB key gone — saved unverified");
             await maybeScheduleGenerate(lead.campaignId);
@@ -887,7 +1034,7 @@ export async function retryEmailVerification(leadId: string): Promise<void> {
                 verified: outcome.verified,
                 catchAll: outcome.catchAll,
                 campaignId: lead.campaignId,
-                expectedCurrentStatus: EMAIL_STATUS.PENDING_VERIFICATION,
+                expectedCurrentStatus: EMAIL_STATUS.PENDING,
             });
             logger.info({ leadId }, "[email-enrichment] retryEmailVerification: verification succeeded on retry — promoted to FOUND");
             await maybeScheduleGenerate(lead.campaignId);
@@ -895,7 +1042,299 @@ export async function retryEmailVerification(leadId: string): Promise<void> {
     }
 }
 
-// ─── Public: single-lead enrichment ──────────────────────────────────────────
+// ─── Shared Email Resolution Core ───────────────────────────────────────────
+// Both single-lead and batch paths delegate here.  Strategy differences
+// (DB vs map-based suppression, per-lead vs pre-fetched Apollo, etc.)
+// are injected via EmailResolutionContext.
+
+export interface EmailResolutionContext {
+    lead: {
+        id: string;
+        email: string | null;
+        firstName: string | null;
+        lastName: string | null;
+        website: string | null;
+        linkedinUrl: string | null;
+        enrichmentData: unknown;
+        externalId: string | null;
+        companyId: string | null;
+        campaignId: string;
+        qualificationScore: number | null;
+        recommendedAction: string | null;
+    };
+    userId: string;
+    /** Check whether an email is blocked (suppression / already in campaign). */
+    checkSuppression: (email: string) => Promise<{ blocked: boolean; reason: string }>;
+    /** Pre-resolved Apollo reveal email (batch pre-fetches in bulk). */
+    apolloRevealEmail?: string | null;
+    /** Whether to call Apollo Reveal per-lead (true for single path, false for batch). */
+    shouldCallApolloReveal?: boolean;
+    /** Callback when an email is found — batch path uses this for in-flight dedup. */
+    onEmailFound?: (email: string) => void;
+    /** Whether campaign budget for paid providers is exhausted. */
+    budgetExhausted?: boolean;
+}
+
+async function resolveEmailForOneLead(ctx: EmailResolutionContext): Promise<void> {
+    const { lead, userId, checkSuppression, onEmailFound, budgetExhausted } = ctx;
+    const leadDomain = extractDomain(lead.enrichmentData, lead.website);
+
+    // ── Step 1: Existing email ──
+    if (lead.email) {
+        const normalised = lead.email.toLowerCase();
+        const { blocked } = await checkSuppression(normalised);
+
+        if (!blocked) {
+            onEmailFound?.(normalised);
+            await resolveAndSaveEmail({
+                leadId: lead.id,
+                email: normalised,
+                source: EMAIL_SOURCE.APOLLO_SEARCH,
+                campaignId: lead.campaignId,
+                qualificationScore: lead.qualificationScore,
+                recommendedAction: lead.recommendedAction,
+            });
+            await cacheResolvedEmail({
+                companyId: lead.companyId,
+                firstName: lead.firstName,
+                lastName: lead.lastName,
+                domain: leadDomain,
+                email: normalised,
+                resolution: {
+                    email: normalised,
+                    source: EMAIL_SOURCE.APOLLO_SEARCH,
+                    verified: false,
+                    catchAll: false,
+                },
+            });
+            return;
+        }
+    }
+
+    // ── Step 2: Apollo Reveal ──
+    let revealedEmail: string | undefined;
+
+    if (ctx.apolloRevealEmail) {
+        revealedEmail = ctx.apolloRevealEmail;
+    } else if (ctx.shouldCallApolloReveal && lead.externalId && !budgetExhausted) {
+        const revealMap = await revealEmailsViaApollo([lead.externalId]);
+        revealedEmail = revealMap.get(lead.externalId);
+        if (revealedEmail) {
+            recordEnrichmentCost({
+                leadId: lead.id,
+                campaignId: lead.campaignId,
+                provider: "APOLLO_REVEAL",
+                operation: "email_reveal",
+            }).catch(() => null);
+        }
+    }
+
+    if (revealedEmail) {
+        const normalised = revealedEmail.toLowerCase();
+        const { blocked } = await checkSuppression(normalised);
+
+        if (!blocked) {
+            onEmailFound?.(normalised);
+            await resolveAndSaveEmail({
+                leadId: lead.id,
+                email: normalised,
+                source: EMAIL_SOURCE.APOLLO_REVEAL,
+                campaignId: lead.campaignId,
+                qualificationScore: lead.qualificationScore,
+                recommendedAction: lead.recommendedAction,
+            });
+            await cacheResolvedEmail({
+                companyId: lead.companyId,
+                firstName: lead.firstName,
+                lastName: lead.lastName,
+                domain: leadDomain,
+                email: normalised,
+                resolution: {
+                    email: normalised,
+                    source: EMAIL_SOURCE.APOLLO_REVEAL,
+                    verified: false,
+                    catchAll: false,
+                },
+            });
+            return;
+        }
+    }
+
+    // ── Step 3: Website discovery ──
+    if (lead.website && lead.firstName && lead.lastName) {
+        const discovery = await discoverDomainEmails(lead.website);
+        const match = matchLeadToDiscovery(discovery, lead.firstName, lead.lastName);
+
+        if (match) {
+            const { blocked } = await checkSuppression(match.email);
+            if (!blocked) {
+                onEmailFound?.(match.email);
+                const source = match.kind === "direct" ? EMAIL_SOURCE.WEBSITE_DIRECT : EMAIL_SOURCE.WEBSITE_PATTERN;
+                logger.info({ leadId: lead.id, kind: match.kind }, "[email-enrichment] Email resolved from company website");
+                await resolveAndSaveEmail({
+                    leadId: lead.id,
+                    email: match.email,
+                    source,
+                    campaignId: lead.campaignId,
+                    qualificationScore: lead.qualificationScore,
+                    recommendedAction: lead.recommendedAction,
+                });
+                await cacheResolvedEmail({
+                    companyId: lead.companyId,
+                    firstName: lead.firstName,
+                    lastName: lead.lastName,
+                    domain: leadDomain,
+                    email: match.email,
+                    resolution: {
+                        email: match.email,
+                        source,
+                        verified: false,
+                        catchAll: false,
+                    },
+                });
+                return;
+            }
+        }
+    }
+
+    // ── Step 4: LinkedIn hydration (ensure we have names for Hunter) ──
+    await hydrateLeadFromLinkedIn({
+        id: lead.id,
+        linkedinUrl: lead.linkedinUrl,
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        campaignId: lead.campaignId,
+    });
+
+    // ── Step 5: Hunter ──
+    const domain = extractDomain(lead.enrichmentData, lead.website);
+
+    if (!domain) {
+        logger.warn({ leadId: lead.id }, "[email-enrichment] No domain resolvable — skipping Hunter");
+        await markEmailNotFound(lead.id, EMAIL_STATUS.PENDING);
+        return;
+    }
+
+    if (!budgetExhausted) {
+        const hunterFirstName = lead.firstName ?? "";
+        const hunterLastName = lead.lastName ?? "";
+        const hunterResult = await findEmailViaHunter({
+            domain,
+            firstName: hunterFirstName,
+            lastName: hunterLastName,
+        });
+
+        if (hunterResult) {
+            recordEnrichmentCost({
+                leadId: lead.id,
+                campaignId: lead.campaignId,
+                provider: "HUNTER",
+                operation: "email_reveal",
+            }).catch(() => null);
+
+            const normalised = hunterResult.email.toLowerCase();
+            const { blocked } = await checkSuppression(normalised);
+
+            if (!blocked) {
+                onEmailFound?.(normalised);
+                if (hunterResult.verified) {
+                    await saveFoundEmail({
+                        leadId: lead.id,
+                        email: normalised,
+                        source: EMAIL_SOURCE.HUNTER,
+                        verified: true,
+                        catchAll: false,
+                        campaignId: lead.campaignId,
+                    });
+                } else {
+                    await resolveAndSaveEmail({
+                        leadId: lead.id,
+                        email: normalised,
+                        source: EMAIL_SOURCE.HUNTER,
+                        campaignId: lead.campaignId,
+                        qualificationScore: lead.qualificationScore,
+                        recommendedAction: lead.recommendedAction,
+                    });
+                }
+                await cacheResolvedEmail({
+                    companyId: lead.companyId,
+                    firstName: lead.firstName,
+                    lastName: lead.lastName,
+                    domain,
+                    email: normalised,
+                    resolution: {
+                        email: normalised,
+                        source: EMAIL_SOURCE.HUNTER,
+                        verified: hunterResult.verified,
+                        catchAll: false,
+                    },
+                });
+                return;
+            }
+        }
+    }
+
+    // ── Step 6: Person waterfall fallback ──
+    const excludeProviders = budgetExhausted
+        ? ["Apollo", "PDL", "Hunter", "Crunchbase", "ApifyLinkedIn", "Proxycurl"]
+        : undefined;
+
+    const waterfallResult = await enrichPersonWaterfall(
+        {
+            email: lead.email ?? undefined,
+            linkedinUrl: lead.linkedinUrl ?? undefined,
+            firstName: lead.firstName ?? undefined,
+            lastName: lead.lastName ?? undefined,
+            domain,
+        },
+        {
+            excludeProviders,
+            onProviderSuccess: (providerName) => {
+                recordEnrichmentCost({
+                    leadId: lead.id,
+                    campaignId: lead.campaignId,
+                    provider: providerName.toUpperCase(),
+                    operation: "person_enrichment",
+                }).catch(() => null);
+            },
+        },
+    );
+
+    if (waterfallResult?.email) {
+        const normalised = waterfallResult.email.toLowerCase();
+        const { blocked } = await checkSuppression(normalised);
+
+        if (!blocked) {
+            onEmailFound?.(normalised);
+            await resolveAndSaveEmail({
+                leadId: lead.id,
+                email: normalised,
+                source: EMAIL_SOURCE.WATERFALL,
+                campaignId: lead.campaignId,
+                qualificationScore: lead.qualificationScore,
+                recommendedAction: lead.recommendedAction,
+            });
+            await cacheResolvedEmail({
+                companyId: lead.companyId,
+                firstName: lead.firstName,
+                lastName: lead.lastName,
+                domain,
+                email: normalised,
+                resolution: {
+                    email: normalised,
+                    source: EMAIL_SOURCE.WATERFALL,
+                    verified: false,
+                    catchAll: false,
+                },
+            });
+            return;
+        }
+    }
+
+    // ── Step 7: Exhausted ──
+    await markEmailNotFound(lead.id, EMAIL_STATUS.PENDING);
+    logger.info({ leadId: lead.id }, "[email-enrichment] Enrichment exhausted — marked NOT_FOUND");
+}
 
 export async function runEmailEnrichmentAgent(leadId: string): Promise<void> {
     assertEnv();
@@ -909,6 +1348,7 @@ export async function runEmailEnrichmentAgent(leadId: string): Promise<void> {
             emailStatus: true,
             firstName: true,
             lastName: true,
+            companyName: true,
             website: true,
             linkedinUrl: true,
             enrichmentData: true,
@@ -938,17 +1378,19 @@ export async function runEmailEnrichmentAgent(leadId: string): Promise<void> {
     }
 
     const shouldProcess = await prisma.$transaction(async (tx) => {
-        const locked = await tx.$queryRaw<Array<{ id: string; emailStatus: string }>>`
-            SELECT id, "emailStatus" FROM "Lead" WHERE id = ${leadId} FOR UPDATE
-        `;
-        if (locked.length === 0 || locked[0].emailStatus !== EMAIL_STATUS.NOT_ATTEMPTED) {
+        try {
+            const locked = await acquireLeadLock(tx, leadId);
+            if (locked.emailStatus !== EMAIL_STATUS.NOT_ATTEMPTED) {
+                return false;
+            }
+            await tx.lead.update({
+                where: { id: leadId },
+                data: { emailStatus: EMAIL_STATUS.PENDING },
+            });
+            return true;
+        } catch {
             return false;
         }
-        await tx.lead.update({
-            where: { id: leadId },
-            data: { emailStatus: EMAIL_STATUS.PENDING },
-        });
-        return true;
     });
 
     if (!shouldProcess) {
@@ -956,13 +1398,10 @@ export async function runEmailEnrichmentAgent(leadId: string): Promise<void> {
         return;
     }
 
-    // FIX (section 5): Reflect the claimed status in the in-memory object so
-    // any downstream code that reads lead.emailStatus sees the correct value.
     lead.emailStatus = EMAIL_STATUS.PENDING;
 
     logger.info({ leadId }, "[email-enrichment] Starting email enrichment");
 
-    // Domain-level suppression check before any API calls.
     const leadDomain = extractDomain(lead.enrichmentData, lead.website);
     if (leadDomain) {
         const domainSuppressed = await prisma.suppression.findFirst({
@@ -979,12 +1418,22 @@ export async function runEmailEnrichmentAgent(leadId: string): Promise<void> {
         }
     }
 
-    // Scrape company homepage for downstream generation context.
-    if (lead.website) {
-        await scrapeAndPersistCompanyContext(leadId, lead.website).catch(() => { });
+    if (!lead.website && lead.companyName) {
+        const discovered = await discoverWebsiteViaSerp(lead.companyName);
+        if (discovered) {
+            lead.website = discovered;
+            await prisma.lead.update({
+                where: { id: leadId },
+                data: { website: discovered },
+            }).catch(() => null);
+            logger.info({ leadId, discovered }, "[email-enrichment] Website discovered via SERP");
+        }
     }
 
-    // ── Source 1: cross-campaign cache ──────────────────────────────────────
+    if (lead.website && lead.companyId) {
+        await enqueueCompanyScrape({ leadId, companyId: lead.companyId, website: lead.website });
+    }
+
     const cachedResult = await crossCampaignEmailCache({
         companyId: lead.companyId,
         firstName: lead.firstName,
@@ -1041,155 +1490,17 @@ export async function runEmailEnrichmentAgent(leadId: string): Promise<void> {
         return;
     }
 
-    if (lead.email) {
-        const normalised = lead.email.toLowerCase();
-        const { blocked } = await isEmailBlockedForCampaign(normalised, lead.campaignId, userId);
+    // ── Delegate to shared email resolution core ──
+    const budgetExhausted = await isCampaignBudgetExhausted(lead.campaignId);
 
-        if (!blocked) {
-            await resolveAndSaveEmail({
-                leadId,
-                email: normalised,
-                source: EMAIL_SOURCE.APOLLO_SEARCH,
-                campaignId: lead.campaignId,
-                qualificationScore: lead.qualificationScore,
-                recommendedAction: lead.recommendedAction,
-            });
-            await cacheResolvedEmail({
-                companyId: lead.companyId,
-                firstName: lead.firstName,
-                lastName: lead.lastName,
-                domain: leadDomain,
-                email: normalised,
-                resolution: {
-                    email: normalised,
-                    source: EMAIL_SOURCE.APOLLO_SEARCH,
-                    verified: false,
-                    catchAll: false,
-                },
-            });
-            return;
-        }
-    }
-
-    if (lead.externalId) {
-        const revealMap = await revealEmailsViaApollo([lead.externalId]);
-        const revealedEmail = revealMap.get(lead.externalId);
-
-        if (revealedEmail) {
-            const normalised = revealedEmail.toLowerCase();
-            const { blocked } = await isEmailBlockedForCampaign(normalised, lead.campaignId, userId);
-
-            if (!blocked) {
-                await resolveAndSaveEmail({
-                    leadId,
-                    email: normalised,
-                    source: EMAIL_SOURCE.APOLLO_REVEAL,
-                    campaignId: lead.campaignId,
-                    qualificationScore: lead.qualificationScore,
-                    recommendedAction: lead.recommendedAction,
-                });
-                await cacheResolvedEmail({
-                    companyId: lead.companyId,
-                    firstName: lead.firstName,
-                    lastName: lead.lastName,
-                    domain: leadDomain,
-                    email: normalised,
-                    resolution: {
-                        email: normalised,
-                        source: EMAIL_SOURCE.APOLLO_REVEAL,
-                        verified: false,
-                        catchAll: false,
-                    },
-                });
-                return;
-            }
-        }
-    }
-
-    const domain = extractDomain(lead.enrichmentData, lead.website);
-
-    if (!domain) {
-        logger.warn({ leadId }, "[email-enrichment] No domain resolvable — skipping Hunter");
-        await prisma.lead.update({
-            where: { id: leadId },
-            data: { emailStatus: EMAIL_STATUS.NOT_FOUND, lastEnrichedAt: new Date() },
-        });
-        return;
-    }
-
-    // ── Source 5: Hunter ─────────────────────────────────────────────────────
-    const hunterFirstName = lead.firstName ?? "";
-    const hunterLastName = lead.lastName ?? "";
-    const hunterResult = await findEmailViaHunter({
-        domain,
-        firstName: hunterFirstName,
-        lastName: hunterLastName,
+    await resolveEmailForOneLead({
+        lead,
+        userId,
+        checkSuppression: (email) => isEmailBlockedForCampaign(email, lead.campaignId, userId),
+        shouldCallApolloReveal: true,
+        budgetExhausted,
     });
-
-    if (hunterResult) {
-        const normalised = hunterResult.email.toLowerCase();
-        const { blocked } = await isEmailBlockedForCampaign(normalised, lead.campaignId, userId);
-
-        if (!blocked) {
-            await resolveAndSaveEmail({
-                leadId,
-                email: normalised,
-                source: EMAIL_SOURCE.HUNTER,
-                campaignId: lead.campaignId,
-                qualificationScore: lead.qualificationScore,
-                recommendedAction: lead.recommendedAction,
-            });
-            await cacheResolvedEmail({
-                companyId: lead.companyId,
-                firstName: lead.firstName,
-                lastName: lead.lastName,
-                domain,
-                email: normalised,
-                resolution: {
-                    email: normalised,
-                    source: EMAIL_SOURCE.HUNTER,
-                    verified: false,
-                    catchAll: false,
-                },
-            });
-            return;
-        }
-    }
-
-    const waterfallResult = await enrichPersonWaterfall({
-        email: lead.email ?? undefined,
-        linkedinUrl: lead.linkedinUrl ?? undefined,
-        firstName: lead.firstName ?? undefined,
-        lastName: lead.lastName ?? undefined,
-        domain,
-    });
-
-    if (waterfallResult?.email) {
-        const normalised = waterfallResult.email.toLowerCase();
-        const { blocked } = await isEmailBlockedForCampaign(normalised, lead.campaignId, userId);
-
-        if (!blocked) {
-            await resolveAndSaveEmail({
-                leadId,
-                email: normalised,
-                source: EMAIL_SOURCE.WATERFALL,
-                campaignId: lead.campaignId,
-                qualificationScore: lead.qualificationScore,
-                recommendedAction: lead.recommendedAction,
-            });
-            return;
-        }
-    }
-
-    await prisma.lead.update({
-        where: { id: leadId },
-        data: { emailStatus: EMAIL_STATUS.NOT_FOUND, lastEnrichedAt: new Date() },
-    });
-
-    logger.info({ leadId }, "[email-enrichment] Enrichment exhausted — marked NOT_FOUND");
 }
-
-// ─── Public: batch enrichment ─────────────────────────────────────────────────
 
 export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<void> {
     assertEnv();
@@ -1220,9 +1531,19 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
 
     if (leads.length === 0) return;
 
+    const campaignId = leads[0]?.campaignId;
+    if (campaignId) {
+        emitCampaignEvent({
+            campaignId,
+            type: "active",
+            jobName: "emailEnrichment",
+            label: "Email Enrichment",
+            detail: `Enriching ${leads.length} leads`,
+        });
+    }
+
     const candidateIds = leads.map(l => l.id);
 
-    // Atomic batch-claim via raw SQL.
     const claimedRows = await prisma.$queryRaw<{ id: string }[]>`
         UPDATE "Lead"
         SET    "emailStatus" = 'PENDING'::"EmailStatus"
@@ -1237,12 +1558,10 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
 
     if (claimedLeads.length === 0) return;
 
-    // FIX (section 5): Reflect claimed status in memory for all claimed leads.
     for (const lead of claimedLeads) {
         lead.emailStatus = EMAIL_STATUS.PENDING;
     }
 
-    // ── Build per-user suppression map ───────────────────────────────────────
     const userIds = [...new Set(claimedLeads.map(l => l.campaign.createdById))];
     const suppressions = await prisma.suppression.findMany({
         where: { userId: { in: userIds } },
@@ -1251,6 +1570,7 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
 
     const suppressionMap = new Map<string, { emails: Set<string>; domains: Set<string> }>();
     for (const sup of suppressions) {
+        if (!sup.userId) continue;
         if (!suppressionMap.has(sup.userId)) {
             suppressionMap.set(sup.userId, { emails: new Set(), domains: new Set() });
         }
@@ -1259,7 +1579,6 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
         if (sup.domain) sets.domains.add(sup.domain.toLowerCase());
     }
 
-    // ── Domain-level suppression filter ──────────────────────────────────────
     const activeLeads: typeof claimedLeads = [];
     const suppressedLeadIds: string[] = [];
 
@@ -1285,20 +1604,12 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
 
     if (activeLeads.length === 0) return;
 
-    // ── Parallel company-context scraping ─────────────────────────────────────
-    const scrapeLimit = pLimit(3);
-    await Promise.all(
-        activeLeads.map(lead =>
-            scrapeLimit(async () => {
-                if (lead.website) {
-                    await scrapeAndPersistCompanyContext(lead.id, lead.website).catch(() => { });
-                }
-            }),
-        ),
+    await enqueueCompanyScrapes(
+        activeLeads
+            .filter(lead => lead.website && lead.companyId)
+            .map(lead => ({ leadId: lead.id, companyId: lead.companyId!, website: lead.website! })),
     );
 
-    // FIX (section 4): Cross-campaign cache check in batch path.
-    // We check per-lead; leads resolved here skip Apollo + Hunter spend.
     const cacheLimit = pLimit(5);
     const cacheResolved = new Set<string>();
 
@@ -1314,18 +1625,42 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
                     currentLeadId: lead.id,
                     userId,
                 });
-                if (!cachedResult) return;
+                if (cachedResult) {
+                    logger.info({ leadId: lead.id }, "[email-enrichment] Batch: email resolved from cross-campaign cache");
+                    await saveFoundEmail({
+                        leadId: lead.id,
+                        email: cachedResult.email,
+                        source: EMAIL_SOURCE.CAMPAIGN_CACHE,
+                        verified: true,
+                        catchAll: cachedResult.catchAll,
+                        campaignId: lead.campaignId,
+                    });
+                    cacheResolved.add(lead.id);
+                    return;
+                }
 
-                logger.info({ leadId: lead.id }, "[email-enrichment] Batch: email resolved from cross-campaign cache");
-                await saveFoundEmail({
-                    leadId: lead.id,
-                    email: cachedResult.email,
-                    source: EMAIL_SOURCE.CAMPAIGN_CACHE,
-                    verified: true,
-                    catchAll: cachedResult.catchAll,
-                    campaignId: lead.campaignId,
+                const leadDomain = extractDomain(lead.enrichmentData, lead.website);
+                const cachedResolution = await maybeResolveFromEnrichmentCache({
+                    companyId: lead.companyId,
+                    firstName: lead.firstName,
+                    lastName: lead.lastName,
+                    domain: leadDomain,
+                    email: lead.email,
                 });
-                cacheResolved.add(lead.id);
+
+                if (cachedResolution) {
+                    logger.info({ leadId: lead.id, email: cachedResolution.email }, "[email-enrichment] Batch: email resolved from generic cache");
+                    await saveFoundEmail({
+                        leadId: lead.id,
+                        email: cachedResolution.email,
+                        source: cachedResolution.source as EmailSource,
+                        verified: cachedResolution.verified,
+                        catchAll: cachedResolution.catchAll,
+                        campaignId: lead.campaignId,
+                    });
+                    cacheResolved.add(lead.id);
+                    return;
+                }
             }),
         ),
     );
@@ -1334,7 +1669,6 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
 
     if (remainingLeads.length === 0) return;
 
-    // ── Pre-load existing campaign emails for duplicate detection ─────────────
     const campaignIds = [...new Set(remainingLeads.map(l => l.campaignId))];
     const existingEmailRows = await prisma.lead.findMany({
         where: {
@@ -1353,13 +1687,27 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
         existingEmailByCampaign.get(row.campaignId)!.add(row.email.toLowerCase());
     }
 
-    // ── Apollo bulk-reveal ────────────────────────────────────────────────────
-    const apolloLeads = remainingLeads.filter(l => l.externalId);
+    // Check budget once per campaign for the batch
+    const budgetCheckCache = new Map<string, boolean>();
+    async function getBudgetExhausted(cId: string): Promise<boolean> {
+        if (budgetCheckCache.has(cId)) return budgetCheckCache.get(cId)!;
+        const exhausted = await isCampaignBudgetExhausted(cId);
+        budgetCheckCache.set(cId, exhausted);
+        return exhausted;
+    }
+
+    const apolloLeadsEligible: typeof remainingLeads = [];
+    for (const lead of remainingLeads) {
+        if (lead.externalId && !(await getBudgetExhausted(lead.campaignId))) {
+            apolloLeadsEligible.push(lead);
+        }
+    }
+
     const apolloIdChunks: string[][] = [];
 
-    for (let i = 0; i < apolloLeads.length; i += APOLLO_BULK_MATCH_SIZE) {
+    for (let i = 0; i < apolloLeadsEligible.length; i += APOLLO_BULK_MATCH_SIZE) {
         apolloIdChunks.push(
-            apolloLeads.slice(i, i + APOLLO_BULK_MATCH_SIZE).map(l => l.externalId!),
+            apolloLeadsEligible.slice(i, i + APOLLO_BULK_MATCH_SIZE).map(l => l.externalId!),
         );
     }
 
@@ -1373,195 +1721,32 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
         for (const [id, email] of chunkResult) apolloEmailMap.set(id, email);
     }
 
-    // ── Per-lead processing ───────────────────────────────────────────────────
+    // Record Apollo Reveal cost for every lead that got a revealed email
+    for (const lead of apolloLeadsEligible) {
+        if (lead.externalId && apolloEmailMap.has(lead.externalId)) {
+            recordEnrichmentCost({
+                leadId: lead.id,
+                campaignId: lead.campaignId,
+                provider: "APOLLO_REVEAL",
+                operation: "email_reveal",
+            }).catch(() => null);
+        }
+    }
+
     async function processOneLead(lead: (typeof remainingLeads)[0]): Promise<void> {
         const leadUserId = lead.campaign.createdById;
         try {
-            // Source 1: email already on the lead record.
-            if (lead.email) {
-                const rawEmail = lead.email.toLowerCase();
-                const { blocked } = isBlockedByMap(rawEmail, leadUserId, suppressionMap, existingEmailByCampaign, lead.campaignId);
+            const budgetExhausted = await getBudgetExhausted(lead.campaignId);
 
-                if (!blocked) {
-                    registerFoundEmail(rawEmail, lead.campaignId, existingEmailByCampaign);
-                    await resolveAndSaveEmail({
-                        leadId: lead.id,
-                        email: rawEmail,
-                        source: EMAIL_SOURCE.APOLLO_SEARCH,
-                        campaignId: lead.campaignId,
-                        qualificationScore: lead.qualificationScore,
-                        recommendedAction: lead.recommendedAction,
-                    });
-                    return;
-                }
-            }
-
-            if (lead.externalId && apolloEmailMap.has(lead.externalId)) {
-                const rawEmail = apolloEmailMap.get(lead.externalId)!.toLowerCase();
-                const { blocked } = isBlockedByMap(rawEmail, leadUserId, suppressionMap, existingEmailByCampaign, lead.campaignId);
-
-                if (!blocked) {
-                    registerFoundEmail(rawEmail, lead.campaignId, existingEmailByCampaign);
-                    await resolveAndSaveEmail({
-                        leadId: lead.id,
-                        email: rawEmail,
-                        source: EMAIL_SOURCE.APOLLO_REVEAL,
-                        campaignId: lead.campaignId,
-                        qualificationScore: lead.qualificationScore,
-                        recommendedAction: lead.recommendedAction,
-                    });
-                    return;
-                }
-            }
-
-            // Source 3: LinkedIn hydration (name recovery).
-            // FIX (section 2): uses shared hydrateLeadFromLinkedIn — consistent with single-lead path.
-            await hydrateLeadFromLinkedIn(lead);
-
-            if (!lead.firstName || !lead.lastName) {
-                await prisma.lead.update({
-                    where: { id: lead.id },
-                    data: { emailStatus: EMAIL_STATUS.NOT_FOUND, lastEnrichedAt: new Date() },
-                });
-                return;
-            }
-
-            const domain = extractDomain(lead.enrichmentData, lead.website);
-
-            if (!domain) {
-                await prisma.lead.update({
-                    where: { id: lead.id },
-                    data: { emailStatus: EMAIL_STATUS.NOT_FOUND, lastEnrichedAt: new Date() },
-                });
-                return;
-            }
-
-            const hunterFirstName = lead.firstName ?? "";
-            const hunterLastName = lead.lastName ?? "";
-            const hunterResult = await findEmailViaHunter({
-                domain,
-                firstName: hunterFirstName,
-                lastName: hunterLastName,
-            });
-
-            if (hunterResult) {
-                const normalised = hunterResult.email.toLowerCase();
-                const { blocked } = isBlockedByMap(normalised, leadUserId, suppressionMap, existingEmailByCampaign, lead.campaignId);
-
-                if (!blocked) {
-                    registerFoundEmail(normalised, lead.campaignId, existingEmailByCampaign);
-                    if (hunterResult.verified) {
-                        await saveFoundEmail({
-                            leadId: lead.id,
-                            email: normalised,
-                            source: EMAIL_SOURCE.HUNTER,
-                            verified: true,
-                            catchAll: false,
-                            campaignId: lead.campaignId,
-                        });
-                        await cacheResolvedEmail({
-                            companyId: lead.companyId,
-                            firstName: lead.firstName,
-                            lastName: lead.lastName,
-                            domain,
-                            email: normalised,
-                            resolution: {
-                                email: normalised,
-                                source: EMAIL_SOURCE.HUNTER,
-                                verified: true,
-                                catchAll: false,
-                            },
-                        });
-                    } else {
-                        await resolveAndSaveEmail({
-                            leadId: lead.id,
-                            email: normalised,
-                            source: EMAIL_SOURCE.HUNTER,
-                            campaignId: lead.campaignId,
-                            qualificationScore: lead.qualificationScore,
-                            recommendedAction: lead.recommendedAction,
-                        });
-                        await cacheResolvedEmail({
-                            companyId: lead.companyId,
-                            firstName: lead.firstName,
-                            lastName: lead.lastName,
-                            domain,
-                            email: normalised,
-                            resolution: {
-                                email: normalised,
-                                source: EMAIL_SOURCE.HUNTER,
-                                verified: false,
-                                catchAll: false,
-                            },
-                        });
-                    }
-                    return;
-                }
-            }
-
-            const cachedResolution = await maybeResolveFromEnrichmentCache({
-                companyId: lead.companyId,
-                firstName: lead.firstName,
-                lastName: lead.lastName,
-                domain,
-                email: lead.email,
-            });
-
-            if (cachedResolution) {
-                logger.info({ leadId: lead.id, email: cachedResolution.email }, "[email-enrichment] Batch: resolved from cache");
-                await saveFoundEmail({
-                    leadId: lead.id,
-                    email: cachedResolution.email,
-                    source: cachedResolution.source as EmailSource,
-                    verified: cachedResolution.verified,
-                    catchAll: cachedResolution.catchAll,
-                    campaignId: lead.campaignId,
-                });
-                return;
-            }
-
-            const waterfallResult = await enrichPersonWaterfall({
-                email: lead.email ?? undefined,
-                linkedinUrl: lead.linkedinUrl ?? undefined,
-                firstName: lead.firstName ?? undefined,
-                lastName: lead.lastName ?? undefined,
-                domain,
-            });
-
-            if (waterfallResult?.email) {
-                const normalised = waterfallResult.email.toLowerCase();
-                const { blocked } = isBlockedByMap(normalised, leadUserId, suppressionMap, existingEmailByCampaign, lead.campaignId);
-
-                if (!blocked) {
-                    registerFoundEmail(normalised, lead.campaignId, existingEmailByCampaign);
-                    await resolveAndSaveEmail({
-                        leadId: lead.id,
-                        email: normalised,
-                        source: EMAIL_SOURCE.WATERFALL,
-                        campaignId: lead.campaignId,
-                        qualificationScore: lead.qualificationScore,
-                        recommendedAction: lead.recommendedAction,
-                    });
-                    await cacheResolvedEmail({
-                        companyId: lead.companyId,
-                        firstName: lead.firstName,
-                        lastName: lead.lastName,
-                        domain,
-                        email: normalised,
-                        resolution: {
-                            email: normalised,
-                            source: EMAIL_SOURCE.WATERFALL,
-                            verified: false,
-                            catchAll: false,
-                        },
-                    });
-                    return;
-                }
-            }
-
-            await prisma.lead.update({
-                where: { id: lead.id },
-                data: { emailStatus: EMAIL_STATUS.NOT_FOUND, lastEnrichedAt: new Date() },
+            await resolveEmailForOneLead({
+                lead,
+                userId: leadUserId,
+                checkSuppression: (email) =>
+                    Promise.resolve(isBlockedByMap(email, leadUserId, suppressionMap, existingEmailByCampaign, lead.campaignId)),
+                apolloRevealEmail: lead.externalId ? apolloEmailMap.get(lead.externalId) ?? null : null,
+                shouldCallApolloReveal: false,  // batch pre-fetches Apollo in bulk above
+                onEmailFound: (email) => registerFoundEmail(email, lead.campaignId, existingEmailByCampaign),
+                budgetExhausted,
             });
         } catch (err) {
             logger.warn({ err, leadId: lead.id }, "[email-enrichment] Batch: lead failed — resetting to NOT_ATTEMPTED");
@@ -1576,4 +1761,14 @@ export async function runBatchEmailEnrichmentAgent(leadIds: string[]): Promise<v
 
     const emailLimit = pLimit(5);
     await Promise.all(remainingLeads.map(lead => emailLimit(() => processOneLead(lead))));
+
+    if (campaignId) {
+        emitCampaignEvent({
+            campaignId,
+            type: "completed",
+            jobName: "emailEnrichment",
+            label: "Email Enrichment",
+            detail: `Completed email enrichment pass`,
+        });
+    }
 }

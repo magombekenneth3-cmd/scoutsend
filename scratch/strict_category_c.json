@@ -1,0 +1,70 @@
+[
+  {
+    "tableName": "Lead",
+    "colName": "embedding"
+  },
+  {
+    "tableName": "Reply",
+    "colName": "embedding"
+  },
+  {
+    "tableName": "WinRecord",
+    "colName": "embedding"
+  },
+  {
+    "tableName": "LossRecord",
+    "colName": "embedding"
+  },
+  {
+    "tableName": "AITrace",
+    "colName": "model"
+  },
+  {
+    "tableName": "Company",
+    "colName": "embedding"
+  },
+  {
+    "tableName": "Operation",
+    "colName": "result"
+  },
+  {
+    "tableName": "Operation",
+    "colName": "leaseExpiresAt"
+  },
+  {
+    "tableName": "Operation",
+    "colName": "createdAt"
+  },
+  {
+    "tableName": "Operation",
+    "colName": "completedAt"
+  },
+  {
+    "tableName": "Operation",
+    "colName": "error"
+  },
+  {
+    "tableName": "Operation",
+    "colName": "leaseOwner"
+  },
+  {
+    "tableName": "QuotaReservation",
+    "colName": "targetId"
+  },
+  {
+    "tableName": "CampaignRun",
+    "colName": "startedAt"
+  },
+  {
+    "tableName": "CampaignRun",
+    "colName": "completedAt"
+  },
+  {
+    "tableName": "CampaignRunLease",
+    "colName": "expiresAt"
+  },
+  {
+    "tableName": "CampaignRunLease",
+    "colName": "leaseToken"
+  }
+]

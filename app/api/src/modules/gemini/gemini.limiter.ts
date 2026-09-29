@@ -1,3 +1,4 @@
+import { redis } from "../../lib/ioredis";
 import { logger } from "../../lib/logger";
 
 const WINDOW_MS = 60_000;
@@ -14,7 +15,11 @@ interface QueueEntry {
     reject: (reason: unknown) => void;
 }
 
-const BUCKET_CONFIGS: Record<string, BucketConfig> = {
+export const BUCKET_CONFIGS: Record<string, BucketConfig> = {
+    "gemini-3.1-flash-lite": {
+        rpm: Number(process.env.GEMINI_3_1_FLASH_LITE_RPM ?? 30),
+        concurrency: Number(process.env.GEMINI_3_1_FLASH_LITE_CONCURRENCY ?? 5),
+    },
     "gemini-2.0-flash": {
         rpm: Number(process.env.GEMINI_2_0_FLASH_RPM ?? 30),
         concurrency: Number(process.env.GEMINI_2_0_FLASH_CONCURRENCY ?? 5),
@@ -29,18 +34,15 @@ const BUCKET_CONFIGS: Record<string, BucketConfig> = {
     },
 };
 
-const DEFAULT_CONFIG: BucketConfig = { rpm: 15, concurrency: 3 };
+export const DEFAULT_CONFIG: BucketConfig = { rpm: 15, concurrency: 3 };
 
-class ModelBucket {
+class RedisModelBucket {
     private readonly rpm: number;
     private readonly maxConcurrency: number;
-    private inFlight = 0;
     private readonly queue: QueueEntry[] = [];
-    private readonly timestamps: number[] = [];
-    private throttledUntil = 0;
     private drainTimer: ReturnType<typeof setTimeout> | null = null;
 
-    constructor(private readonly key: string, config: BucketConfig) {
+    constructor(private readonly model: string, config: BucketConfig) {
         this.rpm = config.rpm;
         this.maxConcurrency = config.concurrency;
     }
@@ -50,7 +52,7 @@ class ModelBucket {
             if (this.queue.length >= MAX_QUEUE_PER_BUCKET) {
                 reject(
                     new Error(
-                        `[gemini-limiter] Queue saturated for ${this.key} (limit: ${MAX_QUEUE_PER_BUCKET})`,
+                        `[gemini-limiter] Queue saturated for ${this.model} (limit: ${MAX_QUEUE_PER_BUCKET})`,
                     ),
                 );
                 return;
@@ -64,15 +66,16 @@ class ModelBucket {
         });
     }
 
-    signalThrottled(retryAfterMs: number): void {
-        const resumeAt = Date.now() + retryAfterMs;
-        if (resumeAt > this.throttledUntil) {
-            this.throttledUntil = resumeAt;
+    async signalThrottled(retryAfterMs: number): Promise<void> {
+        const key = `gemini:limiter:throttled:${this.model}`;
+        try {
+            await redis.set(key, "1", "PX", Math.max(1000, retryAfterMs));
             logger.warn(
-                { model: this.key, retryAfterMs },
-                "[gemini-limiter] Throttled — pausing bucket",
+                { model: this.model, retryAfterMs },
+                "[gemini-limiter] Throttled in Redis — pausing model across all processes",
             );
-            this.scheduleNextDrain();
+        } catch (err) {
+            logger.warn({ err, model: this.model }, "[gemini-limiter] Redis error setting throttle signal");
         }
     }
 
@@ -80,42 +83,72 @@ class ModelBucket {
         return this.queue.length;
     }
 
-    get inflightCount(): number {
-        return this.inFlight;
-    }
-
-    private purgeWindow(): void {
-        const cutoff = Date.now() - WINDOW_MS;
-        let i = 0;
-        while (i < this.timestamps.length && this.timestamps[i] <= cutoff) i++;
-        if (i) this.timestamps.splice(0, i);
-    }
-
-    private drain(): void {
-        this.purgeWindow();
+    private async tryAcquire(): Promise<boolean> {
         const now = Date.now();
+        const cutoff = now - WINDOW_MS;
+        const tsKey = `gemini:limiter:ts:${this.model}`;
+        const inflightKey = `gemini:limiter:inflight:${this.model}`;
+        const throttleKey = `gemini:limiter:throttled:${this.model}`;
 
-        while (
-            this.queue.length > 0 &&
-            this.inFlight < this.maxConcurrency &&
-            this.timestamps.length < this.rpm &&
-            now >= this.throttledUntil
-        ) {
-            this.dispatch(this.queue.shift()!);
+        try {
+            const isThrottled = await redis.exists(throttleKey);
+            if (isThrottled) return false;
+
+            const inflightStr = await redis.get(inflightKey);
+            const inflight = inflightStr ? parseInt(inflightStr, 10) : 0;
+            if (inflight >= this.maxConcurrency) return false;
+
+            await redis.zremrangebyscore(tsKey, "-inf", cutoff.toString());
+            const count = await redis.zcard(tsKey);
+            if (count >= this.rpm) return false;
+
+            const requestId = `${now}:${Math.random().toString(36).slice(2, 8)}`;
+            await redis.zadd(tsKey, now, requestId);
+            await redis.expire(tsKey, 120);
+            await redis.incr(inflightKey);
+            await redis.expire(inflightKey, 300);
+
+            return true;
+        } catch (err) {
+            logger.warn({ err, model: this.model }, "[gemini-limiter] Redis error in tryAcquire — failing open locally");
+            return true;
+        }
+    }
+
+    private async releaseInflight(): Promise<void> {
+        const inflightKey = `gemini:limiter:inflight:${this.model}`;
+        try {
+            const val = await redis.decr(inflightKey);
+            if (val < 0) await redis.set(inflightKey, "0");
+        } catch (err) {
+            logger.warn({ err, model: this.model }, "[gemini-limiter] Redis error in releaseInflight");
+        }
+    }
+
+    private async drain(): Promise<void> {
+        if (this.queue.length === 0) return;
+
+        const acquired = await this.tryAcquire();
+        if (!acquired) {
+            this.scheduleNextDrain(200);
+            return;
         }
 
-        if (this.queue.length > 0) this.scheduleNextDrain();
+        const entry = this.queue.shift();
+        if (!entry) return;
+
+        this.dispatch(entry);
+        if (this.queue.length > 0) {
+            this.drain();
+        }
     }
 
     private dispatch(entry: QueueEntry): void {
-        this.inFlight++;
-        this.timestamps.push(Date.now());
-
         let p: Promise<unknown>;
         try {
             p = entry.fn();
         } catch (err) {
-            this.inFlight--;
+            this.releaseInflight().catch(() => {});
             entry.reject(err);
             this.drain();
             return;
@@ -123,53 +156,35 @@ class ModelBucket {
 
         p.then(
             (result) => {
-                this.inFlight--;
+                this.releaseInflight().catch(() => {});
                 entry.resolve(result);
                 this.drain();
             },
             (err) => {
-                this.inFlight--;
+                this.releaseInflight().catch(() => {});
                 entry.reject(err);
                 this.drain();
             },
         );
     }
 
-    private scheduleNextDrain(): void {
-        if (this.drainTimer !== null) {
-            clearTimeout(this.drainTimer);
-            this.drainTimer = null;
-        }
-
-        if (!this.queue.length) return;
-        if (this.inFlight >= this.maxConcurrency) return;
-
-        this.purgeWindow();
-        const now = Date.now();
-        const throttleWait = Math.max(0, this.throttledUntil - now);
-        const rpmWait =
-            this.timestamps.length >= this.rpm
-                ? Math.max(0, this.timestamps[0] + WINDOW_MS - now)
-                : 0;
-
-        const wait = Math.max(throttleWait, rpmWait);
-        if (wait === 0) return;
-
+    private scheduleNextDrain(delayMs: number): void {
+        if (this.drainTimer !== null) return;
         this.drainTimer = setTimeout(() => {
             this.drainTimer = null;
             this.drain();
-        }, wait + 10);
+        }, delayMs);
     }
 }
 
 class GeminiLimiter {
-    private readonly buckets = new Map<string, ModelBucket>();
+    private readonly buckets = new Map<string, RedisModelBucket>();
 
-    private bucket(model: string): ModelBucket {
+    private bucket(model: string): RedisModelBucket {
         let b = this.buckets.get(model);
         if (!b) {
             const config = BUCKET_CONFIGS[model] ?? DEFAULT_CONFIG;
-            b = new ModelBucket(model, config);
+            b = new RedisModelBucket(model, config);
             this.buckets.set(model, b);
         }
         return b;
@@ -180,13 +195,13 @@ class GeminiLimiter {
     }
 
     signalThrottled(model: string, retryAfterMs: number): void {
-        this.bucket(model).signalThrottled(retryAfterMs);
+        void this.bucket(model).signalThrottled(retryAfterMs);
     }
 
-    stats(): Record<string, { queued: number; inflight: number }> {
-        const out: Record<string, { queued: number; inflight: number }> = {};
+    stats(): Record<string, { queued: number }> {
+        const out: Record<string, { queued: number }> = {};
         for (const [key, b] of this.buckets) {
-            out[key] = { queued: b.queueDepth, inflight: b.inflightCount };
+            out[key] = { queued: b.queueDepth };
         }
         return out;
     }

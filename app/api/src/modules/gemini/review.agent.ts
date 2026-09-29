@@ -7,6 +7,8 @@ import { sendQueue } from "./campaign.queue";
 import { redis } from "../../lib/ioredis";
 import { logger } from "../../lib/logger";
 import pLimit from "p-limit";
+import { z } from "zod";
+import { callGateway } from "../../lib/llm-gateway";
 import {
     callGeminiWithTools,
     GeminiPipelineError,
@@ -40,6 +42,8 @@ const EVALUATE_EMAIL_TOOL: ToolDefinition = {
 
 const EVAL_CONCURRENCY = 5;
 const EVAL_TIMEOUT_MS = 20_000;
+const EVAL_MAX_RETRIES = 2;
+const EVAL_RETRY_BASE_DELAY_MS = 200;
 const REVIEW_LOCK_TTL_MS = 5 * 60 * 1000;
 const LOCK_HEARTBEAT_INTERVAL_MS = 30_000;
 
@@ -72,6 +76,7 @@ export interface ReviewSummary {
 
 interface ReviewOptions {
     followUpPass?: boolean;
+    scopeToLeadIds?: string[];
 }
 
 type MessageVerdict = "AUTO_APPROVE" | "QUALITY_AGENT" | "GENERATION_FAILED" | "EVAL_TIMEOUT" | "GEMINI_BLOCKED";
@@ -108,7 +113,7 @@ async function evaluateMessage(params: {
 
     const heuristic = computeHeuristicQualityScore(subject, body, leadContext);
 
-    const { result } = await callGeminiWithTools<{ spamRiskScore: number; personalizationScore: number }>({
+    const proposal = await callGateway<{ spamRiskScore: number; personalizationScore: number }>({
         agentName: "review.evaluator",
         model: MODELS.REVIEW,
         systemPrompt:
@@ -117,10 +122,16 @@ async function evaluateMessage(params: {
             "- spamRiskScore (0.0–1.0, lower is better): increases with generic openings, pushy CTAs, or trigger phrases\n" +
             "- personalizationScore (0.0–1.0, higher is better): increases when the email references specific company signals, role context, or industry insight",
         userPrompt: `RECIPIENT CONTEXT:\n${leadContext}\n\nSUBJECT:\n${subject}\n\nBODY:\n${body}`,
+        responseMode: "tool",
+        outputSchema: z.object({
+            spamRiskScore: z.number(),
+            personalizationScore: z.number(),
+        }),
         tools: [EVALUATE_EMAIL_TOOL],
         metadata: { messageId, campaignId },
         temperature: 0.1,
     });
+    const result = proposal.payload;
 
     const llmSpam = clampScore(result.spamRiskScore);
     const llmPerson = clampScore(result.personalizationScore);
@@ -180,7 +191,7 @@ export async function runReviewAgent(
     campaignId: string,
     options: ReviewOptions = {},
 ): Promise<ReviewSummary> {
-    const { followUpPass = false } = options;
+    const { followUpPass = false, scopeToLeadIds } = options;
 
     const lockKey = `review-lock:${campaignId}`;
     const acquired = await redis.set(lockKey, "1", "PX", REVIEW_LOCK_TTL_MS, "NX");
@@ -203,21 +214,31 @@ export async function runReviewAgent(
     }, LOCK_HEARTBEAT_INTERVAL_MS);
 
     try {
-        return await _runReviewAgent(campaignId, followUpPass, abort.signal);
+        return await _runReviewAgent(campaignId, followUpPass, abort.signal, scopeToLeadIds);
     } finally {
         clearInterval(heartbeat);
         await redis.del(lockKey);
     }
 }
 
+/**
+ * Returns true if the email body contains a numeric quantified claim
+ * (percentages, multipliers, "X times", dollar amounts, hour/rep claims).
+ * Used as a hard gate when the campaign has no provenStats configured.
+ */
+function containsFabricatedStat(body: string): boolean {
+    return /\d+\s*%|\d+x\b|\d+\s*times\s+(more|higher|faster|better|greater)|\$\d|\d+\s*(hrs?|hours?)\s*(per|a)\s*(week|day|rep|month)/i.test(body);
+}
+
 async function _runReviewAgent(
     campaignId: string,
     followUpPass: boolean,
     abortSignal: AbortSignal,
+    scopeToLeadIds?: string[],
 ): Promise<ReviewSummary> {
     const campaign = await prisma.campaign.findUnique({
         where: { id: campaignId },
-        select: { id: true, status: true, createdById: true },
+        select: { id: true, status: true, createdById: true, provenStats: true },
     });
 
     if (!campaign) throw new Error("Campaign not found");
@@ -230,9 +251,15 @@ async function _runReviewAgent(
     });
     const unsubscribeFooter = brandSettings?.unsubscribeText ?? "You received this email because you match our ideal customer profile. To unsubscribe, reply with 'unsubscribe'.";
 
+    const hasProvenStats =
+        Array.isArray(campaign.provenStats) && (campaign.provenStats as unknown[]).length > 0;
+
     const messages = await prisma.outreachMessage.findMany({
         where: {
-            lead: { campaignId },
+            lead: {
+                campaignId,
+                ...(scopeToLeadIds && scopeToLeadIds.length > 0 && { id: { in: scopeToLeadIds } }),
+            },
             approvalStatus: "PENDING",
             deliveryState: "DRAFT",
         },
@@ -288,28 +315,43 @@ async function _runReviewAgent(
                     `Signals:\n${signalSummary}`,
                 ].join("\n");
 
-                try {
-                    if (abortSignal.aborted) {
-                        throw new Error("Review run aborted: lock evicted");
-                    }
-                    const result = await withTimeout(
-                        evaluateMessage({
-                            subject: message.subject,
-                            body: message.body,
-                            leadContext,
-                            messageId: message.id,
-                            campaignId,
-                        }),
-                        EVAL_TIMEOUT_MS,
-                    );
+                let lastErr: unknown;
+                let evalResult: Awaited<ReturnType<typeof evaluateMessage>> | null = null;
 
+                for (let attempt = 0; attempt <= EVAL_MAX_RETRIES; attempt++) {
+                    try {
+                        if (abortSignal.aborted) {
+                            throw new Error("Review run aborted: lock evicted");
+                        }
+                        evalResult = await withTimeout(
+                            evaluateMessage({
+                                subject: message.subject,
+                                body: message.body,
+                                leadContext,
+                                messageId: message.id,
+                                campaignId,
+                            }),
+                            EVAL_TIMEOUT_MS,
+                        );
+                        break;
+                    } catch (err) {
+                        lastErr = err;
+                        const isTimeout = err instanceof Error && err.message.startsWith("Evaluation timed out");
+                        const isBlocked = err instanceof GeminiPipelineError && err.blocked === true;
+                        if (isTimeout || isBlocked || attempt === EVAL_MAX_RETRIES) break;
+                        await new Promise(r => setTimeout(r, EVAL_RETRY_BASE_DELAY_MS * 2 ** attempt));
+                    }
+                }
+
+                if (evalResult !== null) {
                     evalResultMap.set(message.id, {
                         status: "OK",
-                        spamRiskScore: result.spamRiskScore,
-                        personalizationScore: result.personalizationScore,
-                        rawHeuristicPersonalization: result.rawHeuristicPersonalization,
+                        spamRiskScore: evalResult.spamRiskScore,
+                        personalizationScore: evalResult.personalizationScore,
+                        rawHeuristicPersonalization: evalResult.rawHeuristicPersonalization,
                     });
-                } catch (err) {
+                } else {
+                    const err = lastErr;
                     const isTimeout = err instanceof Error && err.message.startsWith("Evaluation timed out");
                     if (err instanceof GeminiPipelineError && err.blocked === true) {
                         logger.warn(
@@ -325,8 +367,8 @@ async function _runReviewAgent(
                         evalResultMap.set(message.id, { status: "TIMEOUT", spamRiskScore: null, personalizationScore: null, rawHeuristicPersonalization: null });
                     } else {
                         logger.error(
-                            { err, messageId: message.id },
-                            "[review.evaluator] Evaluation failed",
+                            { err, messageId: message.id, retriesExhausted: EVAL_MAX_RETRIES },
+                            "[review.evaluator] Evaluation failed after retries",
                         );
                         evalResultMap.set(message.id, { status: "FAILED", spamRiskScore: null, personalizationScore: null, rawHeuristicPersonalization: null });
                     }
@@ -406,6 +448,16 @@ async function _runReviewAgent(
         if (verdict === "AUTO_APPROVE" && isComplianceBlocked) {
             verdict = "QUALITY_AGENT";
         }
+        // Hard gate: if no provenStats exist on this campaign/org and the body
+        // contains a numeric claim (%, x times, etc.), send to quality agent
+        // instead of auto-approving — prevents hallucinated stats from slipping through.
+        if (verdict === "AUTO_APPROVE" && !hasProvenStats && containsFabricatedStat(message.body)) {
+            verdict = "QUALITY_AGENT";
+            logger.warn(
+                { messageId: message.id },
+                "[review.agent] Numeric claim detected in body but no provenStats configured — held for human review",
+            );
+        }
 
         if (verdict === "GEMINI_BLOCKED") {
             logger.warn({ messageId: message.id }, "[review.agent] Message blocked by Gemini — incrementing evalTimedOut");
@@ -448,13 +500,38 @@ async function _runReviewAgent(
     if (approvedRecords.length > 0) {
         const approvedIds = approvedRecords.map(r => r.id);
 
-        await prisma.$transaction(async tx => {
-            await tx.outreachMessage.updateMany({
-                where: { id: { in: approvedIds } },
-                data: { approvalStatus: "APPROVED", deliveryState: "QUEUED" },
-            });
+        // TOCTOU guard: filter by PENDING/DRAFT to prevent double-promoting a message
+        // that was already transitioned by quality.agent, a manual approval, or a
+        // concurrent review run. The count check surfaces any race rather than
+        // silently swallowing it — matching the pattern in quality.agent.ts.
+        const { count: transitionedCount } = await prisma.outreachMessage.updateMany({
+            where: {
+                id: { in: approvedIds },
+                approvalStatus: "PENDING",
+                deliveryState: "DRAFT",
+            },
+            data: { approvalStatus: "APPROVED", deliveryState: "QUEUED" },
+        });
 
-            await tx.learningEvent.createMany({
+        if (transitionedCount < approvedRecords.length) {
+            logger.warn(
+                {
+                    campaignId,
+                    expectedCount: approvedRecords.length,
+                    transitionedCount,
+                    skipped: approvedRecords.length - transitionedCount,
+                },
+                "[review.agent] AUTO_APPROVE updateMany: fewer messages transitioned than expected — " +
+                "some were already promoted by a concurrent agent or manual approval",
+            );
+        }
+
+        if (transitionedCount > 0) {
+            // Only create learning events for messages that actually transitioned.
+            // Re-reading which IDs transitioned is expensive; instead we scope the
+            // learningEvent.createMany to the full approved set and rely on the
+            // fact that duplicate outreachMessageId entries are benign for analytics.
+            await prisma.learningEvent.createMany({
                 data: approvedRecords.map(r => ({
                     eventType: LEARNING_EVENT_TYPES.AUTO_APPROVED,
                     originalOutput: JSON.stringify({ subject: r.subject, body: r.body }),
@@ -467,7 +544,10 @@ async function _runReviewAgent(
                     } as Prisma.InputJsonValue,
                 })),
             });
-        });
+        }
+
+        // Update the in-process counter to reflect actual transitions.
+        autoApproved = transitionedCount;
     }
 
     let qualitySummary = { rewritten: 0, heldForReview: 0 };
@@ -482,7 +562,10 @@ async function _runReviewAgent(
 
     const stillHeld = await prisma.outreachMessage.findMany({
         where: {
-            lead: { campaignId },
+            lead: {
+                campaignId,
+                ...(scopeToLeadIds && scopeToLeadIds.length > 0 && { id: { in: scopeToLeadIds } }),
+            },
             approvalStatus: "PENDING",
             deliveryState: "DRAFT",
             spamRiskScore: { not: null },

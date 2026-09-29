@@ -8,6 +8,8 @@ import { emitCampaignEvent } from "../../lib/campaign-events";
 import { LINKEDIN_DISCOVERY_CONFIG } from "../../lib/linkedInAgent/linkedin-discovery.config";
 import { persistDiscoveredLeads } from "../../lib/linkedInAgent/linkedDiscovery.persistence";
 import type { DiscoveredLinkedInLead } from "../../lib/linkedInAgent/linked-discovery.types";
+import { assertUnipileConfigured } from "../../lib/unipile.guard";
+
 
 type LinkedInConnection = NonNullable<Awaited<ReturnType<typeof createLinkedInProvider>>>;
 
@@ -157,7 +159,9 @@ function createProgressReporter(campaignId: string): (completed: number, total: 
 }
 
 export async function runLinkedInDiscoveryAgent(campaignId: string): Promise<void> {
+    assertUnipileConfigured();
     const campaign = await prisma.campaign.findUnique({
+
         where: { id: campaignId },
         select: {
             id: true,

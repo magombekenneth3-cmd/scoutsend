@@ -1,17 +1,38 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CampaignBadge } from "../../components/dashboard/badges";
 import { TopBar } from "../../components/dashboard/TopBar";
 import type { CampaignStatus } from "../../components/dashboard/badges";
 import { CampaignWizard } from "../../components/campaigns/campaignWizard";
 import type { Campaign, SenderDomain } from "../../components/campaigns/campaignWizard";
+import { SenderRequiredModal } from "../../components/campaigns/SenderRequiredModal";
 
 
 
 type ActionState = "idle" | "loading" | "success" | "error";
+
+const FAILURE_CODE_LABELS: Record<string, string> = {
+    DNS_RECORD_MISSING: "DNS records missing",
+    CREDENTIALS_EXPIRED: "Mailbox credentials expired",
+    LINKEDIN_AUTH_FAILED: "LinkedIn session expired",
+    API_LIMIT_REACHED: "API rate limit hit",
+    NO_SENDER_CONFIGURED: "No sender configured",
+    COMPLIANCE_BLOCKED: "Compliance blocked",
+    PIPELINE_TIMEOUT: "Pipeline timed out",
+    NO_LEADS: "No leads in campaign",
+    NO_SEQUENCE: "No sequence steps",
+    UNKNOWN_ERROR: "Unexpected error",
+};
+
+function failureLabelFromMessage(msg: string | null | undefined, explicitCode?: string | null): string | null {
+    if (!msg && !explicitCode) return null;
+    const match = msg?.match(/^\[([A-Z_]+)\]/);
+    const code = explicitCode ?? match?.[1] ?? "UNKNOWN_ERROR";
+    return FAILURE_CODE_LABELS[code] ?? FAILURE_CODE_LABELS["UNKNOWN_ERROR"];
+}
 
 function timeAgo(iso: string): string {
     const diff = Date.now() - new Date(iso).getTime();
@@ -107,7 +128,7 @@ function DeleteDialog({ campaign, onClose, onDeleted }: DeleteDialogProps) {
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 w-full h-full max-w-full max-h-full outline-none backdrop:bg-black/60"
             aria-label="Confirm delete"
         >
-            <div className="relative w-full max-w-sm bg-[var(--navy-mid)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl">
+            <div className="relative w-full max-w-sm bg-[var(--navy-mid)] border border-[var(--border)] rounded-2xl p-6 shadow-[var(--shadow-lg)]">
                 <div className="flex items-start gap-3 mb-4">
                     <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--red-glow)] flex items-center justify-center">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" strokeLinecap="round">
@@ -123,7 +144,7 @@ function DeleteDialog({ campaign, onClose, onDeleted }: DeleteDialogProps) {
                 </div>
 
                 {error && (
-                    <p className="mb-3 text-xs text-[var(--red)] bg-[var(--red-glow)] px-3 py-2 rounded-lg">{error}</p>
+                    <p className="mb-3 text-xs text-[var(--red-text)] bg-[var(--red-glow)] px-3 py-2 rounded-lg">{error}</p>
                 )}
 
                 <div className="flex gap-3">
@@ -160,8 +181,9 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
     { value: "FAILED", label: "Failed" },
 ];
 
-export default function CampaignsPage() {
+function CampaignsPageInner() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [domains, setDomains] = useState<SenderDomain[]>([]);
     const [loading, setLoading] = useState(true);
@@ -172,6 +194,15 @@ export default function CampaignsPage() {
     const [actionError, setActionError] = useState<Record<string, string>>({});
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
     const [search, setSearch] = useState("");
+    const [guidedModal, setGuidedModal] = useState<{ open: boolean; campaignId?: string; campaignName?: string; error?: string } | null>(null);
+
+    useEffect(() => {
+        if (searchParams.get("new") === "true") {
+            setSheetOpen(true);
+            const newUrl = window.location.pathname;
+            window.history.replaceState(null, "", newUrl);
+        }
+    }, [searchParams]);
 
     const loadCampaigns = useCallback(async () => {
         setLoading(true);
@@ -239,7 +270,15 @@ export default function CampaignsPage() {
             });
             if (!res.ok) {
                 const d = await res.json().catch(() => ({}));
-                setActionError((p) => ({ ...p, [campaignId]: d?.error ?? "Action failed" }));
+                const errorMsg = d?.error ?? "Action failed";
+                setActionError((p) => ({ ...p, [campaignId]: errorMsg }));
+                const targetCampaign = campaigns.find((c) => c.id === campaignId);
+                setGuidedModal({
+                    open: true,
+                    campaignId,
+                    campaignName: targetCampaign?.name ?? "Campaign",
+                    error: errorMsg,
+                });
                 return;
             }
             await loadCampaigns();
@@ -333,7 +372,7 @@ export default function CampaignsPage() {
                                 </svg>
                             </div>
                             <p className="text-sm text-[var(--text-secondary)]">{error}</p>
-                            <button onClick={load} className="text-xs text-[var(--red)] hover:underline focus-visible:outline-none">Retry</button>
+                            <button onClick={load} className="text-xs text-[var(--red-text)] hover:underline focus-visible:outline-none">Retry</button>
                         </div>
                     </div>
                 ) : campaigns.length === 0 ? (
@@ -381,13 +420,13 @@ export default function CampaignsPage() {
 
                             <div className="bg-[var(--navy-mid)] border border-[var(--border)] rounded-2xl p-6 flex flex-col justify-between hover:border-[var(--border-red)] transition-all duration-200 shadow-lg group">
                                 <div className="space-y-4">
-                                    <div className="w-10 h-10 rounded-xl bg-[var(--red-glow)] border border-[var(--border-red)]/20 flex items-center justify-center text-[var(--red)] group-hover:scale-110 transition-transform duration-200">
+                                    <div className="w-10 h-10 rounded-xl bg-[var(--red-glow)] border border-[var(--border-red)]/20 flex items-center justify-center text-[var(--red-text)] group-hover:scale-110 transition-transform duration-200">
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
                                         </svg>
                                     </div>
                                     <div className="space-y-1">
-                                        <span className="text-[10px] font-bold text-[var(--red)] uppercase tracking-widest">Step 2</span>
+                                        <span className="text-[10px] font-bold text-[var(--red-text)] uppercase tracking-widest">Step 2</span>
                                         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Create Campaign</h3>
                                         <p className="text-xs text-[var(--text-muted)] leading-relaxed">Specify your Ideal Customer Profile (ICP), target regions, and industries to guide the AI agent.</p>
                                     </div>
@@ -451,7 +490,7 @@ export default function CampaignsPage() {
                                         className={[
                                             "flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]",
                                             statusFilter === f.value
-                                                ? "bg-[var(--red-glow)] text-[var(--red)] border border-[var(--border-red)]"
+                                                ? "bg-[var(--red-glow)] text-[var(--red-text)] border border-[var(--border-red)]"
                                                 : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-red)]",
                                         ].join(" ")}
                                     >
@@ -496,7 +535,7 @@ export default function CampaignsPage() {
                                                     <td className="px-4 py-3 max-w-[220px]">
                                                         <Link
                                                             href={`/dashboard/campaigns/${c.id}`}
-                                                            className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--red)] transition-colors duration-150 focus-visible:outline-none focus-visible:underline truncate block"
+                                                            className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--red-text)] transition-colors duration-150 focus-visible:outline-none focus-visible:underline truncate block"
                                                             title={c.name}
                                                         >
                                                             {c.name}
@@ -510,6 +549,17 @@ export default function CampaignsPage() {
 
                                                     <td className="px-4 py-3 whitespace-nowrap">
                                                         <CampaignBadge status={c.status as CampaignStatus} />
+                                                        {c.status === "FAILED" && (() => {
+                                                            const job = c.queueJobs?.[0];
+                                                            const lastErr = job?.errorMessage ?? null;
+                                                            const explicitCode = ((job as any)?.result as any)?.errorClass ?? null;
+                                                            const label = failureLabelFromMessage(lastErr, explicitCode);
+                                                            return label ? (
+                                                                <p className="text-[10px] text-[var(--red-text)]/70 mt-0.5 font-medium">
+                                                                    {label}
+                                                                </p>
+                                                            ) : null;
+                                                        })()}
                                                     </td>
 
                                                     <td className="px-4 py-3 text-sm text-[var(--text-secondary)] tabular-nums">
@@ -599,16 +649,13 @@ export default function CampaignsPage() {
                                                                 onClick={() => setToDelete(c)}
                                                                 aria-label={`Delete ${c.name}`}
                                                                 title="Delete"
-                                                                className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--text-secondary)] hover:text-[var(--red)] hover:bg-[var(--red-glow)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                                                                className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--text-secondary)] hover:text-[var(--red-text)] hover:bg-[var(--red-glow)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
                                                             >
                                                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                                                                     <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" />
                                                                 </svg>
                                                             </button>
                                                         </div>
-                                                        {rowError && (
-                                                            <p className="mt-1 text-xs text-[var(--red)] whitespace-nowrap">{rowError}</p>
-                                                        )}
                                                     </td>
                                                 </tr>
                                             );
@@ -645,6 +692,31 @@ export default function CampaignsPage() {
                 onClose={() => setToDelete(null)}
                 onDeleted={handleDeleted}
             />
+
+            <SenderRequiredModal
+                open={!!guidedModal?.open}
+                campaignId={guidedModal?.campaignId}
+                campaignName={guidedModal?.campaignName}
+                errorMessage={guidedModal?.error}
+                onClose={() => setGuidedModal(null)}
+            />
         </div>
+    );
+}
+
+export default function CampaignsPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center gap-3">
+                    <svg className="animate-spin text-[var(--red-text)]" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    <p className="text-sm text-[var(--text-muted)]">Loading campaigns…</p>
+                </div>
+            </div>
+        }>
+            <CampaignsPageInner />
+        </Suspense>
     );
 }

@@ -1,0 +1,33 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
+
+COPY . .
+RUN npx prisma generate
+RUN node_modules/.bin/tsx --tsconfig tsconfig.json app/api/src/worker.ts --version 2>/dev/null || true
+RUN node_modules/.bin/esbuild app/api/src/worker.ts \
+    --bundle \
+    --platform=node \
+    --target=node20 \
+    --external:@prisma/client \
+    --external:prisma \
+    --external:ioredis \
+    --external:bullmq \
+    --outfile=dist/worker.js
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+RUN apk add --no-cache tini
+
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/dist ./dist
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "dist/worker.js"]

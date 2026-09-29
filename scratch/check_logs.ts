@@ -19,7 +19,7 @@ async function main() {
   console.table(logs.map(log => ({
     id: log.id,
     action: log.action,
-    email: log.user.email,
+    email: log.user?.email ?? "-",
     entityType: log.entityType,
     entityId: log.entityId,
     createdAt: log.createdAt.toISOString()

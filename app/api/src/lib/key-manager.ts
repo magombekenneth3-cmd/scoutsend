@@ -10,7 +10,8 @@ export class ApiKeyVault {
 
   constructor(serviceName: string, envCsvName: string) {
     this.serviceName = serviceName;
-    const raw = process.env[envCsvName] ?? "";
+    const singularName = envCsvName.endsWith("S") ? envCsvName.slice(0, -1) : envCsvName;
+    const raw = process.env[envCsvName] ?? process.env[singularName] ?? "";
     this.keys = raw
       .split(",")
       .map((k) => k.trim())

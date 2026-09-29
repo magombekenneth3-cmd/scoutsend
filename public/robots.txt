@@ -1,0 +1,12 @@
+User-agent: *
+# Block all app routes — this is an authenticated SaaS application
+Disallow: /dashboard/
+Disallow: /dashboard
+Disallow: /auth/
+Disallow: /auth
+Disallow: /api/
+
+# Allow the marketing/public root if it exists
+Allow: /$
+
+Sitemap: https://app.scoutsend.io/sitemap.xml

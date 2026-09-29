@@ -66,7 +66,7 @@ const ACTIVITY_CONFIG: Record<ActivityType, { icon: React.ReactNode; iconBg: str
             </svg>
         ),
         iconBg: "bg-[var(--red-glow)]",
-        iconText: "text-[var(--red)]",
+        iconText: "text-[var(--red-text)]",
     },
     CAMPAIGN_STARTED: {
         icon: (
@@ -75,7 +75,7 @@ const ACTIVITY_CONFIG: Record<ActivityType, { icon: React.ReactNode; iconBg: str
             </svg>
         ),
         iconBg: "bg-[var(--red-glow)]",
-        iconText: "text-[var(--red)]",
+        iconText: "text-[var(--red-text)]",
     },
     CAMPAIGN_PAUSED: {
         icon: (

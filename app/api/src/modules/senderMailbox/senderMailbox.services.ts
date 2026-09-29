@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import dns from "node:dns/promises";
 import { prisma } from "../../lib/prisma";
 import { NotFoundError, ForbiddenError, ConflictError } from "../../lib/errors";
+import { logger } from "../../lib/logger";
 import { createMailProvider, MailboxCredentials } from "../../lib/mail";
 import { redis } from "../../lib/ioredis";
 
@@ -11,22 +12,17 @@ import {
   getSenderMailboxesQuerySchema,
   updateSenderMailboxSchema,
 } from "./senderMailbox.schema";
-import { decryptJson, encryptJson, isEncrypted } from "../../lib/mail/crypto";
+import { decryptMailboxCredentials, encryptJson } from "../../lib/mail/crypto";
 
 
-async function getMailboxOrThrow(id: string, userId: string) {
+async function getMailboxOrThrow(id: string, userId: string, orgId?: string) {
   const mailbox = await prisma.senderMailbox.findUnique({ where: { id } });
   if (!mailbox) throw new NotFoundError("Sender mailbox");
+  if (mailbox.orgId && orgId && mailbox.orgId === orgId) return mailbox;
   if (mailbox.createdById !== userId) throw new ForbiddenError();
   return mailbox;
 }
 
-function decryptCredentials(raw: Prisma.JsonValue): MailboxCredentials {
-  if (isEncrypted(raw)) {
-    return decryptJson<MailboxCredentials>(raw);
-  }
-  return raw as unknown as MailboxCredentials;
-}
 
 function createProviderForMailbox(mailboxId: string, creds: MailboxCredentials) {
   return createMailProvider(creds, {
@@ -53,7 +49,8 @@ function createProviderForMailbox(mailboxId: string, creds: MailboxCredentials) 
 
 export async function createSenderMailbox(
   data: z.infer<typeof createSenderMailboxSchema>,
-  createdById: string
+  createdById: string,
+  orgId?: string
 ) {
   const provider = createMailProvider(data.credentials as MailboxCredentials);
   const ok = await provider.verify();
@@ -75,6 +72,7 @@ export async function createSenderMailbox(
         warmupEnabled: data.warmupEnabled,
         warmupStartedAt: data.warmupEnabled ? new Date() : null,
         createdById,
+        orgId,
       },
     });
   } catch (err) {
@@ -92,13 +90,14 @@ export async function createSenderMailbox(
 
 export async function getSenderMailboxes(
   query: z.infer<typeof getSenderMailboxesQuerySchema>,
-  userId: string
+  userId: string,
+  orgId?: string
 ) {
   const { page, limit, providerType, health } = query;
   const skip = (page - 1) * limit;
 
   const where: Prisma.SenderMailboxWhereInput = {
-    createdById: userId,
+    ...(orgId ? { OR: [{ orgId }, { createdById: userId }] } : { createdById: userId }),
     ...(providerType && { providerType }),
     ...(health && { health }),
   };
@@ -141,8 +140,8 @@ export async function getSenderMailboxes(
   };
 }
 
-export async function getSenderMailboxById(id: string, userId: string) {
-  await getMailboxOrThrow(id, userId);
+export async function getSenderMailboxById(id: string, userId: string, orgId?: string) {
+  await getMailboxOrThrow(id, userId, orgId);
 
   return prisma.senderMailbox.findUnique({
     where: { id },
@@ -179,9 +178,10 @@ export async function getSenderMailboxById(id: string, userId: string) {
 export async function updateSenderMailbox(
   id: string,
   userId: string,
-  data: z.infer<typeof updateSenderMailboxSchema>
+  data: z.infer<typeof updateSenderMailboxSchema>,
+  orgId?: string
 ) {
-  await getMailboxOrThrow(id, userId);
+  await getMailboxOrThrow(id, userId, orgId);
 
   const updateData: Prisma.SenderMailboxUpdateInput = {};
   if (data.label !== undefined) updateData.label = data.label;
@@ -206,8 +206,8 @@ export async function updateSenderMailbox(
   return prisma.senderMailbox.update({ where: { id }, data: updateData });
 }
 
-export async function deleteSenderMailbox(id: string, userId: string) {
-  await getMailboxOrThrow(id, userId);
+export async function deleteSenderMailbox(id: string, userId: string, orgId?: string) {
+  await getMailboxOrThrow(id, userId, orgId);
 
   const active = await prisma.campaign.count({
     where: {
@@ -223,23 +223,23 @@ export async function deleteSenderMailbox(id: string, userId: string) {
   return prisma.senderMailbox.delete({ where: { id } });
 }
 
-export async function verifyMailboxConnection(id: string, userId: string) {
-  const mailbox = await getMailboxOrThrow(id, userId);
-  const creds = decryptCredentials(mailbox.credentials);
+export async function verifyMailboxConnection(id: string, userId: string, orgId?: string) {
+  const mailbox = await getMailboxOrThrow(id, userId, orgId);
+  const creds = decryptMailboxCredentials<MailboxCredentials>(mailbox.credentials, `mailbox:${mailbox.id}`);
   const provider = createProviderForMailbox(id, creds);
   const ok = await provider.verify();
   return { connected: ok };
 }
 
-export async function resetMailboxDailyCount(id: string, userId: string) {
-  await getMailboxOrThrow(id, userId);
+export async function resetMailboxDailyCount(id: string, userId: string, orgId?: string) {
+  await getMailboxOrThrow(id, userId, orgId);
   return prisma.senderMailbox.update({ where: { id }, data: { currentSent: 0 } });
 }
 
-export async function verifyMailboxDns(id: string, userId: string) {
+export async function verifyMailboxDns(id: string, userId: string, orgId?: string) {
   const mailbox = userId === "SYSTEM"
     ? await prisma.senderMailbox.findUnique({ where: { id } })
-    : await getMailboxOrThrow(id, userId);
+    : await getMailboxOrThrow(id, userId, orgId);
 
   if (!mailbox) throw new NotFoundError("Sender mailbox");
 
@@ -255,26 +255,47 @@ export async function verifyMailboxDns(id: string, userId: string) {
   try {
     const txt = await dns.resolveTxt(sendingDomain);
     spfValid = txt.some((chunks) => chunks.join("").toLowerCase().startsWith("v=spf1"));
-  } catch {}
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code;
+    if (code !== "ENOTFOUND" && code !== "ENODATA") {
+      logger.warn({ err, sendingDomain }, "[mailbox.dns] SPF lookup failed unexpectedly");
+    }
+  }
 
   let dkimValid = false;
   try {
     const txt = await dns.resolveTxt(`${selector}._domainkey.${sendingDomain}`);
     dkimValid = txt.some((chunks) => chunks.join("").toLowerCase().includes("v=dkim1"));
-  } catch {}
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code;
+    if (code !== "ENOTFOUND" && code !== "ENODATA") {
+      logger.warn({ err, sendingDomain, selector }, "[mailbox.dns] DKIM lookup failed unexpectedly");
+    }
+  }
 
   let dmarcValid = false;
   try {
     const txt = await dns.resolveTxt(`_dmarc.${sendingDomain}`);
     dmarcValid = txt.some((chunks) => chunks.join("").toLowerCase().startsWith("v=dmarc1"));
-  } catch {}
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code;
+    if (code !== "ENOTFOUND" && code !== "ENODATA") {
+      logger.warn({ err, sendingDomain }, "[mailbox.dns] DMARC lookup failed unexpectedly");
+    }
+  }
 
   const dnsCheckedAt = new Date();
 
-  await prisma.senderMailbox.update({
-    where: { id },
-    data: { spfValid, dkimValid, dmarcValid, dnsCheckedAt },
+  const domainRecord = await prisma.senderDomain.findUnique({
+    where: { domain: sendingDomain },
   });
+
+  if (domainRecord) {
+    await prisma.senderDomain.update({
+      where: { id: domainRecord.id },
+      data: { spfValid, dkimValid, dmarcValid, dnsCheckedAt },
+    });
+  }
 
   return { sendingDomain, spfValid, dkimValid, dmarcValid, dnsCheckedAt };
 }

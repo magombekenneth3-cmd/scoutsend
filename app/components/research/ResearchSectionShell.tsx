@@ -24,7 +24,7 @@ export function ResearchSectionShell({ label, complete, loading, streaming, fail
         }`} />
         <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">{label}</span>
         {streaming && (
-          <span className="ml-auto text-[9px] text-[var(--red)] font-medium tracking-wide">GENERATING</span>
+          <span className="ml-auto text-[9px] text-[var(--red-text)] font-medium tracking-wide">GENERATING</span>
         )}
         {failedMessage && (
           <span className="ml-auto text-[9px] text-orange-400 font-medium tracking-wide">FAILED</span>

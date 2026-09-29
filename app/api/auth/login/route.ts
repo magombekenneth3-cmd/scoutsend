@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isRateLimited, getClientIp } from "@/app/api/src/lib/rateLimit";
 
-const API_BASE = process.env.INTERNAL_API_URL!;
+import { API_BASE } from "../../_proxy";
 
 export async function POST(req: NextRequest) {
     try {
+        const ip = getClientIp(req);
+        const limited = await isRateLimited(`rate:auth:login:${ip}`, 20, 900);
+        if (limited) {
+            return NextResponse.json({ error: "Too many attempts, please try again later" }, { status: 429 });
+        }
+
         const body = await req.json();
         const res = await fetch(`${API_BASE}/auth/login`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+            },
             body: JSON.stringify(body),
         });
 

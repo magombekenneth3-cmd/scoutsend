@@ -3,35 +3,22 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { CampaignBadge } from "@/app/components/dashboard/badges";
-import { PipelineTab } from "@/app/components/dashboard/Pipeline";
-import { LeadsTab } from "@/app/components/dashboard/LeadsTab";
-import { MessagesTab } from "@/app/components/dashboard/MessageTab";
-import { DeliverabilityTab } from "@/app/components/dashboard/DeliverabilityTab";
-import { DiscoveryRunsPanel } from "@/app/components/dashboard/DiscoveryRunsPanel";
-import { SignalsTab } from "@/app/components/dashboard/SignalsTab";
-import { SequenceTab } from "@/app/components/dashboard/SequenceTab";
 import type { CampaignStatus } from "@/app/components/dashboard/badges";
+import { CampaignBadge } from "@/app/components/dashboard/badges";
 import { TopBar } from "@/app/components/dashboard/TopBar";
+import { SenderRequiredModal } from "@/app/components/campaigns/SenderRequiredModal";
+import { useCampaignEventsContext, CampaignSSEEvent } from "@/app/context/CampaignEventsContext";
 
-interface CampaignSSEEvent {
-    campaignId: string;
-    type: "active" | "progress" | "completed" | "failed";
-    jobName: string;
-    label: string;
-    progress?: number;
-    detail?: string;
-    count?: number;
-    timestamp: string;
-}
+const LIVE_EVENT_CAP = 30;
 
-const LIVE_EVENT_CAP = 8;
-
-const CampaignNarrativeLazy = lazy(() =>
-    import("@/app/components/dashboard/CampaignNarrative").then((m) => ({
-        default: m.CampaignNarrative,
-    }))
-);
+const PipelineTabLazy = lazy(() => import("@/app/components/dashboard/Pipeline").then((m) => ({ default: m.PipelineTab })));
+const LeadsTabLazy = lazy(() => import("@/app/components/dashboard/LeadsTab").then((m) => ({ default: m.LeadsTab })));
+const MessagesTabLazy = lazy(() => import("@/app/components/dashboard/MessageTab").then((m) => ({ default: m.MessagesTab })));
+const DeliverabilityTabLazy = lazy(() => import("@/app/components/dashboard/DeliverabilityTab").then((m) => ({ default: m.DeliverabilityTab })));
+const DiscoveryRunsPanelLazy = lazy(() => import("@/app/components/dashboard/DiscoveryRunsPanel").then((m) => ({ default: m.DiscoveryRunsPanel })));
+const SignalsTabLazy = lazy(() => import("@/app/components/dashboard/SignalsTab").then((m) => ({ default: m.SignalsTab })));
+const SequenceTabLazy = lazy(() => import("@/app/components/dashboard/SequenceTab").then((m) => ({ default: m.SequenceTab })));
+const CampaignNarrativeLazy = lazy(() => import("@/app/components/dashboard/CampaignNarrative").then((m) => ({ default: m.CampaignNarrative })));
 
 export type Tab = "pipeline" | "leads" | "messages" | "deliverability" | "discovery" | "signals" | "sequence";
 
@@ -49,6 +36,7 @@ const POLLING_STATUSES = [
     "GENERATING",
     "REVIEW",
     "SENDING",
+    "FAILED",
 ] as const satisfies readonly CampaignStatus[];
 
 const PIPELINE_STAGES = [
@@ -163,14 +151,17 @@ const PAUSE_REASON_LABELS: Record<string, string> = {
     HEALTH_CHECK_FAILED: "Domain health check failed",
 };
 
-const FAILURE_RECOVERY_STEPS: Record<string, { label: string; action: string }> = {
-    DNS_RECORD_MISSING: { label: "DNS records are missing or invalid", action: "Fix SPF, DKIM, and DMARC in your domain settings, then re-verify before relaunching." },
-    CREDENTIALS_EXPIRED: { label: "Mailbox credentials expired", action: "Re-authenticate your sending mailbox in Settings → Mailboxes, then relaunch." },
-    LINKEDIN_AUTH_FAILED: { label: "LinkedIn session expired", action: "Re-connect your LinkedIn account in Settings → LinkedIn, then relaunch." },
-    API_LIMIT_REACHED: { label: "API rate limit hit", action: "The AI agent hit a rate limit. Wait a few minutes, then relaunch — it will retry automatically." },
-    NO_SENDER_CONFIGURED: { label: "No sender configured", action: "Assign a Sender Domain and Sender Mailbox in campaign settings, then relaunch." },
-    COMPLIANCE_BLOCKED: { label: "Email copy blocked by compliance rules", action: "Review your ICP description and messaging guidelines, then relaunch to regenerate copy." },
-    UNKNOWN_ERROR: { label: "Unexpected pipeline error", action: "Check AI Traces for details. If the issue persists, contact support." },
+const FAILURE_RECOVERY_STEPS: Record<string, { label: string; action: string; href: string | null }> = {
+    DNS_RECORD_MISSING: { label: "DNS records missing or invalid", action: "Fix SPF, DKIM, and DMARC records in your domain settings, then re-verify before relaunching.", href: "/dashboard/domains" },
+    CREDENTIALS_EXPIRED: { label: "Mailbox credentials expired", action: "Re-authenticate your sending mailbox in Settings → Mailboxes, then relaunch.", href: "/dashboard/mailboxes" },
+    LINKEDIN_AUTH_FAILED: { label: "LinkedIn session expired", action: "Re-connect your LinkedIn account in Settings → LinkedIn, then relaunch.", href: "/dashboard/linkedin" },
+    API_LIMIT_REACHED: { label: "API rate limit hit", action: "The AI agent hit a rate limit. Wait a few minutes, then relaunch — it will retry automatically.", href: null },
+    NO_SENDER_CONFIGURED: { label: "No sender configured", action: "Assign a Sender Domain and Sender Mailbox in campaign settings before relaunching.", href: null },
+    COMPLIANCE_BLOCKED: { label: "Email copy blocked by compliance", action: "Review your ICP description and messaging guidelines in campaign settings, then relaunch to regenerate copy.", href: null },
+    PIPELINE_TIMEOUT: { label: "Pipeline timed out", action: "The AI agent timed out after 30 minutes. Relaunch — it will resume from where it stopped.", href: null },
+    NO_LEADS: { label: "No leads in campaign", action: "Add at least one lead to the campaign before launching.", href: null },
+    NO_SEQUENCE: { label: "No email sequence steps", action: "Add at least one email sequence step in the Sequence tab before launching.", href: null },
+    UNKNOWN_ERROR: { label: "Unexpected pipeline error", action: "Check AI Traces for details. If the issue persists, contact support.", href: "/dashboard/traces" },
 };
 
 function formatRelativeTime(iso: string): string {
@@ -188,46 +179,62 @@ function formatRelativeTime(iso: string): string {
     return new Date(iso).toLocaleDateString();
 }
 
-function FailedCampaignBanner({ message, onEdit }: { message: string | null; onEdit: () => void }) {
+function FailedCampaignBanner({
+    message,
+    errorCode: passedErrorCode,
+    onEdit,
+}: {
+    message: string | null;
+    errorCode?: string | null;
+    onEdit: () => void;
+}) {
     const [dismissed, setDismissed] = useState(false);
     if (dismissed) return null;
 
     const codeMatch = message?.match(/^\[([A-Z_]+)\]/);
-    const isQuotaError = !codeMatch && !!message && (message.includes("429") || message.includes("quota") || message.includes("Too Many Requests") || message.includes("RESOURCE_EXHAUSTED"));
-    const code = codeMatch?.[1] ?? (isQuotaError ? "API_LIMIT_REACHED" : "UNKNOWN_ERROR");
+    const code = passedErrorCode ?? codeMatch?.[1] ?? "UNKNOWN_ERROR";
     const recovery = FAILURE_RECOVERY_STEPS[code] ?? FAILURE_RECOVERY_STEPS["UNKNOWN_ERROR"];
+    const ctaHref = recovery.href;
 
     return (
-        <div className="flex-shrink-0 flex items-center gap-3 px-5 py-2 bg-[var(--red-glow)] border-b border-[var(--border-red)]" role="alert" aria-live="polite">
-            <div className="w-4 h-4 rounded-full bg-[var(--red)]/10 border border-[var(--red)]/30 flex items-center justify-center flex-shrink-0">
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[var(--red)]" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-            </div>
-            <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                <p className="text-xs font-semibold text-[var(--red)] whitespace-nowrap">
-                    Campaign failed: {recovery.label}
-                </p>
-                <p className="text-[10px] text-[var(--text-muted)] truncate">
-                    {recovery.action}
-                </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                    onClick={onEdit}
-                    className="text-[10px] font-medium px-2.5 py-1 rounded-lg border border-[var(--border-red)] text-[var(--red)] hover:bg-[var(--red)]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
-                >
-                    Open Settings
-                </button>
-                <button
-                    onClick={() => setDismissed(true)}
-                    aria-label="Dismiss banner"
-                    className="w-5 h-5 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none"
-                >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                </button>
+        <div className="flex-shrink-0 px-5 py-3 bg-[var(--red-glow)] border-b border-[var(--border-red)]" role="alert" aria-live="polite">
+            <div className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-[var(--red)]/10 border border-[var(--red)]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[var(--red-text)]" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[9px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded bg-[var(--red)]/15 text-[var(--red-text)] border border-[var(--red)]/20 font-mono">{code}</span>
+                        <p className="text-xs font-semibold text-[var(--red-text)]">{recovery.label}</p>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-relaxed">{recovery.action}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    {ctaHref ? (
+                        <a
+                            href={ctaHref}
+                            className="text-[10px] font-semibold px-2.5 py-1 rounded-lg border border-[var(--border-red)] text-[var(--red-text)] hover:bg-[var(--red)]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                        >
+                            Fix Now
+                        </a>
+                    ) : (
+                        <button
+                            onClick={onEdit}
+                            className="text-[10px] font-semibold px-2.5 py-1 rounded-lg border border-[var(--border-red)] text-[var(--red-text)] hover:bg-[var(--red)]/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]"
+                        >
+                            Open Settings
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setDismissed(true)}
+                        aria-label="Dismiss banner"
+                        className="w-5 h-5 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none"
+                    >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -297,20 +304,34 @@ async function apiRequest(url: string, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
-        return await fetch(url, { ...init, signal: controller.signal });
+        return await fetch(url, { credentials: "include", ...init, signal: init?.signal ?? controller.signal });
     } finally {
         clearTimeout(timeout);
     }
 }
+
+const SSE_ACTIVE_STATUSES = new Set([
+    "QUEUED",
+    "RESEARCHING",
+    "GENERATING",
+    "REVIEW",
+    "SENDING",
+]);
+
+const INITIAL_FETCH_TIMEOUT_MS = 10_000;
+const POLL_MAX_CONSECUTIVE_FAILURES = 5;
 
 function CampaignDetailPageInner() {
     const params = useParams();
     const id = typeof params.id === "string" ? params.id : "";
 
     const [campaign, setCampaign] = useState<Campaign | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [initialLoading, setInitialLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
+    const [guidedModal, setGuidedModal] = useState<{ open: boolean; error?: string } | null>(null);
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const router = useRouter();
@@ -356,60 +377,106 @@ function CampaignDetailPageInner() {
         });
     }
 
-    const mounted = useRef(true);
+    const mounted = useRef(false);
+    const initialLoadCompleteRef = useRef(false);
+
     useEffect(() => {
+        mounted.current = true;
         return () => {
             mounted.current = false;
         };
     }, []);
 
-    const fetchCampaign = useCallback(async (signal?: AbortSignal) => {
-        if (mounted.current) setLoading(true);
+    const fetchCampaignStats = useCallback(async (campaignId: string, signal?: AbortSignal) => {
         try {
-            const [res, statsRes] = await Promise.all([
-                fetch(`/api/campaigns/${id}`, { cache: "no-store", signal }),
-                fetch(`/api/campaigns/${id}/pipeline-stats`, { cache: "no-store", signal }).catch(() => null),
-            ]);
+            const statsRes = await apiRequest(`/api/campaigns/${campaignId}/pipeline-stats`, { cache: "no-store", signal });
+            if (!statsRes.ok) return null;
+            return await statsRes.json().catch(() => null);
+        } catch {
+            return null;
+        }
+    }, []);
+
+    const fetchCampaign = useCallback(async (signal?: AbortSignal): Promise<boolean> => {
+        const isInitial = !initialLoadCompleteRef.current;
+
+        if (isInitial) {
+            if (mounted.current) setInitialLoading(true);
+        } else {
+            if (mounted.current) setRefreshing(true);
+        }
+
+        try {
+            const res = await apiRequest(`/api/campaigns/${id}`, { cache: "no-store", signal });
+
             if (res.status === 404) {
-                if (mounted.current) {
-                    setError("Campaign not found.");
-                    setLoading(false);
-                }
-                return;
+                if (mounted.current) setError("Campaign not found.");
+                return false;
             }
             if (!res.ok) throw new Error(`Server error ${res.status}`);
+
             const raw = await res.json() as Campaign & { queueJobs?: { errorMessage: string | null }[] };
-            const stats = statsRes?.ok ? await statsRes.json().catch(() => null) : null;
             const data: Campaign = {
                 ...raw,
                 lastFailureMessage: raw.queueJobs?.[0]?.errorMessage ?? null,
-                _count: {
-                    leads: typeof stats?.leadsTotal === "number" ? stats.leadsTotal : (raw._count?.leads ?? 0),
-                },
+                _count: raw._count ?? { leads: 0 },
             };
+
             if (mounted.current) {
                 setError(null);
                 setCampaign(data);
             }
+
+            void fetchCampaignStats(data.id, signal).then((stats) => {
+                if (!mounted.current || !stats) return;
+                setCampaign((prev) => prev ? {
+                    ...prev,
+                    _count: {
+                        leads: typeof stats.leadsTotal === "number" ? stats.leadsTotal : (prev._count?.leads ?? 0),
+                    },
+                } : prev);
+            });
+
+            return true;
         } catch (err) {
-            if (err instanceof DOMException && err.name === "AbortError") return;
-            if (mounted.current) {
-                setError(err instanceof Error ? err.message : "Failed to load campaign.");
+            if (err instanceof DOMException && err.name === "AbortError") return false;
+
+            const message = err instanceof Error ? err.message : "Failed to load campaign.";
+
+            if (!initialLoadCompleteRef.current) {
+                setError(message);
+            } else if (mounted.current) {
+                setActionError(`Refresh failed: ${message}`);
             }
+            return false;
         } finally {
-            if (mounted.current) setLoading(false);
+            initialLoadCompleteRef.current = true;
+            setInitialLoadComplete(true);
+            setInitialLoading(false);
+            setRefreshing(false);
         }
-    }, [id]);
+    }, [id, fetchCampaignStats]);
 
     useEffect(() => {
         if (!id) {
             setError("Invalid campaign ID.");
-            setLoading(false);
+            setInitialLoading(false);
             return;
         }
+
+        initialLoadCompleteRef.current = false;
+        setInitialLoading(true);
+        setError(null);
+
         const controller = new AbortController();
-        fetchCampaign(controller.signal);
-        return () => controller.abort();
+        const timeout = setTimeout(() => controller.abort(), INITIAL_FETCH_TIMEOUT_MS);
+
+        fetchCampaign(controller.signal).finally(() => clearTimeout(timeout));
+
+        return () => {
+            clearTimeout(timeout);
+            controller.abort();
+        };
     }, [fetchCampaign, id]);
 
     useEffect(() => {
@@ -419,10 +486,22 @@ function CampaignDetailPageInner() {
         let cancelled = false;
         const poll = async () => {
             let interval = 5_000;
+            let consecutiveFailures = 0;
+
             while (!cancelled) {
-                await fetchCampaign();
                 await new Promise<void>((resolve) => setTimeout(resolve, interval));
-                interval = Math.min(Math.floor(interval * 1.4), 30_000);
+                if (cancelled) break;
+
+                const success = await fetchCampaign();
+
+                if (success) {
+                    consecutiveFailures = 0;
+                    interval = 5_000;
+                } else {
+                    consecutiveFailures++;
+                    interval = Math.min(Math.floor(interval * 1.5), 30_000);
+                    if (consecutiveFailures >= POLL_MAX_CONSECUTIVE_FAILURES) break;
+                }
             }
         };
         void poll();
@@ -431,35 +510,28 @@ function CampaignDetailPageInner() {
         };
     }, [campaign?.status, fetchCampaign]);
 
+    const sseEnabled = !!(campaign && SSE_ACTIVE_STATUSES.has(campaign.status));
+    const eventsCtx = useCampaignEventsContext();
+
     useEffect(() => {
-        const isActive = campaign && POLLING_STATUSES.includes(campaign.status as typeof POLLING_STATUSES[number]);
-        if (!isActive || !id) return;
+        if (!sseEnabled || !id || !eventsCtx) return;
 
         setLiveEvents([]);
         setLiveLeadCount(null);
 
-        const es = new EventSource("/api/campaigns/events");
-
-        es.onmessage = (e) => {
-            try {
-                const event: CampaignSSEEvent = JSON.parse(e.data);
-                if (event.campaignId !== id) return;
-                if (event.type === "progress" || event.type === "active") {
-                    setLiveEvents((prev) => [event, ...prev].slice(0, LIVE_EVENT_CAP));
-                    if (typeof event.count === "number" && event.count > 0) {
-                        setLiveLeadCount(event.count);
-                    }
-                } else if (event.type === "completed" || event.type === "failed") {
-                    setLiveLeadCount(null);
-                    setLiveEvents([]);
+        return eventsCtx.subscribe((event) => {
+            if (event.campaignId !== id) return;
+            if (event.type === "progress" || event.type === "active" || event.type === "lead") {
+                setLiveEvents((prev) => [event, ...prev].slice(0, LIVE_EVENT_CAP));
+                if (typeof event.count === "number" && event.count > 0) {
+                    setLiveLeadCount(event.count);
                 }
-            } catch {}
-        };
-
-        es.onerror = () => es.close();
-
-        return () => es.close();
-    }, [campaign?.status, id]);
+            } else if (event.type === "completed" || event.type === "failed") {
+                setLiveLeadCount(null);
+                setLiveEvents([]);
+            }
+        });
+    }, [sseEnabled, id, eventsCtx]);
 
     async function handlePause() {
         if (!campaign || isPausing || isActioning) return;
@@ -486,15 +558,37 @@ function CampaignDetailPageInner() {
         setActionError(null);
         setIsActioning(true);
         try {
+            const preflightRes = await apiRequest(`/api/campaigns/${campaign.id}/preflight`, { method: "GET" });
+            if (preflightRes.ok) {
+                const preflight = await preflightRes.json().catch(() => null);
+                if (preflight && !preflight.ready) {
+                    const issues: string[] = [];
+                    if (!preflight.checks?.leads?.valid) issues.push(`No leads (${preflight.checks?.leads?.count ?? 0} found)`);
+                    if (!preflight.checks?.sequence?.valid) issues.push(`No sequence steps configured`);
+                    if (!preflight.checks?.sender?.configured) issues.push(`No sender configured`);
+                    else if (!preflight.checks?.sender?.valid) issues.push(`Sender is not healthy`);
+                    if (preflight.checks?.sender?.configured && !preflight.checks?.dns?.valid) {
+                        const missing = [!preflight.checks.dns.spf && "SPF", !preflight.checks.dns.dkim && "DKIM", !preflight.checks.dns.dmarc && "DMARC"].filter(Boolean).join(", ");
+                        issues.push(`DNS records missing or invalid (${missing})`);
+                    }
+                    const errorMsg = issues.join(" · ");
+                    setActionError(errorMsg);
+                    setGuidedModal({ open: true, error: `[NO_SENDER_CONFIGURED] ${errorMsg}` });
+                    return;
+                }
+            }
             const res = await apiRequest(`/api/campaigns/${campaign.id}/run`, { method: "POST" });
             if (!res.ok) {
                 const body = await res.json().catch(() => null);
-                throw new Error(body?.error ?? `Request failed (${res.status})`);
+                const errorMsg = body?.error ?? `Request failed (${res.status})`;
+                throw new Error(errorMsg);
             }
             await fetchCampaign();
         } catch (err) {
             if (mounted.current) {
-                setActionError(err instanceof Error ? err.message : "Failed to start campaign.");
+                const errorMsg = err instanceof Error ? err.message : "Failed to start campaign.";
+                setActionError(errorMsg);
+                setGuidedModal({ open: true, error: errorMsg });
             }
         } finally {
             if (mounted.current) setIsActioning(false);
@@ -565,11 +659,11 @@ function CampaignDetailPageInner() {
         return items;
     }, [campaign, leadsCount]);
 
-    if (loading) {
+    if (initialLoading) {
         return (
             <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-3">
-                    <svg className="animate-spin text-[var(--red)]" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="animate-spin text-[var(--red-text)]" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
                     <p className="text-sm text-[var(--text-muted)]">Loading campaign…</p>
@@ -583,13 +677,15 @@ function CampaignDetailPageInner() {
             <div className="flex items-center justify-center h-full">
                 <div className="text-center space-y-3">
                     <p className="text-sm font-medium text-[var(--text-secondary)]">{error ?? "Campaign not found."}</p>
-                    <Link href="/dashboard/campaigns" className="text-xs text-[var(--red)] hover:underline">
+                    <Link href="/dashboard/campaigns" className="text-xs text-[var(--red-text)] hover:underline">
                         ← Back to Campaigns
                     </Link>
                 </div>
             </div>
         );
     }
+
+
 
     const canPause = PAUSABLE_STATUSES.includes(campaign.status as typeof PAUSABLE_STATUSES[number]);
     const canRun = campaign.status === "DRAFT" || campaign.status === "FAILED";
@@ -733,6 +829,7 @@ function CampaignDetailPageInner() {
             {campaign.status === "FAILED" && (
                 <FailedCampaignBanner
                     message={campaign.lastFailureMessage}
+                    errorCode={((campaign as any).queueJobs?.[0]?.result as any)?.errorClass}
                     onEdit={() => router.push(`/dashboard/campaigns/${id}/edit`)}
                 />
             )}
@@ -852,14 +949,14 @@ function CampaignDetailPageInner() {
                             "inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-150",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] focus-visible:ring-inset",
                             activeTab === tab.id
-                                ? "border-[var(--red)] text-[var(--red)]"
+                                ? "border-[var(--red)] text-[var(--red-text)]"
                                 : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border)]",
                         ].join(" ")}
                     >
                         <span aria-hidden="true">{tab.icon}</span>
                         {tab.label}
                         {tab.id === "leads" && leadsCount > 0 && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? "bg-[var(--red)]/15 text-[var(--red)]" : "bg-[var(--surface-2)] text-[var(--text-muted)]"}`}>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? "bg-[var(--red)]/15 text-[var(--red-text)]" : "bg-[var(--surface-2)] text-[var(--text-muted)]"}`}>
                                 {leadsCount.toLocaleString()}
                             </span>
                         )}
@@ -868,34 +965,49 @@ function CampaignDetailPageInner() {
             </nav>
 
             <div className="flex-1 overflow-hidden">
-                <div role="tabpanel" id="panel-pipeline" aria-labelledby="tab-pipeline" hidden={activeTab !== "pipeline"} className="h-full overflow-y-auto">
-                    {activeTab === "pipeline" && (
-                        <PipelineTab key={statsRevision} campaignId={campaign.id} status={campaign.status} liveEvents={liveEvents} />
-                    )}
-                </div>
-                <div role="tabpanel" id="panel-leads" aria-labelledby="tab-leads" hidden={activeTab !== "leads"} className="h-full overflow-hidden">
-                    {activeTab === "leads" && <LeadsTab campaignId={campaign.id} campaign={campaign} />}
-                </div>
-                <div role="tabpanel" id="panel-messages" aria-labelledby="tab-messages" hidden={activeTab !== "messages"} className="h-full overflow-hidden">
-                    {activeTab === "messages" && <MessagesTab campaignId={campaign.id} onSendComplete={() => setStatsRevision((r) => r + 1)} />}
-                </div>
-                <div role="tabpanel" id="panel-deliverability" aria-labelledby="tab-deliverability" hidden={activeTab !== "deliverability"} className="h-full overflow-y-auto">
-                    {activeTab === "deliverability" && <DeliverabilityTab key={statsRevision} campaignId={campaign.id} />}
-                </div>
-                <div role="tabpanel" id="panel-discovery" aria-labelledby="tab-discovery" hidden={activeTab !== "discovery"} className="h-full overflow-y-auto">
-                    {activeTab === "discovery" && (
-                        <div className="px-6 py-6">
-                            <DiscoveryRunsPanel campaignId={campaign.id} />
-                        </div>
-                    )}
-                </div>
-                <div role="tabpanel" id="panel-signals" aria-labelledby="tab-signals" hidden={activeTab !== "signals"} className="h-full overflow-hidden">
-                    {activeTab === "signals" && <SignalsTab campaignId={campaign.id} />}
-                </div>
-                <div role="tabpanel" id="panel-sequence" aria-labelledby="tab-sequence" hidden={activeTab !== "sequence"} className="h-full overflow-y-auto">
-                    {activeTab === "sequence" && <SequenceTab campaignId={campaign.id} />}
-                </div>
+                <Suspense fallback={
+                    <div className="flex items-center justify-center h-48 text-xs text-[var(--text-muted)] gap-2">
+                        <svg className="animate-spin text-[var(--red-text)]" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+                        Loading tab data…
+                    </div>
+                }>
+                    <div role="tabpanel" id="panel-pipeline" aria-labelledby="tab-pipeline" hidden={activeTab !== "pipeline"} className="h-full overflow-y-auto">
+                        {activeTab === "pipeline" && (
+                            <PipelineTabLazy key={statsRevision} campaignId={campaign.id} status={campaign.status} liveEvents={liveEvents} />
+                        )}
+                    </div>
+                    <div role="tabpanel" id="panel-leads" aria-labelledby="tab-leads" hidden={activeTab !== "leads"} className="h-full overflow-hidden">
+                        {activeTab === "leads" && <LeadsTabLazy campaignId={campaign.id} campaign={campaign} />}
+                    </div>
+                    <div role="tabpanel" id="panel-messages" aria-labelledby="tab-messages" hidden={activeTab !== "messages"} className="h-full overflow-hidden">
+                        {activeTab === "messages" && <MessagesTabLazy campaignId={campaign.id} onSendComplete={() => setStatsRevision((r) => r + 1)} />}
+                    </div>
+                    <div role="tabpanel" id="panel-deliverability" aria-labelledby="tab-deliverability" hidden={activeTab !== "deliverability"} className="h-full overflow-y-auto">
+                        {activeTab === "deliverability" && <DeliverabilityTabLazy key={statsRevision} campaignId={campaign.id} />}
+                    </div>
+                    <div role="tabpanel" id="panel-discovery" aria-labelledby="tab-discovery" hidden={activeTab !== "discovery"} className="h-full overflow-y-auto">
+                        {activeTab === "discovery" && (
+                            <div className="px-6 py-6">
+                                <DiscoveryRunsPanelLazy campaignId={campaign.id} />
+                            </div>
+                        )}
+                    </div>
+                    <div role="tabpanel" id="panel-signals" aria-labelledby="tab-signals" hidden={activeTab !== "signals"} className="h-full overflow-hidden">
+                        {activeTab === "signals" && <SignalsTabLazy campaignId={campaign.id} />}
+                    </div>
+                    <div role="tabpanel" id="panel-sequence" aria-labelledby="tab-sequence" hidden={activeTab !== "sequence"} className="h-full overflow-y-auto">
+                        {activeTab === "sequence" && <SequenceTabLazy campaignId={campaign.id} />}
+                    </div>
+                </Suspense>
             </div>
+
+            <SenderRequiredModal
+                open={!!guidedModal?.open}
+                campaignId={campaign.id}
+                campaignName={campaign.name}
+                errorMessage={guidedModal?.error}
+                onClose={() => setGuidedModal(null)}
+            />
         </div>
     );
 }
@@ -905,7 +1017,7 @@ export default function CampaignDetailPage() {
         <Suspense fallback={
             <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-3">
-                    <svg className="animate-spin text-[var(--red)]" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="animate-spin text-[var(--red-text)]" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
                     <p className="text-sm text-[var(--text-muted)]">Loading campaign…</p>

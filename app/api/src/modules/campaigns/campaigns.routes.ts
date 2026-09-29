@@ -6,6 +6,7 @@ import {
   getCampaignDiscoveryRuns, getCampaignSignals,
   getPipelineStats, runCampaign, pauseCampaign, resumeCampaign,
   listSequenceSteps, createSequenceStep, updateSequenceStep, deleteSequenceStep,
+  getCampaignPreflight, getCampaignConvergence,
 } from "./campaigns.controller";
 
 const router = Router();
@@ -15,6 +16,9 @@ router.use(authMiddleware);
 router.post("/", createCampaign);
 router.get("/", getCampaigns);
 router.get("/:id", getCampaignById);
+router.get("/:id/preflight", getCampaignPreflight);
+router.get("/:id/convergence", getCampaignConvergence);
+
 router.get("/:id/narrative", getNarrativeStats);
 router.get("/:id/pipeline-stats", getPipelineStats);
 router.post("/:id/run", runCampaign);

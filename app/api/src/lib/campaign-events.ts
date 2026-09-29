@@ -2,12 +2,16 @@ import { EventEmitter } from "events";
 
 export interface CampaignEvent {
     campaignId: string;
-    type: "active" | "progress" | "completed" | "failed";
+    type: "active" | "progress" | "completed" | "failed" | "lead";
     jobName: string;
     label: string;
     progress?: number;
     detail?: string;
     count?: number;
+    /** For type=="lead": the recipient email address */
+    email?: string;
+    /** For type=="lead": "sending" | "sent" | "failed" */
+    leadStatus?: "sending" | "sent" | "failed";
     timestamp: string;
 }
 
@@ -59,6 +63,17 @@ const JOB_LABELS: Record<string, string> = {
     "daily-campaign-health-check": "Health Check",
     "daily-warmup-update": "Warmup Update",
     "handle-objections": "Objection Handler",
+    "reconcile-operations": "Op Reconciliation",
+    "reconcile-send-intents": "Send Reconciliation",
+    "reconcile-quota": "Quota Reconciliation",
+    "reconcile-message-claims": "Claim Reconciliation",
+    "reconcile-outbox": "Outbox Reconciliation",
+    "sweep-stale-leases": "Stale Lease Recovery",
+    "sweep-unknown-intents": "UNKNOWN Reconciliation",
+    "handle-send-intent-sent": "Intent Sent Handler",
+    "handle-send-intent-failed": "Intent Failed Handler",
+    "handle-send-intent-human-review": "Human Review Alert",
+    "handle-outbox-event": "Outbox Event Handler",
 };
 
 export function getJobLabel(jobName: string): string {
