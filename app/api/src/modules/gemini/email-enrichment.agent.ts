@@ -21,7 +21,7 @@ import { populateTechSignals } from "./discoveryLib/builtWith";
 import { emitCampaignEvent } from "../../lib/campaign-events";
 import { assertPublicHttpUrl } from "../../lib/url-safety";
 import { redis } from "../../lib/ioredis";
-import { recordEnrichmentCost, isCampaignBudgetExhausted } from "./enrichment-cost.service";
+import { recordEnrichmentCost, isCampaignBudgetExhausted } from "../leads/enrichment-cost.service";
 
 const APOLLO_RETRY_BASE_MS = 2_000;
 const APOLLO_REVEAL_MAX_RETRIES = 2;

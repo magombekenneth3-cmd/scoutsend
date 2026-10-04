@@ -172,7 +172,8 @@ export async function runMultiSourceDiscoveryAgent(campaignId: string): Promise<
             .map(apolloPersonToDiscoveredLead)
             .filter((l): l is DiscoveredLead => l !== null);
 
-        const geminiLeads = apolloLeads.length === 0
+        const MIN_APOLLO_YIELD = 5;
+        const geminiLeads = apolloLeads.length < MIN_APOLLO_YIELD
             ? await runGeminiCompanyFallback({ icpDescription: campaign.icpDescription, industry, region })
             : [];
 

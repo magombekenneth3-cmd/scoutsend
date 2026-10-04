@@ -139,7 +139,7 @@ export function TopBar({ title, subtitle, breadcrumbs, actions, campaignBadge }:
         return (
             <header className="flex flex-col justify-between h-[96px] bg-[var(--navy-mid)] border-b border-[var(--border)] flex-shrink-0 overflow-hidden">
                 {/* Top deck: Titles & Actions */}
-                <div className="flex items-center justify-between px-6 pt-3.5 pb-1 flex-1 min-w-0">
+                <div className="flex items-center justify-between pl-14 lg:pl-6 pr-6 pt-3.5 pb-1 flex-1 min-w-0">
                     <div className="min-w-0">
                         <h1 className="text-sm font-semibold font-display text-[var(--text-primary)] leading-none truncate">
                             Settings
@@ -156,7 +156,7 @@ export function TopBar({ title, subtitle, breadcrumbs, actions, campaignBadge }:
                 </div>
 
                 {/* Bottom deck: Navigation Tabs */}
-                <div className="px-6 border-t border-[var(--border)]/30 flex-shrink-0">
+                <div className="pl-14 lg:pl-6 pr-6 border-t border-[var(--border)]/30 flex-shrink-0">
                     <div className="flex items-center gap-5 overflow-x-auto no-scrollbar h-9">
                         {visibleTabs.map((tab) => {
                             const active = pathname === tab.href || pathname.startsWith(tab.href + "/");
@@ -187,7 +187,7 @@ export function TopBar({ title, subtitle, breadcrumbs, actions, campaignBadge }:
     }
 
     return (
-        <header className="flex items-center justify-between h-16 px-6 border-b border-[var(--border)] bg-[var(--navy-mid)] flex-shrink-0">
+        <header className="flex items-center justify-between h-16 pl-14 lg:pl-6 pr-6 border-b border-[var(--border)] bg-[var(--navy-mid)] flex-shrink-0">
             <div className="flex items-center gap-3 min-w-0">
                 <div className="min-w-0">
                     {breadcrumbs && breadcrumbs.length > 0 && (

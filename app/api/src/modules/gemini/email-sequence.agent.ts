@@ -6,6 +6,7 @@ import { auditMessage } from "./compliance.agent";
 import { logAudit } from "../audit/audit.service";
 import { AUDIT_EVENTS, CROSS_SYSTEM_SEND_COORDINATION_GUARD_HOURS } from "../../lib/constants";
 import { logLeadJourneyEvent } from "../../lib/leads/lead-journey.service";
+import { sanitizePlaceholderTokens } from "./generate.agent";
 
 const MAX_BATCH = 30;
 const PERSONALIZATION_CONCURRENCY = 5;
@@ -416,7 +417,14 @@ Rewrite the email to feel personal and relevant to this specific recipient while
         throw new Error("Personalization response failed shape validation");
     }
 
-    return parsed;
+    const sanitizedSubject = sanitizePlaceholderTokens(parsed.subject, lead.firstName ?? "", lead.companyName);
+    const sanitizedBody = sanitizePlaceholderTokens(parsed.body, lead.firstName ?? "", lead.companyName);
+
+    return {
+        ...parsed,
+        subject: sanitizedSubject,
+        body: sanitizedBody,
+    };
 }
 
 async function scheduleNextEmailStep(

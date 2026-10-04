@@ -283,20 +283,32 @@ function computeGenerationHeuristicScore(
     return { score, bannedPhraseCount, spamRiskScore };
 }
 
-function sanitizePlaceholderTokens(text: string, firstName: string, companyName: string): string {
-    if (!text) return text;
-    const safeFirstName = (firstName && firstName !== "null" && firstName !== "undefined" && firstName.trim())
-        ? firstName.trim()
-        : "there";
-    const safeCompanyName = (companyName && companyName !== "null" && companyName !== "undefined" && companyName.trim())
-        ? companyName.trim()
-        : "your team";
+export function isInvalidNameValue(val: string | null | undefined): boolean {
+    if (!val) return true;
+    const norm = val.trim().toLowerCase();
+    return !norm || ["null", "undefined", "none", "n/a", "unknown", "null null", "undefined undefined"].includes(norm);
+}
 
-    return text
-        .replace(/\[(?:First\s*Name|firstName|FirstName|name)\]/gi, safeFirstName)
-        .replace(/\[(?:Company\s*Name|companyName|CompanyName|company)\]/gi, safeCompanyName)
-        .replace(/\b(Hi|Hello|Hey)\s+(null|undefined)\b/gi, `$1 ${safeFirstName}`)
-        .replace(/\b(null|undefined)\b/gi, safeFirstName);
+export function sanitizePlaceholderTokens(text: string, firstName: string, companyName: string): string {
+    if (!text) return text;
+    const hasValidFirstName = !isInvalidNameValue(firstName);
+    const safeFirstName = hasValidFirstName ? firstName.trim() : "";
+    const safeCompanyName = !isInvalidNameValue(companyName) ? companyName.trim() : "your team";
+
+    const FIRST_NAME_RE = /\[\s*(?:lead\s*)?(?:first\s*name|firstName|FirstName|name)\s*\]|\{\{\s*(?:lead\s*)?(?:first\s*name|firstName|FirstName|name)\s*\}\}|\{\s*(?:lead\s*)?(?:first\s*name|firstName|FirstName|name)\s*\}|%FIRSTNAME%|\[\[(?:first\s*name|firstName)\]\]/gi;
+    const COMPANY_NAME_RE = /\[\s*(?:company\s*name|companyName|CompanyName|company)\s*\]|\{\{\s*(?:company\s*name|companyName|CompanyName|company)\s*\}\}|\{\s*(?:company\s*name|companyName|CompanyName|company)\s*\}|%COMPANYNAME%|\[\[(?:company\s*name|companyName)\]\]/gi;
+
+    let sanitized = text
+        .replace(FIRST_NAME_RE, safeFirstName || "there")
+        .replace(COMPANY_NAME_RE, safeCompanyName)
+        .replace(/\b(Hi|Hello|Hey|Dear)\s+(null|undefined|none|n\/a|unknown)\b/gi, safeFirstName ? `$1 ${safeFirstName}` : "$1")
+        .replace(/\b(null|undefined|none|n\/a|unknown)\b/gi, safeFirstName || "there");
+
+    if (!hasValidFirstName) {
+        sanitized = sanitized.replace(/\b(Hi|Hello|Hey|Dear)\s+there\b/gi, "$1");
+    }
+
+    return sanitized.replace(/\s+([,.!?])/g, "$1");
 }
 
 function normalizeGenerated(

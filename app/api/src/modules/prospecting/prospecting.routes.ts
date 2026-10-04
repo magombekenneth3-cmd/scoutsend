@@ -550,7 +550,11 @@ async function predictEmailWithGemini(
     }
   } catch { }
 
-  return patterns[0] || null;
+  if (patterns[0] && (await verifyMxRecord(domain))) {
+    return patterns[0];
+  }
+
+  return null;
 }
 
 async function revealApolloEmail(

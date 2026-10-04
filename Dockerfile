@@ -6,7 +6,7 @@ RUN corepack enable && pnpm install --frozen-lockfile
 
 COPY . .
 RUN npx prisma generate
-RUN pnpm build
+RUN pnpm build:all
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -20,9 +20,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/app/api ./app/api
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000 8080
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["sh", "-c", "node_modules/.bin/next start & node_modules/.bin/tsx app/api/src/index.ts"]
+CMD ["node", "dist/index.js"]

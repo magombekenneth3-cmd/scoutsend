@@ -6,16 +6,7 @@ RUN corepack enable && pnpm install --frozen-lockfile
 
 COPY . .
 RUN npx prisma generate
-RUN node_modules/.bin/tsx --tsconfig tsconfig.json app/api/src/worker.ts --version 2>/dev/null || true
-RUN node_modules/.bin/esbuild app/api/src/worker.ts \
-    --bundle \
-    --platform=node \
-    --target=node20 \
-    --external:@prisma/client \
-    --external:prisma \
-    --external:ioredis \
-    --external:bullmq \
-    --outfile=dist/worker.js
+RUN pnpm build:worker
 
 FROM node:20-alpine AS runner
 WORKDIR /app

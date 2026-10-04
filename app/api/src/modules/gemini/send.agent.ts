@@ -678,7 +678,7 @@ export function resolveLeadTimezone(
     if (tldTz) return tldTz;
   }
   if (fallbackTimezone && fallbackTimezone.trim().length > 0) return fallbackTimezone;
-  return null;
+  return "America/New_York";
 }
 
 export function isLeadInSendWindow(

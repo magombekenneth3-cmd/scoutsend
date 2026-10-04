@@ -15,7 +15,7 @@
 import { prisma } from "../../lib/prisma";
 import { logger } from "../../lib/logger";
 import { computeWarmupDecision } from "../../lib/warmup/warmup-policy.engine.js";
-import { applyWarmupDecision } from "./warmup-apply.service";
+import { applyWarmupDecision } from "../Deliverybilityevents/warmup-apply.service";
 import type {
   WarmupPolicyInput,
   WarmupMetrics,
@@ -24,7 +24,7 @@ import type {
   PlacementProviderPolicy,
   SenderProviderPolicy,
 } from "../../lib/warmup/warmup-types.js";
-import type { WarmupModelType } from "./warmup-apply.service";
+import type { WarmupModelType } from "../Deliverybilityevents/warmup-apply.service";
 
 // ─── Default Policies (will be per-provider configurable later) ──────────────
 

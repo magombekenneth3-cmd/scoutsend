@@ -13,6 +13,7 @@ import {
     summarizeLeadJourney,
 } from "../../lib/leads/lead-journey.service";
 import { CROSS_SYSTEM_SEND_COORDINATION_GUARD_HOURS } from "../../lib/constants";
+import { sanitizePlaceholderTokens } from "./generate.agent";
 
 type FollowUpStrategy =
     | "subject_rework"
@@ -243,7 +244,7 @@ async function generateFollowUp(params: {
     const stepGuidance =
         step >= maxFollowUpSteps
             ? "a short final bump (2–3 sentences). Acknowledge this is your last reach-out. Make it easy to say no."
-            : "a brief follow-up (3–4 sentences) taking a new angle from the earlier attempts without repeating prior phrasing. One soft CTA. Close with the polite timing CTA: \"Do you have time over the next week or two to learn more? Let me know what works for you and I'll send a calendar invite along accordingly.\"";
+            : "a brief follow-up (3–4 sentences) taking a new angle from the earlier attempts without repeating prior phrasing. One soft CTA. Close with a single low-friction binary CTA question (e.g. \"Worth a short exchange on this?\" or \"Open to exploring this?\").";
 
     const engagementInstruction =
         engagementSignal === "OPENED"
@@ -270,7 +271,7 @@ Rules:
 - Tone: peer-to-peer, warm, direct
 - Never include any URL
 - Never include a calendar scheduling link
-- Close with the polite timing formula: "Do you have time over the next week or two to learn more? Let me know what works for you and I'll send a calendar invite along accordingly."
+- Close with a single low-friction binary CTA question. Never ask for a calendar invite or specific times.
 
 ENGAGEMENT CONTEXT:
 ${engagementInstruction}
@@ -321,16 +322,14 @@ ${truncateForPrompt(originalBody, MAX_ORIGINAL_BODY_CHARS)}${freshSignalsBlock}$
         );
     }
 
+    const rawSubject = normalizeGeneratedText(followUp.subject, MAX_SUBJECT_CHARS);
+    const rawSubjectVariant = normalizeGeneratedText(followUp.subjectVariant, MAX_SUBJECT_CHARS);
+    const rawBody = normalizeGeneratedText(followUp.body, MAX_BODY_CHARS);
+
     return {
-        subject: normalizeGeneratedText(
-            followUp.subject,
-            MAX_SUBJECT_CHARS,
-        ),
-        subjectVariant: normalizeGeneratedText(
-            followUp.subjectVariant,
-            MAX_SUBJECT_CHARS,
-        ),
-        body: normalizeGeneratedText(followUp.body, MAX_BODY_CHARS),
+        subject: sanitizePlaceholderTokens(rawSubject, leadFirstName, companyName),
+        subjectVariant: sanitizePlaceholderTokens(rawSubjectVariant, leadFirstName, companyName),
+        body: sanitizePlaceholderTokens(rawBody, leadFirstName, companyName),
         strategy: normalizeStrategy(followUp.strategy),
         reason:
             typeof followUp.reason === "string"
@@ -760,16 +759,18 @@ export async function runFollowUpAgent(
                                     );
                                 }
 
+                                const fallbackRetry = new Date(
+                                    Date.now() +
+                                    OOO_FALLBACK_RETRY_DAYS *
+                                    24 *
+                                    60 *
+                                    60 *
+                                    1000,
+                                );
                                 nextRetryAt =
-                                    resolved ??
-                                    new Date(
-                                        Date.now() +
-                                        OOO_FALLBACK_RETRY_DAYS *
-                                        24 *
-                                        60 *
-                                        60 *
-                                        1000,
-                                    );
+                                    (resolved && resolved > new Date())
+                                        ? resolved
+                                        : fallbackRetry;
 
                                 await prisma.reply.update({
                                     where: {
